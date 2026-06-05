@@ -10,6 +10,7 @@ from evaluation_harness.baseline_outline import (
     run_baseline_outline,
     run_baseline_outline_batch,
 )
+from evaluation_harness.compare import compare_against_baseline, render_comparison_markdown
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -52,6 +53,11 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--wobble", type=float, default=0.04)
     batch.add_argument("--no-optimize", action="store_true")
     batch.add_argument("--no-vary-speed", action="store_true")
+
+    compare = sub.add_parser("compare", help="Compare registered experiments against a baseline")
+    compare.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
+    compare.add_argument("--baseline-generator", default="baseline-outline")
+    compare.add_argument("--output", default="comparison_report.md")
     return parser
 
 
@@ -94,6 +100,16 @@ def main() -> None:
         print(f"registered {len(records)} experiments")
         print(f"registry: {Path(args.root) / 'registry.jsonl'}")
         print(f"summary: {Path(args.root) / 'summary.md'}")
+    elif args.command == "compare":
+        registry = ExperimentRegistry(Path(args.root) / "registry.jsonl")
+        comparison = compare_against_baseline(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+        )
+        output_path = Path(args.root) / args.output
+        output_path.write_text(render_comparison_markdown(comparison), encoding="utf-8")
+        print(f"comparison_count: {comparison['comparison_count']}")
+        print(f"report: {output_path}")
 
 
 def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:

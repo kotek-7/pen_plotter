@@ -5,6 +5,7 @@ from evaluation_harness.baseline_outline import (
     run_baseline_outline,
     run_baseline_outline_batch,
 )
+from evaluation_harness.compare import compare_against_baseline, render_comparison_markdown
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -20,8 +21,10 @@ __all__ = [
     "ExperimentRegistry",
     "FAILURE_TAGS",
     "ScanMetadata",
+    "compare_against_baseline",
     "compute_trajectory_metrics",
     "render_markdown_report",
+    "render_comparison_markdown",
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "validate_scan_metadata",
