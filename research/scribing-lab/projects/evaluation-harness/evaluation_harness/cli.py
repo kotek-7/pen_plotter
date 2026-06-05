@@ -17,6 +17,12 @@ from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact
+from evaluation_harness.structure_uniform import (
+    DEFAULT_STRUCTURE_INPUTS,
+    StructureUniformConfig,
+    run_structure_uniform,
+    run_structure_uniform_batch,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -66,6 +72,24 @@ def build_parser() -> argparse.ArgumentParser:
     scan.add_argument("--experiment-id", required=True)
     scan.add_argument("--scan-path", required=True)
     scan.add_argument("--metadata-json", required=True)
+
+    structure = sub.add_parser(
+        "structure-uniform",
+        help="Run the character-dictionary structure baseline",
+    )
+    structure.add_argument("--root", default="runs/structure-uniform", help="Run output directory")
+    structure.add_argument("--experiment-id", default="exp-structure-000001")
+    structure.add_argument("--input-text", default="永")
+    structure.add_argument("--seed", type=int, default=1)
+    structure.add_argument("--profile-id", default="baseline-neat")
+
+    structure_batch = sub.add_parser(
+        "structure-uniform-batch",
+        help="Run structure-uniform for the supported dictionary input set",
+    )
+    structure_batch.add_argument("--root", default="runs/structure-uniform")
+    structure_batch.add_argument("--seeds", default="1,2,3")
+    structure_batch.add_argument("--profile-id", default="baseline-neat")
     return parser
 
 
@@ -131,6 +155,29 @@ def main() -> None:
             metadata=metadata,
         )
         print(f"attached scan: {args.experiment_id}")
+    elif args.command == "structure-uniform":
+        record = run_structure_uniform(
+            root=Path(args.root),
+            experiment_id=args.experiment_id,
+            input_text=args.input_text,
+            seed=args.seed,
+            profile_id=args.profile_id,
+            config=StructureUniformConfig(),
+        )
+        print(f"registered {record.experiment_id}")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"report: {record.artifacts['report']}")
+    elif args.command == "structure-uniform-batch":
+        records = run_structure_uniform_batch(
+            root=Path(args.root),
+            input_texts=DEFAULT_STRUCTURE_INPUTS,
+            seeds=_parse_seeds(args.seeds),
+            profile_id=args.profile_id,
+            config=StructureUniformConfig(),
+        )
+        print(f"registered {len(records)} experiments")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"summary: {Path(args.root) / 'structure_summary.md'}")
 
 
 def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:
