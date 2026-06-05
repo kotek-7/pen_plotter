@@ -52,3 +52,25 @@ def test_registry_rejects_unknown_failure_tag(tmp_path: Path) -> None:
 
     with pytest.raises(ValueError, match="Unknown failure tags"):
         registry.append(record)
+
+
+def test_registry_accepts_extended_failure_tags(tmp_path: Path) -> None:
+    registry = ExperimentRegistry(tmp_path / "registry.jsonl")
+    record = ExperimentRecord(
+        experiment_id="exp-000003",
+        hypothesis="test hypothesis",
+        input_text="永",
+        profile_id="baseline-neat",
+        seed=1,
+        generator="test-generator",
+        exporter="test-exporter",
+        failure_tags=["too-font-like", "scan-mismatch", "plotter-line-quality-bad"],
+    )
+
+    registry.append(record)
+
+    assert registry.get("exp-000003").failure_tags == [
+        "too-font-like",
+        "scan-mismatch",
+        "plotter-line-quality-bad",
+    ]
