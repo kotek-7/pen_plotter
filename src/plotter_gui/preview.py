@@ -16,8 +16,6 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from src.plotter_gui._resources import resource_path
-
 if TYPE_CHECKING:
     from matplotlib.axes import Axes
 
@@ -31,11 +29,6 @@ _Z_RE = re.compile(r"[Zz](-?\d+(?:\.\d+)?)")
 # 行頭が G0/G1 で始まるかを判定。"G1G90 Z..." のような連結記法も
 # 先頭 G1/G0 として認識できるようにする (これは Z 軸行で別途除外)。
 _GCMD_RE = re.compile(r"^\s*G(?P<num>\d+)")
-
-# レポート用紙画像のパス解決は _resources.resource_path 経由に統一する。
-# 通常実行時は repository root 基準、PyInstaller --onefile bundle 実行時は
-# sys._MEIPASS 配下に解決され、いずれの起動経路でも CWD 非依存で動く。
-_REPORT_PAPER_PATH = resource_path("data/report_paper.jpg")
 
 # A4 用紙寸法 (mm)。Web UI 側 PlotterConfig の既定値と一致させ、
 # 背景画像 extent と xlim/ylim の単位を揃える。
@@ -144,31 +137,14 @@ def parse_gcode(source: str | Path) -> list[Stroke]:
 def render_strokes(ax: "Axes", strokes: list[Stroke]) -> None:
     """matplotlib Axes へストロークを描画する。
 
-    Web UI (src/ui/preview_renderer.py) のプレビューと見た目を揃えるため:
-      - data/report_paper.jpg を背景として A4 紙座標系 (0-210, 0-297mm) に貼る
-        (画像が無い環境では白紙でフォールバックして例外を出さない)
-      - 軸 / 目盛り / フレームは非表示
-      - アスペクト比 equal で A4 縦の比率を保つ
-      - Y-UP 座標系 (matplotlib デフォルト) のため ``invert_yaxis()`` は呼ばない
+    A4 紙座標系 (0-210, 0-297mm) に黒線だけを描く。Y-UP 座標系
+    (matplotlib デフォルト) のため ``invert_yaxis()`` は呼ばない。
 
     Args:
         ax: matplotlib の Axes オブジェクト。
         strokes: 描画対象ストローク列 (空リストの場合は背景のみ表示)。
     """
     ax.clear()
-
-    # 背景画像 (zorder=0)。画像が無い環境では何もせず白背景にフォールバック。
-    # PIL は matplotlib の間接依存として既に入っているため遅延 import で済ませる。
-    if _REPORT_PAPER_PATH.exists():
-        from PIL import Image
-
-        bg = Image.open(_REPORT_PAPER_PATH)
-        ax.imshow(
-            bg,
-            extent=[0, _PAPER_WIDTH_MM, 0, _PAPER_HEIGHT_MM],
-            aspect="auto",
-            zorder=0,
-        )
 
     # ストロークは黒線で描画。線幅 0.5 は Web UI と揃えて視覚的整合を保つ。
     for stroke in strokes:

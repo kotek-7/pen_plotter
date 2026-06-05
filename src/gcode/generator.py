@@ -5,7 +5,7 @@ import numpy as np
 import numpy.typing as npt
 
 from src.gcode.config import PlotterConfig
-from src.model.stroke_finishing import contact_profile
+from src.gcode.finishing import contact_profile
 
 # ストローク = (N, 2) の numpy配列。各行は (x, y) 座標 (mm)
 Stroke = npt.NDArray[np.float64]

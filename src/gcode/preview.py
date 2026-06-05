@@ -7,7 +7,7 @@ import numpy.typing as npt
 from matplotlib.collections import LineCollection
 
 from src.gcode.config import PlotterConfig
-from src.model.stroke_finishing import contact_profile
+from src.gcode.finishing import contact_profile
 
 Stroke = npt.NDArray[np.float64]
 
