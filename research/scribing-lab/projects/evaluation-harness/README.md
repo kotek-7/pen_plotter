@@ -16,6 +16,7 @@
 - `baseline-outline-batch`: 固定評価入力セットの batch runner。
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
+- `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `ScanMetadata`: 実機スキャン artifact の metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
@@ -53,6 +54,17 @@ python3 -m evaluation_harness compare \
   --root runs/baseline-outline \
   --baseline-generator baseline-outline
 ```
+
+実機出力の前に、registry 内の metrics / failure tags から次の調整候補を出す場合:
+
+```sh
+python3 -m evaluation_harness offline-review \
+  --root runs/structure-motion
+```
+
+`offline-review` は `offline_review.md` と `offline_review.json` を生成する。
+`too-uniform`、`line-too-mechanical`、`over-jittered`、`plotter-unsafe` などを
+preview / trajectory / G-code safety の前段評価として扱い、次に調整する対象を記録する。
 
 実機スキャンを既存 experiment に紐付ける場合:
 
