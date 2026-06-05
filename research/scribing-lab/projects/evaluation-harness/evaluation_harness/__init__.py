@@ -1,3 +1,4 @@
+from evaluation_harness.abx import AbxItem, AbxResponse, summarize_abx_responses
 from evaluation_harness.artifacts import ArtifactStore
 from evaluation_harness.baseline_outline import (
     DEFAULT_EVALUATION_INPUTS,
@@ -15,6 +16,8 @@ from evaluation_harness.taxonomy import FAILURE_TAGS
 
 __all__ = [
     "ArtifactStore",
+    "AbxItem",
+    "AbxResponse",
     "BaselineOutlineConfig",
     "DEFAULT_EVALUATION_INPUTS",
     "ExperimentRecord",
@@ -28,5 +31,6 @@ __all__ = [
     "render_comparison_markdown",
     "run_baseline_outline",
     "run_baseline_outline_batch",
+    "summarize_abx_responses",
     "validate_scan_metadata",
 ]
