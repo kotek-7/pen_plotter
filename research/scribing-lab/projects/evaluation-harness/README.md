@@ -13,6 +13,11 @@
 - `compute_trajectory_metrics`: 最小 trajectory metrics。
 - `render_markdown_report`: 実験レビュー向け report。
 - `FAILURE_TAGS`: 固定 failure taxonomy。
+- `baseline-outline-batch`: 固定評価入力セットの batch runner。
+- `review_packet.md`: batch 実験のレビュー束。
+- `compare`: baseline との差分比較レポート。
+- `ScanMetadata`: 実機スキャン artifact の metadata schema。
+- `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
 ## 実行
 
@@ -39,6 +44,24 @@ python3 -m evaluation_harness baseline-outline \
 python3 -m evaluation_harness baseline-outline-batch \
   --root runs/baseline-outline \
   --seeds 1,2,3
+```
+
+registry 内の候補実験を `baseline-outline` と比較する場合:
+
+```sh
+python3 -m evaluation_harness compare \
+  --root runs/baseline-outline \
+  --baseline-generator baseline-outline
+```
+
+実機スキャンを既存 experiment に紐付ける場合:
+
+```sh
+python3 -m evaluation_harness attach-scan \
+  --root runs/baseline-outline \
+  --experiment-id exp-baseline-i01-s001 \
+  --scan-path plotted_scan.png \
+  --metadata-json scan_metadata.json
 ```
 
 生成物は `runs/` に保存される。`runs/` は実験出力なので git 管理しない。
