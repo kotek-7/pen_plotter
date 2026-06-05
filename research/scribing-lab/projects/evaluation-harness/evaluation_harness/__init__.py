@@ -18,6 +18,11 @@ from evaluation_harness.structure_uniform import (
     run_structure_uniform,
     run_structure_uniform_batch,
 )
+from evaluation_harness.structure_motion import (
+    StructureMotionConfig,
+    run_structure_motion,
+    run_structure_motion_batch,
+)
 from evaluation_harness.taxonomy import FAILURE_TAGS
 
 __all__ = [
@@ -31,6 +36,7 @@ __all__ = [
     "ExperimentRegistry",
     "FAILURE_TAGS",
     "ScanMetadata",
+    "StructureMotionConfig",
     "StructureUniformConfig",
     "attach_scan_artifact",
     "compare_against_baseline",
@@ -41,6 +47,8 @@ __all__ = [
     "run_baseline_outline_batch",
     "run_structure_uniform",
     "run_structure_uniform_batch",
+    "run_structure_motion",
+    "run_structure_motion_batch",
     "summarize_abx_responses",
     "validate_scan_metadata",
 ]

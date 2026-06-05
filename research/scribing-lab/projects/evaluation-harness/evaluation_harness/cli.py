@@ -23,6 +23,11 @@ from evaluation_harness.structure_uniform import (
     run_structure_uniform,
     run_structure_uniform_batch,
 )
+from evaluation_harness.structure_motion import (
+    StructureMotionConfig,
+    run_structure_motion,
+    run_structure_motion_batch,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -90,6 +95,24 @@ def build_parser() -> argparse.ArgumentParser:
     structure_batch.add_argument("--root", default="runs/structure-uniform")
     structure_batch.add_argument("--seeds", default="1,2,3")
     structure_batch.add_argument("--profile-id", default="baseline-neat")
+
+    motion = sub.add_parser(
+        "structure-motion",
+        help="Run the structure skeleton with motion timing",
+    )
+    motion.add_argument("--root", default="runs/structure-motion", help="Run output directory")
+    motion.add_argument("--experiment-id", default="exp-motion-000001")
+    motion.add_argument("--input-text", default="永")
+    motion.add_argument("--seed", type=int, default=1)
+    motion.add_argument("--profile-id", default="baseline-neat")
+
+    motion_batch = sub.add_parser(
+        "structure-motion-batch",
+        help="Run structure-motion for the supported dictionary input set",
+    )
+    motion_batch.add_argument("--root", default="runs/structure-motion")
+    motion_batch.add_argument("--seeds", default="1,2,3")
+    motion_batch.add_argument("--profile-id", default="baseline-neat")
     return parser
 
 
@@ -178,6 +201,29 @@ def main() -> None:
         print(f"registered {len(records)} experiments")
         print(f"registry: {Path(args.root) / 'registry.jsonl'}")
         print(f"summary: {Path(args.root) / 'structure_summary.md'}")
+    elif args.command == "structure-motion":
+        record = run_structure_motion(
+            root=Path(args.root),
+            experiment_id=args.experiment_id,
+            input_text=args.input_text,
+            seed=args.seed,
+            profile_id=args.profile_id,
+            config=StructureMotionConfig(),
+        )
+        print(f"registered {record.experiment_id}")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"report: {record.artifacts['report']}")
+    elif args.command == "structure-motion-batch":
+        records = run_structure_motion_batch(
+            root=Path(args.root),
+            input_texts=DEFAULT_STRUCTURE_INPUTS,
+            seeds=_parse_seeds(args.seeds),
+            profile_id=args.profile_id,
+            config=StructureMotionConfig(),
+        )
+        print(f"registered {len(records)} experiments")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"summary: {Path(args.root) / 'motion_summary.md'}")
 
 
 def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:
