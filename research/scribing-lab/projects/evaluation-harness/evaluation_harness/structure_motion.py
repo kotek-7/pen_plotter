@@ -173,6 +173,14 @@ def infer_structure_motion_failure_tags(input_text: str, *, safety_ok: bool = Tr
 def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     velocity_peaks = [float(record.metrics.get("velocity_peak_count", 0)) for record in records]
     speed_cv = [float(record.metrics.get("draw_speed_cv", 0.0)) for record in records]
+    safety_ok = [float(record.metrics.get("gcode_safety_ok", 0)) for record in records]
+    safety_violations = [
+        float(record.metrics.get("gcode_safety_violation_count", 0)) for record in records
+    ]
+    z_min = [float(record.metrics.get("gcode_z_min", 0.0)) for record in records]
+    z_max = [float(record.metrics.get("gcode_z_max", 0.0)) for record in records]
+    feed_min = [float(record.metrics.get("gcode_feed_min", 0)) for record in records]
+    feed_max = [float(record.metrics.get("gcode_feed_max", 0)) for record in records]
     failure_tag_counts: dict[str, int] = {}
     for record in records:
         for tag in record.failure_tags:
@@ -184,6 +192,12 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
         "failure_tag_counts": failure_tag_counts,
         "velocity_peak_count": _series_summary(velocity_peaks),
         "draw_speed_cv": _series_summary(speed_cv),
+        "gcode_safety_ok_count": int(sum(safety_ok)),
+        "gcode_safety_violation_count": _series_summary(safety_violations),
+        "gcode_z_min": _series_summary(z_min),
+        "gcode_z_max": _series_summary(z_max),
+        "gcode_feed_min": _series_summary(feed_min),
+        "gcode_feed_max": _series_summary(feed_max),
         "records": [
             {
                 "experiment_id": record.experiment_id,
@@ -191,6 +205,10 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
                 "seed": record.seed,
                 "velocity_peak_count": record.metrics.get("velocity_peak_count", 0),
                 "draw_speed_cv": record.metrics.get("draw_speed_cv", 0.0),
+                "gcode_safety_ok": record.metrics.get("gcode_safety_ok", 0),
+                "gcode_safety_violation_count": record.metrics.get(
+                    "gcode_safety_violation_count", 0
+                ),
                 "failure_tags": list(record.failure_tags),
             }
             for record in records
@@ -208,6 +226,12 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
         f"- failure_tag_counts: `{summary['failure_tag_counts']}`",
         f"- velocity_peak_count: `{summary['velocity_peak_count']}`",
         f"- draw_speed_cv: `{summary['draw_speed_cv']}`",
+        f"- gcode_safety_ok_count: `{summary['gcode_safety_ok_count']}`",
+        f"- gcode_safety_violation_count: `{summary['gcode_safety_violation_count']}`",
+        f"- gcode_z_min: `{summary['gcode_z_min']}`",
+        f"- gcode_z_max: `{summary['gcode_z_max']}`",
+        f"- gcode_feed_min: `{summary['gcode_feed_min']}`",
+        f"- gcode_feed_max: `{summary['gcode_feed_max']}`",
         "",
         "## Records",
         "",
@@ -220,6 +244,8 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
             f"seed=`{record['seed']}`, "
             f"velocity_peaks=`{record['velocity_peak_count']}`, "
             f"draw_speed_cv=`{record['draw_speed_cv']}`, "
+            f"gcode_safety_ok=`{record['gcode_safety_ok']}`, "
+            f"violations=`{record['gcode_safety_violation_count']}`, "
             f"failure_tags=`{record['failure_tags']}`"
         )
     return "\n".join(lines) + "\n"

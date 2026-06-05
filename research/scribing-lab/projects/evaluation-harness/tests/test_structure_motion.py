@@ -38,6 +38,9 @@ def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     assert (root / "motion_summary.json").exists()
     assert (root / "motion_summary.md").exists()
     assert len(ExperimentRegistry(root / "registry.jsonl").load_all()) == 2
+    summary = (root / "motion_summary.md").read_text(encoding="utf-8")
+    assert "gcode_safety_ok_count" in summary
+    assert "gcode_safety_violation_count" in summary
 
 
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
