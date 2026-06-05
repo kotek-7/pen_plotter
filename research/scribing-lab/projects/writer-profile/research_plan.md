@@ -4,7 +4,7 @@
 
 同じ文字内容でも、筆者ごとに異なる傾き、字間、速度、震え、終筆癖を再現する。初期段階では、解釈可能な profile parameter を中心に扱う。
 
-LLM 主導研究では、writer profile は単なる個人癖モデルではなく、実験条件として versioning され、評価結果と対応付けられる探索対象である。
+writer profile は単なる個人癖モデルではなく、実験条件として versioning され、評価結果と対応付けられる探索対象である。
 
 ## 背景
 
@@ -15,7 +15,7 @@ LLM 主導研究では、writer profile は単なる個人癖モデルではな�
 1. 低次元 profile だけでも、機械的な均一感を大きく減らせる。
 2. 速度、字間、baseline drift、終筆癖は writer individuality に強く効く。
 3. neural embedding は後段で profile 推定の補助として導入すればよい。
-4. profile を experiment registry と結合すると、LLM エージェントが評価結果から次の profile 変更を提案しやすい。
+4. profile を experiment registry と結合すると、評価結果から次の profile 変更を提案しやすい。
 
 ## スコープ
 
@@ -57,7 +57,7 @@ profile は ID と version を持つ。
 }
 ```
 
-LLM エージェントが profile を変更する場合は、新しい version または派生 profile として保存する。既存 profile を破壊的に上書きしない。
+profile を変更する場合は、新しい version または派生 profile として保存する。既存 profile を破壊的に上書きしない。
 
 ## Feedback Loop
 
@@ -153,7 +153,7 @@ evaluation harness の failure tags をもとに profile を派生させる。
 - 本人筆跡模倣への濫用。
 - 文字種固有の癖と writer 固有の癖を分離しにくい。
 - 評価 metric だけに合わせて profile を過剰最適化する。
-- LLM エージェントが既存 profile を上書きし、比較可能性を失う。
+- 既存 profile を上書きし、比較可能性を失う。
 
 ## 参照
 

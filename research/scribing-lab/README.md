@@ -4,6 +4,8 @@
 
 この研究領域は既存アプリケーションの `src/` を直接使わない。既存コードベースは xDraw A4 送信や G-code 生成の参考実装として扱い、研究用のモデル、データ契約、評価、実験計画はこの配下で独立して管理する。
 
+この配下の文書を、日本語筆記エンジン研究の正本とする。ルートの `docs/scribing_engine.md` は、この研究領域への導線として管理する。
+
 ## 研究目標
 
 入力テキストから、次の内部表現を生成する。
@@ -14,11 +16,11 @@ x_mm, y_mm, t_ms, pen_state, pressure
 
 この表現を、最終的に SVG、AxiDraw API、xDraw/GRBL G-code などへ変換する。初期ターゲットは日本語かなと頻出漢字であり、署名模倣や本人同意のない筆跡再現は対象外とする。
 
-## LLM 主導研究の進め方
+## 評価駆動の研究ワークフロー
 
-この研究は、LLM エージェントが仮説立案、実験設定、実装、評価、次実験の提案を反復して進めることを前提にする。そのため、生成モデルや辞書実装へ着手する前に、評価基盤と実験記録基盤を先に作る。
+この研究は、仮説立案、実験設定、実装、評価、次実験の提案を反復して進める。そのため、生成モデルや辞書実装へ着手する前に、評価基盤と実験記録基盤を先に作る。
 
-LLM エージェントは、次の基盤がない状態で motion model、writer adaptation、neural variation の本格実装へ進んではならない。
+motion model、writer adaptation、neural variation の本格実装は、次の基盤が利用できる状態で進める。
 
 - experiment registry: 実験 ID、仮説、設定、seed、入力文字列、成果物を記録する。
 - artifact store: trajectory、preview、G-code、実機スキャン、ログ、評価結果を対応付ける。
@@ -27,6 +29,8 @@ LLM エージェントは、次の基盤がない状態で motion model、writer
 - profile registry: writer profile と生成結果・評価結果の対応を追跡する。
 
 ## ドキュメント
+
+推奨する読み順は、`00_overview.md`、`09_roadmap.md`、`07_evaluation.md`、各 `projects/*/research_plan.md` である。
 
 - [00_overview.md](docs/00_overview.md): 全体像と研究分割
 - [01_prior_research.md](docs/01_prior_research.md): 先行研究と技術領域
@@ -40,6 +44,8 @@ LLM エージェントは、次の基盤がない状態で motion model、writer
 - [09_roadmap.md](docs/09_roadmap.md): ロードマップ
 
 ## 個別研究プロジェクト
+
+各研究プロジェクトは、実装、テスト、計画、実験出力の除外設定を対応する `projects/<name>/` 配下にまとめる。
 
 - [character-dictionary](projects/character-dictionary/research_plan.md): 日本語文字から画列・筆順・画種を得る
 - [motion-synthesis](projects/motion-synthesis/research_plan.md): 人間らしい筆記運動を生成する

@@ -60,3 +60,18 @@ make format
 
 The generator uses A4 paper coordinates: `(0, 0)` is the bottom-left corner,
 `(210, 297)` is the top-right corner, units are millimeters, and Y points upward.
+
+## Research
+
+Research toward human-like Japanese scribing is kept separate from this application under:
+
+```text
+research/scribing-lab/
+```
+
+That research project is independent from the application code in `src/`. It has its own
+documents, experiment harness, and per-project plans. See
+`research/scribing-lab/README.md`.
+
+`docs/scribing_engine.md` is an entry point for the research project. The maintained
+research documents are under `research/scribing-lab/docs/`.

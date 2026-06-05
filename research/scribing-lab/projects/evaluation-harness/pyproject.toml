@@ -1,7 +1,7 @@
 [project]
 name = "scribing-lab"
 version = "0.1.0"
-description = "Research harness for LLM-driven handwriting synthesis experiments"
+description = "Research harness for handwriting synthesis experiments"
 requires-python = ">=3.11"
 dependencies = []
 

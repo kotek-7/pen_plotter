@@ -52,6 +52,7 @@ python -m src.plotter_gui
 - `scripts/`: CLI 入口
 - `tests/`: pytest テスト
 - `docs/`: 実機 GUI のチェックリスト
+- `research/scribing-lab/`: 手書きと判別されにくい日本語筆記生成の独立研究プロジェクト
 
 ## 座標系
 
@@ -80,4 +81,5 @@ python -m src.plotter_gui
 - 新機能・バグ修正は対応するテストを追加または更新する。
 - 実機境界は `src/gcode/`, `src/comm/`, `src/plotter_gui/` に閉じ込める。
 - `src/textplot` は G-code 文字列を扱わず、紙面 mm ストロークだけを返す。
-- 旧用途の ML、収集 UI、文書組版、専用データ依存を再導入しない。
+- `research/scribing-lab/` は既存 `src/` を実装基盤にしない独立研究領域として扱う。
+- 研究プロジェクトの実装・テスト・計画は、原則として対応する `research/scribing-lab/projects/<name>/` 配下にまとめる。

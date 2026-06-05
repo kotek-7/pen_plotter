@@ -6,12 +6,12 @@
 
 ## 現在の最小実装
 
-このプロジェクト配下に、LLM 主導研究の最初の基盤を colocate している。
+このプロジェクト配下に、評価駆動研究の最初の基盤を配置している。
 
 - `ExperimentRegistry`: JSONL の experiment registry。
 - `ArtifactStore`: 実験 ID ごとの成果物保存。
 - `compute_trajectory_metrics`: 最小 trajectory metrics。
-- `render_markdown_report`: LLM エージェント向け実験 report。
+- `render_markdown_report`: 実験レビュー向け report。
 - `FAILURE_TAGS`: 固定 failure taxonomy。
 
 ## 実行
