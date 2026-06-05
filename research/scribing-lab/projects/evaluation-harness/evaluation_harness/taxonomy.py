@@ -1,0 +1,19 @@
+FAILURE_TAGS: frozenset[str] = frozenset(
+    {
+        "unreadable",
+        "wrong-stroke-order",
+        "too-uniform",
+        "over-jittered",
+        "spacing-unnatural",
+        "terminal-too-uniform",
+        "penup-artifact",
+        "plotter-unsafe",
+        "profile-inconsistent",
+    }
+)
+
+
+def validate_failure_tags(tags: list[str]) -> None:
+    unknown = sorted(set(tags) - FAILURE_TAGS)
+    if unknown:
+        raise ValueError(f"Unknown failure tags: {', '.join(unknown)}")

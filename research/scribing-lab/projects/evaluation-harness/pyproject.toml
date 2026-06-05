@@ -1,0 +1,14 @@
+[project]
+name = "scribing-lab"
+version = "0.1.0"
+description = "Research harness for LLM-driven handwriting synthesis experiments"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
