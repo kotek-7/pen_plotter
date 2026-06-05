@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import random
+
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
 
@@ -25,6 +27,7 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
     y_top = baseline_top
     strokes: list[LaidOutStroke] = []
 
+    char_index = 0
     for char in text:
         if char == "\n":
             x = cfg.margin_left
@@ -36,7 +39,16 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
 
         template = get_template(char)
         for stroke in template.strokes:
-            points = tuple((x + px * cfg.char_size, y_top - py * cfg.char_size) for px, py in stroke.skeleton_points)
+            skeleton_points = _vary_skeleton_points(
+                char,
+                char_index=char_index,
+                stroke=stroke,
+                config=cfg,
+            )
+            points = tuple(
+                (x + px * cfg.char_size, y_top - py * cfg.char_size)
+                for px, py in skeleton_points
+            )
             strokes.append(
                 LaidOutStroke(
                     points=points,
@@ -47,6 +59,7 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
                 )
             )
         x += cfg.char_size + cfg.char_spacing
+        char_index += 1
     return strokes
 
 
@@ -69,6 +82,47 @@ def _template(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTem
         bbox=(0.0, 0.0, 1.0, 1.0),
         strokes=strokes,
     )
+
+
+def _vary_skeleton_points(
+    literal: str,
+    *,
+    char_index: int,
+    stroke: StrokeTemplate,
+    config: LayoutConfig,
+) -> tuple[tuple[float, float], ...]:
+    strength = max(float(config.shape_variation), 0.0)
+    if strength == 0.0:
+        return stroke.skeleton_points
+
+    rng = random.Random(
+        f"{config.variation_seed}:{literal}:{char_index}:{stroke.stroke_id}:{stroke.stroke_type}"
+    )
+    slant = rng.uniform(-0.25, 0.25) * strength
+    stretch_x = 1.0 + rng.uniform(-0.35, 0.35) * strength
+    stretch_y = 1.0 + rng.uniform(-0.30, 0.30) * strength
+    shift_x = rng.uniform(-0.35, 0.35) * strength
+    shift_y = rng.uniform(-0.35, 0.35) * strength
+    point_jitter = 0.35 * strength
+
+    varied: list[tuple[float, float]] = []
+    for index, (px, py) in enumerate(stroke.skeleton_points):
+        endpoint_scale = 0.45 if index in {0, len(stroke.skeleton_points) - 1} else 1.0
+        jitter_x = rng.uniform(-point_jitter, point_jitter) * endpoint_scale
+        jitter_y = rng.uniform(-point_jitter, point_jitter) * endpoint_scale
+        centered_x = (px - 0.5) * stretch_x + slant * (py - 0.5)
+        centered_y = (py - 0.5) * stretch_y
+        varied.append(
+            (
+                _clamp_unit(0.5 + centered_x + shift_x + jitter_x),
+                _clamp_unit(0.5 + centered_y + shift_y + jitter_y),
+            )
+        )
+    return tuple(varied)
+
+
+def _clamp_unit(value: float) -> float:
+    return min(max(value, 0.04), 0.96)
 
 
 _TEMPLATES: dict[str, CharacterTemplate] = {

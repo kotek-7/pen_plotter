@@ -33,6 +33,33 @@ def test_layout_text_places_points_in_a4_coordinates() -> None:
     assert any(stroke.literal == "い" for stroke in strokes)
 
 
+def test_layout_text_shape_variation_is_disabled_by_default() -> None:
+    default_strokes = layout_text("永", LayoutConfig())
+    explicit_strokes = layout_text("永", LayoutConfig(shape_variation=0.0, variation_seed=42))
+
+    assert [stroke.points for stroke in default_strokes] == [
+        stroke.points for stroke in explicit_strokes
+    ]
+
+
+def test_layout_text_shape_variation_is_seeded() -> None:
+    config = LayoutConfig(shape_variation=0.08, variation_seed=7)
+
+    first = layout_text("永", config)
+    second = layout_text("永", config)
+
+    assert [stroke.points for stroke in first] == [stroke.points for stroke in second]
+
+
+def test_layout_text_shape_variation_changes_points() -> None:
+    default_strokes = layout_text("永", LayoutConfig())
+    varied_strokes = layout_text("永", LayoutConfig(shape_variation=0.08, variation_seed=7))
+
+    assert [stroke.points for stroke in default_strokes] != [
+        stroke.points for stroke in varied_strokes
+    ]
+
+
 def test_layout_text_rejects_unknown_character() -> None:
     with pytest.raises(DictionaryLookupError):
         layout_text("未")

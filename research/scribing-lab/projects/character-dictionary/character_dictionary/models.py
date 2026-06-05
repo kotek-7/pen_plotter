@@ -52,6 +52,8 @@ class LayoutConfig:
     char_size: float = 8.0
     char_spacing: float = 2.0
     line_height: float = 1.45
+    shape_variation: float = 0.0
+    variation_seed: int = 0
 
 
 @dataclass(frozen=True)
