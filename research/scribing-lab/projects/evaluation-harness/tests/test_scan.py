@@ -65,6 +65,8 @@ def test_attach_scan_artifact_updates_registry(tmp_path) -> None:
             seed=1,
             generator="baseline-outline",
             exporter="xdraw-gcode",
+            artifacts={"gcode_safety": "artifacts/exp-000001/gcode_safety.json"},
+            metrics={"gcode_safety_ok": 1, "gcode_safety_violation_count": 0},
         )
     )
     scan_path = tmp_path / "scan.png"
@@ -91,3 +93,41 @@ def test_attach_scan_artifact_updates_registry(tmp_path) -> None:
     assert "plotted_scan" in record.artifacts
     assert "scan_metadata" in record.artifacts
     assert (tmp_path / "artifacts" / "exp-000001" / "plotted_scan.png").exists()
+
+
+def test_attach_scan_artifact_rejects_unsafe_experiment(tmp_path) -> None:
+    registry = ExperimentRegistry(tmp_path / "registry.jsonl")
+    artifacts = ArtifactStore(tmp_path / "artifacts")
+    registry.append(
+        ExperimentRecord(
+            experiment_id="exp-unsafe",
+            hypothesis="test",
+            input_text="永",
+            profile_id="baseline-neat",
+            seed=1,
+            generator="structure-motion",
+            exporter="xdraw-gcode",
+            artifacts={"gcode_safety": "artifacts/exp-unsafe/gcode_safety.json"},
+            metrics={"gcode_safety_ok": 0, "gcode_safety_violation_count": 1},
+        )
+    )
+    scan_path = tmp_path / "scan.png"
+    scan_path.write_bytes(b"\x89PNG\r\n\x1a\n")
+    metadata = ScanMetadata(
+        scanner="flatbed-a",
+        resolution_dpi=600,
+        crop_method="manual",
+        pen_type="mechanical-pencil-hb",
+        paper_type="plain-a4",
+        plotter="xdraw-a4",
+        captured_at="2026-06-05T12:00:00+09:00",
+    )
+
+    with pytest.raises(ValueError, match="not marked safe"):
+        attach_scan_artifact(
+            registry=registry,
+            artifacts=artifacts,
+            experiment_id="exp-unsafe",
+            scan_path=scan_path,
+            metadata=metadata,
+        )

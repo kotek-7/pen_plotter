@@ -67,6 +67,7 @@ def attach_scan_artifact(
         raise FileNotFoundError(source)
 
     record = registry.get(experiment_id)
+    _require_safe_gcode(record)
     experiment_dir = artifacts.experiment_dir(experiment_id)
     scan_dest = experiment_dir / "plotted_scan.png"
     shutil.copyfile(source, scan_dest)
@@ -83,3 +84,10 @@ def attach_scan_artifact(
         }
     )
     registry.replace(updated)
+
+
+def _require_safe_gcode(record: Any) -> None:
+    if int(record.metrics.get("gcode_safety_ok", 0)) != 1:
+        raise ValueError(f"experiment is not marked safe for scan registration: {record.experiment_id}")
+    if "gcode_safety" not in record.artifacts:
+        raise ValueError(f"missing gcode_safety artifact: {record.experiment_id}")
