@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 
 from evaluation_harness.artifacts import ArtifactStore
@@ -15,6 +16,7 @@ from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
+from evaluation_harness.scan import ScanMetadata, attach_scan_artifact
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -58,6 +60,12 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
     compare.add_argument("--baseline-generator", default="baseline-outline")
     compare.add_argument("--output", default="comparison_report.md")
+
+    scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
+    scan.add_argument("--root", required=True, help="Run output directory")
+    scan.add_argument("--experiment-id", required=True)
+    scan.add_argument("--scan-path", required=True)
+    scan.add_argument("--metadata-json", required=True)
     return parser
 
 
@@ -110,6 +118,19 @@ def main() -> None:
         output_path.write_text(render_comparison_markdown(comparison), encoding="utf-8")
         print(f"comparison_count: {comparison['comparison_count']}")
         print(f"report: {output_path}")
+    elif args.command == "attach-scan":
+        root = Path(args.root)
+        metadata = ScanMetadata.from_dict(
+            json.loads(Path(args.metadata_json).read_text(encoding="utf-8"))
+        )
+        attach_scan_artifact(
+            registry=ExperimentRegistry(root / "registry.jsonl"),
+            artifacts=ArtifactStore(root / "artifacts"),
+            experiment_id=args.experiment_id,
+            scan_path=args.scan_path,
+            metadata=metadata,
+        )
+        print(f"attached scan: {args.experiment_id}")
 
 
 def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:

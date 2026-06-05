@@ -1,7 +1,12 @@
 from __future__ import annotations
 
+import shutil
 from dataclasses import asdict, dataclass
+from pathlib import Path
 from typing import Any
+
+from evaluation_harness.artifacts import ArtifactStore
+from evaluation_harness.registry import ExperimentRegistry
 
 
 @dataclass(frozen=True)
@@ -46,3 +51,35 @@ def validate_scan_metadata(metadata: ScanMetadata) -> None:
         raise ValueError(f"Missing scan metadata fields: {', '.join(missing)}")
     if metadata.resolution_dpi <= 0:
         raise ValueError("resolution_dpi must be positive")
+
+
+def attach_scan_artifact(
+    *,
+    registry: ExperimentRegistry,
+    artifacts: ArtifactStore,
+    experiment_id: str,
+    scan_path: str | Path,
+    metadata: ScanMetadata,
+) -> None:
+    validate_scan_metadata(metadata)
+    source = Path(scan_path)
+    if not source.is_file():
+        raise FileNotFoundError(source)
+
+    record = registry.get(experiment_id)
+    experiment_dir = artifacts.experiment_dir(experiment_id)
+    scan_dest = experiment_dir / "plotted_scan.png"
+    shutil.copyfile(source, scan_dest)
+    metadata_path = artifacts.write_json(experiment_id, "scan_metadata.json", metadata.to_dict())
+
+    updated = record.__class__(
+        **{
+            **record.to_dict(),
+            "artifacts": {
+                **record.artifacts,
+                "plotted_scan": str(scan_dest),
+                "scan_metadata": metadata_path,
+            },
+        }
+    )
+    registry.replace(updated)

@@ -74,3 +74,20 @@ def test_registry_accepts_extended_failure_tags(tmp_path: Path) -> None:
         "scan-mismatch",
         "plotter-line-quality-bad",
     ]
+
+
+def test_registry_replaces_existing_record(tmp_path: Path) -> None:
+    registry = ExperimentRegistry(tmp_path / "registry.jsonl")
+    original = _record()
+    registry.append(original)
+
+    registry.replace(
+        ExperimentRecord(
+            **{
+                **original.to_dict(),
+                "metrics": {"duration_ms": 1200},
+            }
+        )
+    )
+
+    assert registry.get("exp-000001").metrics["duration_ms"] == 1200

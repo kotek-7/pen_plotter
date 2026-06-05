@@ -10,7 +10,7 @@ from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
-from evaluation_harness.scan import ScanMetadata, validate_scan_metadata
+from evaluation_harness.scan import ScanMetadata, attach_scan_artifact, validate_scan_metadata
 from evaluation_harness.taxonomy import FAILURE_TAGS
 
 __all__ = [
@@ -21,6 +21,7 @@ __all__ = [
     "ExperimentRegistry",
     "FAILURE_TAGS",
     "ScanMetadata",
+    "attach_scan_artifact",
     "compare_against_baseline",
     "compute_trajectory_metrics",
     "render_markdown_report",

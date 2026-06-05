@@ -39,6 +39,16 @@ class ExperimentRegistry:
         with self.path.open("a", encoding="utf-8") as fp:
             fp.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True) + "\n")
 
+    def replace(self, record: ExperimentRecord) -> None:
+        self._validate_record(record)
+        records = self.load_all()
+        for i, existing in enumerate(records):
+            if existing.experiment_id == record.experiment_id:
+                records[i] = record
+                self._write_all(records)
+                return
+        raise KeyError(record.experiment_id)
+
     def get(self, experiment_id: str) -> ExperimentRecord:
         for record in self.load_all():
             if record.experiment_id == experiment_id:
@@ -60,3 +70,9 @@ class ExperimentRegistry:
         if record.seed < 0:
             raise ValueError("seed must be non-negative")
         validate_failure_tags(record.failure_tags)
+
+    def _write_all(self, records: list[ExperimentRecord]) -> None:
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        with self.path.open("w", encoding="utf-8") as fp:
+            for record in records:
+                fp.write(json.dumps(record.to_dict(), ensure_ascii=False, sort_keys=True) + "\n")
