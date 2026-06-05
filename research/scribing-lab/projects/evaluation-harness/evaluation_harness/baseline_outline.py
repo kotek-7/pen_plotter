@@ -48,6 +48,7 @@ def run_baseline_outline(
 ) -> ExperimentRecord:
     """Run the fixed font-outline baseline and register its artifacts."""
     _ensure_repo_root_on_path()
+    _use_headless_matplotlib()
 
     from src.gcode.config import PlotterConfig
     from src.gcode.generator import GCodeGenerator
@@ -446,3 +447,9 @@ def _ensure_repo_root_on_path() -> None:
                 sys.path.insert(0, root)
             return
     raise RuntimeError("Cannot locate pen_plotter repository root")
+
+
+def _use_headless_matplotlib() -> None:
+    import matplotlib
+
+    matplotlib.use("Agg", force=True)
