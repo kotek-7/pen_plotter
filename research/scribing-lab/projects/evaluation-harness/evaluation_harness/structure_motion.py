@@ -127,7 +127,11 @@ def run_structure_motion(
             "preview": str(preview_path),
         },
         metrics=metrics,
-        failure_tags=infer_structure_motion_failure_tags(input_text, safety_ok=safety.ok),
+        failure_tags=infer_structure_motion_failure_tags(
+            input_text,
+            safety_ok=safety.ok,
+            shape_variation_mm=float(metrics["shape_variation_mm"]),
+        ),
         next_action="compare against structure-uniform and tune skeleton rigidity",
         notes="Structure-motion uses dictionary skeletons with seeded motion timing.",
     )
@@ -166,8 +170,15 @@ def run_structure_motion_batch(
     return records
 
 
-def infer_structure_motion_failure_tags(input_text: str, *, safety_ok: bool = True) -> list[str]:
-    tags = ["skeleton-too-rigid"]
+def infer_structure_motion_failure_tags(
+    input_text: str,
+    *,
+    safety_ok: bool = True,
+    shape_variation_mm: float = 0.0,
+) -> list[str]:
+    tags = []
+    if shape_variation_mm < 0.5:
+        tags.append("skeleton-too-rigid")
     if len(input_text) >= 5:
         tags.append("line-too-mechanical")
     if not safety_ok:

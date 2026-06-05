@@ -60,6 +60,7 @@ def test_run_structure_motion_records_shape_variation_metrics(tmp_path: Path) ->
 
     assert record.metrics["shape_variation"] == 0.08
     assert record.metrics["shape_variation_mm"] == 0.64
+    assert "skeleton-too-rigid" not in record.failure_tags
 
 
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
