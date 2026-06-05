@@ -14,6 +14,7 @@ from evaluation_harness.baseline_outline import (
 from evaluation_harness.compare import compare_against_baseline, render_comparison_markdown
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
+from evaluation_harness.offline_review import build_offline_review, render_offline_review_markdown
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact
@@ -71,6 +72,14 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
     compare.add_argument("--baseline-generator", default="baseline-outline")
     compare.add_argument("--output", default="comparison_report.md")
+
+    offline_review = sub.add_parser(
+        "offline-review",
+        help="Review registered experiments from artifacts and metrics without plotted scans",
+    )
+    offline_review.add_argument("--root", required=True, help="Run output directory")
+    offline_review.add_argument("--output", default="offline_review.md")
+    offline_review.add_argument("--json-output", default="offline_review.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -165,6 +174,20 @@ def main() -> None:
         output_path.write_text(render_comparison_markdown(comparison), encoding="utf-8")
         print(f"comparison_count: {comparison['comparison_count']}")
         print(f"report: {output_path}")
+    elif args.command == "offline-review":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        review = build_offline_review(registry.load_all())
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_offline_review_markdown(review), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(review, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"record_count: {review['record_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
     elif args.command == "attach-scan":
         root = Path(args.root)
         metadata = ScanMetadata.from_dict(
