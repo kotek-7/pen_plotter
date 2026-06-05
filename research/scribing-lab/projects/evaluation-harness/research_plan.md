@@ -29,6 +29,9 @@
 - trajectory metrics。
 - velocity metrics。
 - spacing metrics。
+- baseline-outline runner。
+- scan artifact schema。
+- repeated character metrics。
 - ABX 評価設計。
 - baseline 比較。
 
@@ -46,7 +49,7 @@
 1. 仮説を 1 つ書く。
 2. 実験設定を registry に登録する。
 3. generator/exporter を実行する。
-4. preview、trajectory、G-code、ログを artifact store に保存する。
+4. preview、trajectory、G-code、ログ、必要に応じて実機スキャンを artifact store に保存する。
 5. metric runner を実行する。
 6. failure tags を付与する。
 7. 実験レポートを生成する。
@@ -87,9 +90,18 @@
 
 ### Experiment 2: baseline comparison
 
+この実験の前に、現行 `font outline + jitter/wobble` を `baseline-outline` として固定し、
+次の入力セットで再実行可能にする。
+
+- `永`
+- `あいうえお`
+- `今日はよい天気です。`
+- `春の川をゆっくり歩く。`
+- `本日はありがとうございました。`
+
 比較:
 
-- font outline + jitter。
+- baseline-outline。
 - structure + uniform speed。
 - structure + motion model。
 
@@ -107,6 +119,16 @@
 
 同一 profile と異 profile の区別を評価する。
 
+### Experiment 5: scan artifact loop
+
+実機出力のスキャン画像と metadata を artifact store に登録する。
+
+評価:
+
+- preview と scan が同じ experiment ID に紐付く。
+- pen、paper、plotter、scan 条件が metadata として残る。
+- `scan-mismatch` と `plotter-line-quality-bad` を failure tags として記録できる。
+
 ## 成果物
 
 - metrics spec。
@@ -116,6 +138,7 @@
 - evaluation dataset definition。
 - ABX protocol。
 - scan naming convention。
+- scan metadata schema。
 - baseline report template。
 
 ## 評価指標
@@ -125,6 +148,8 @@
 - acceleration/jerk。
 - spacing variance。
 - baseline drift。
+- repeated character similarity。
+- scan mismatch summary。
 - ABX 正答率。
 
 ## リスク
@@ -134,6 +159,7 @@
 - スキャン環境差が結果に混ざる。
 - 評価結果なしに次実験を進める。
 - failure tags が増えすぎて比較不能になる。
+- baseline が固定されず、新方式との差分を説明できなくなる。
 
 ## 参照
 

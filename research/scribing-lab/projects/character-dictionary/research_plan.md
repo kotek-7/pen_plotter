@@ -13,6 +13,7 @@
 1. KanjiVG の stroke path と stroke type から、初期の手書き skeleton は構築できる。
 2. stroke type を単純化しても、終端イベントの制御には十分使える。
 3. 異体字対応は MVP では生成対象外にし、文字同定 metadata として先に保持すればよい。
+4. KanjiVG 由来の骨格は硬すぎる可能性があるため、辞書 MVP の段階から `too-font-like` と `skeleton-too-rigid` を評価対象にする。
 
 ## スコープ
 
@@ -22,6 +23,7 @@
 - stroke template schema。
 - かなと頻出漢字の小規模辞書。
 - stroke type から terminal event への変換。
+- skeleton rigidity review。
 
 含まない:
 
@@ -55,7 +57,16 @@ KanjiVG stroke type を `tome`, `harai`, `hane`, `none` へ写像する。
 - `永` の終端イベントが直感と大きく外れない。
 - G-code exporter へ finish 情報を渡せる。
 
-### Experiment 3: layout normalization
+### Experiment 3: skeleton rigidity review
+
+KanjiVG path から得た skeleton が、手書き骨格として硬すぎないかを確認する。
+
+評価:
+
+- `too-font-like` と `skeleton-too-rigid` を failure tags として付与できる。
+- motion model 側で補正すべき問題と、辞書側で修正すべき問題を分けられる。
+
+### Experiment 4: layout normalization
 
 正規化座標から A4 mm 座標へ配置する。
 
@@ -70,6 +81,7 @@ KanjiVG stroke type を `tome`, `harai`, `hane`, `none` へ写像する。
 - 小規模辞書データ。
 - KanjiVG parser 仕様。
 - terminal mapping table。
+- skeleton rigidity review。
 - license metadata 設計。
 
 ## 評価指標
@@ -79,6 +91,7 @@ KanjiVG stroke type を `tome`, `harai`, `hane`, `none` へ写像する。
 - path bbox の妥当性。
 - skeleton の連続性。
 - terminal mapping の人手確認結果。
+- skeleton rigidity の人手確認結果。
 
 ## リスク
 

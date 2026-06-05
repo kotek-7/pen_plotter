@@ -13,6 +13,7 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 1. 等速補間より、Sigma-Lognormal 風の速度生成の方が人間らしく見える。
 2. pressure event を Z 高さと速度に写像すれば、xDraw でも払い・はね・とめの差を表現できる。
 3. drift と tremor は別成分として扱う方が制御しやすい。
+4. 文章としての自然さには、画単位の速度だけでなく、pen-up timing、字間、行方向 drift、反復文字の差分が必要である。
 
 ## スコープ
 
@@ -21,6 +22,8 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 - 画単位の速度生成。
 - pressure event model。
 - pen-up 区間の時間生成。
+- line-level drift。
+- repeated character variation。
 - deterministic seed。
 
 含まない:
@@ -71,6 +74,8 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 
 - 字間分布。
 - baseline drift。
+- repeated character similarity。
+- line-too-mechanical / paragraph-spacing-unnatural の failure tags。
 - 主観 ABX。
 
 ## 成果物
@@ -79,6 +84,8 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 - motion generator 仕様。
 - pressure event table。
 - seed 固定テストケース。
+- pen-up timing model。
+- repeated character variation spec。
 - basic strokes の比較レポート。
 
 ## 評価指標
@@ -88,6 +95,8 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 - 加速度・jerk。
 - DTW/DDTW。
 - 実機破綻率。
+- repeated character similarity。
+- spacing variance。
 - 人間評価での自然さ。
 
 ## リスク
@@ -95,6 +104,7 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 - xDraw の feedrate/Z 応答が理論通りの線幅にならない。
 - 短い画では lognormal 速度が過剰になる。
 - jitter と tremor を入れすぎると文字品質が落ちる。
+- 単文字で改善しても、短文では字間や反復文字が不自然に見える。
 
 ## 参照
 

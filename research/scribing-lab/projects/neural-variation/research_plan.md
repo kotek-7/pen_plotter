@@ -13,6 +13,7 @@ RNN、VAE、Transformer はオンライン手書き生成で有効だが、文�
 1. 画単位 VAE は、文字全体生成より構造破綻が少ない。
 2. writer embedding は、明示 profile の推定補助として有効である。
 3. Transformer は文脈 spacing には有望だが、MVP には重すぎる。
+4. neural variation は評価基盤、実機スキャン loop、文字構造辞書、motion MVP が揃ってから導入しないと、改善と破綻の原因を切り分けにくい。
 
 ## スコープ
 
@@ -28,6 +29,16 @@ RNN、VAE、Transformer はオンライン手書き生成で有効だが、文�
 - GAN による画像生成。
 - 文字全体を end-to-end で直接生成する方式。
 - 評価器回避を目的とした adversarial training。
+
+## 着手条件
+
+次が揃うまで、本格実装には進まない。
+
+- `baseline-outline` が experiment registry に登録されている。
+- scan artifact loop がある。
+- 小規模 character dictionary がある。
+- motion MVP が baseline より良い点と悪い点を metrics と report で説明できる。
+- failure tags が安定している。
 
 ## 実験
 
@@ -82,6 +93,7 @@ writer-id 付きデータで embedding を学習し、明示 profile との相�
 - 日本語構造の破綻。
 - モデルが評価指標に過適合する。
 - 実装コストが高く、MVP を遅らせる。
+- 評価基盤より先に導入すると、自然さの改善と構造破綻を区別できない。
 
 ## 参照
 

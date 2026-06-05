@@ -13,6 +13,7 @@ xDraw A4 は Z 軸でペン上下を制御する。AxiDraw API は pen height、
 1. pressure を Z 高さと feedrate へ写像すれば、終端の抜きは表現できる。
 2. 内部 trajectory を機械非依存にすれば、xDraw と AxiDraw の比較が容易になる。
 3. exporter は安全シーケンスと制約チェックを持つべきである。
+4. 実機スキャンと pen / paper / plotter metadata を同じ experiment ID に紐付けることで、preview と紙面出力の差分を追跡できる。
 
 ## スコープ
 
@@ -22,6 +23,8 @@ xDraw A4 は Z 軸でペン上下を制御する。AxiDraw API は pen height、
 - trajectory to SVG。
 - pressure to Z/feedrate mapping。
 - safety validation。
+- scan artifact metadata。
+- pen / paper / plotter profile。
 
 含まない:
 
@@ -62,6 +65,16 @@ pressure を Z と feedrate へ変換する。
 - ペンアップ跡。
 - plot time。
 
+### Experiment 4: scan registration
+
+実機出力スキャンを exporter の成果物として experiment registry に登録する。
+
+評価:
+
+- `plotted_scan.png` と `scan_metadata.json` が同じ experiment ID に紐付く。
+- preview と scan の差分を review packet で確認できる。
+- `scan-mismatch` と `plotter-line-quality-bad` を failure tags として記録できる。
+
 ## 成果物
 
 - exporter interface。
@@ -69,6 +82,8 @@ pressure を Z と feedrate へ変換する。
 - SVG exporter。
 - pressure mapping table。
 - safety validator。
+- scan metadata schema。
+- pen / paper / plotter profile schema。
 
 ## 評価指標
 
@@ -77,12 +92,14 @@ pressure を Z と feedrate へ変換する。
 - feedrate min/max。
 - plot time。
 - 実機エラー率。
+- scan mismatch summary。
 
 ## リスク
 
 - pressure と実際の濃淡がペン種に強く依存する。
 - xDraw の Z 応答が遅く、細かい pressure 変化に追従しない。
 - AxiDraw API と xDraw G-code の抽象差が大きい。
+- スキャン条件や紙・ペン差が評価結果に混ざる。
 
 ## 参照
 

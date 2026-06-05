@@ -16,6 +16,7 @@ writer profile は単なる個人癖モデルではなく、実験条件とし�
 2. 速度、字間、baseline drift、終筆癖は writer individuality に強く効く。
 3. neural embedding は後段で profile 推定の補助として導入すればよい。
 4. profile を experiment registry と結合すると、評価結果から次の profile 変更を提案しやすい。
+5. 文章としての一貫性には、global parameter だけでなく、文字種、画種、行文脈ごとの階層 parameter が必要になる。
 
 ## スコープ
 
@@ -27,6 +28,7 @@ writer profile は単なる個人癖モデルではなく、実験条件とし�
 - profile による生成差分。
 - 自前サンプルからの統計推定。
 - profile 比較評価。
+- global / char_class / stroke_type / line_context を持つ階層 profile。
 
 含まない:
 
@@ -58,6 +60,29 @@ profile は ID と version を持つ。
 ```
 
 profile を変更する場合は、新しい version または派生 profile として保存する。既存 profile を破壊的に上書きしない。
+
+拡張版では、文章単位の一貫性を扱うために次の階層を持たせる。
+
+```json
+{
+  "global": {},
+  "char_class": {
+    "hiragana": {},
+    "kanji": {},
+    "punctuation": {}
+  },
+  "stroke_type": {
+    "harai": {},
+    "hane": {},
+    "tome": {}
+  },
+  "line_context": {
+    "baseline_drift": {},
+    "fatigue": {},
+    "spacing_variation": {}
+  }
+}
+```
 
 ## Feedback Loop
 
@@ -103,6 +128,7 @@ manual profile を登録し、experiment registry から参照できることを
 
 - 同じ文で違いが視認できるか。
 - 同一 profile 内で一貫性があるか。
+- 短文で字間、行方向、終筆癖が一貫して変化するか。
 
 ### Experiment 3: sample statistics
 
@@ -135,6 +161,7 @@ evaluation harness の failure tags をもとに profile を派生させる。
 - `writer-profile.schema.json` 案。
 - profile registry schema。
 - manual profile examples。
+- hierarchical profile schema。
 - profile application spec。
 - profile update protocol。
 - 自前サンプル統計推定手順。
@@ -154,6 +181,7 @@ evaluation harness の failure tags をもとに profile を派生させる。
 - 文字種固有の癖と writer 固有の癖を分離しにくい。
 - 評価 metric だけに合わせて profile を過剰最適化する。
 - 既存 profile を上書きし、比較可能性を失う。
+- 階層 profile を早く複雑にしすぎると、少ない実験では原因切り分けが難しくなる。
 
 ## 参照
 

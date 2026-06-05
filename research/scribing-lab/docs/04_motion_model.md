@@ -27,6 +27,8 @@ stroke skeleton
   -> integrate to x,y,t
   -> add pressure event
   -> add drift/tremor
+  -> add pen-up timing
+  -> add line-level spacing and repeated-character variation
 ```
 
 ## pressure event
@@ -49,6 +51,8 @@ pressure は実機の荷重ではなく、初期段階では仮想筆圧であ�
 
 これらは writer profile で強度を制御する。
 
+文章では、同じ文字が不自然に同一にならないこと、行全体が機械的に揃いすぎないことも重要である。motion model は、画単位の速度だけでなく、字間、pen-up 移動時間、反復文字の微小差分、文章後半の速度変化を扱う。
+
 ## 学習なし MVP
 
 最初は手設計 prior で実装する。
@@ -56,6 +60,8 @@ pressure は実機の荷重ではなく、初期段階では仮想筆圧であ�
 - 画長から duration を決める。
 - 曲率が高い部分で速度を少し落とす。
 - 画種ごとに終端 pressure event を決める。
+- pen-up 移動にも距離に応じた時間を与える。
+- 同じ文字の反復に seed 付きの小さな差分を入れる。
 - 同一 seed で再現可能にする。
 
 ## データ駆動版
@@ -77,6 +83,8 @@ pressure は実機の荷重ではなく、初期段階では仮想筆圧であ�
 - DTW/DDTW。
 - 終端イベントの線幅変化。
 - プロッタ実機での破綻率。
+- repeated character similarity。
+- spacing variance。
 
 ## 参照
 

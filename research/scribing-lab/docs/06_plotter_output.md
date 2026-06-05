@@ -45,6 +45,7 @@ AxiDraw API は pen height、pen up/down speed、XY speed、delay を制御で�
 - pressure の機械依存写像。
 - 安全な開始・終了シーケンス。
 - 実機で危険な自動 pen-down を避ける。
+- 実機スキャンと pen / paper / plotter metadata を experiment artifact として扱える形にする。
 
 ## 非責務
 
@@ -60,9 +61,11 @@ AxiDraw API は pen height、pen up/down speed、XY speed、delay を制御で�
 - pen-up 移動が線として出ない。
 - Z 値が安全範囲内に収まる。
 - `$H` と `G92 X0 Y297 Z0` が必要な場面で出る。
+- 実機スキャンを登録する場合、preview、G-code、scan metadata が同じ experiment ID に紐付く。
 
 ## 実機評価
 
 - 同じ軌跡を速度だけ変えて線の濃さ・にじみ・角の崩れを見る。
 - harai/hane/tome の終端が紙面で区別できるかを見る。
 - ペン種ごとの最適 parameter を記録する。
+- preview と実機スキャンの差分を `scan-mismatch` や `plotter-line-quality-bad` として記録する。
