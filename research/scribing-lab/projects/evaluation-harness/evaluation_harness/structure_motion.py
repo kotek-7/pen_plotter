@@ -42,8 +42,7 @@ def run_structure_motion(
 
     from character_dictionary import LayoutConfig, layout_text
     from motion_synthesis import MotionConfig, SkeletonStroke, synthesize_motion
-    from src.gcode.config import PlotterConfig
-    from src.gcode.generator import GCodeGenerator
+    from plotter_export import export_xdraw_gcode, validate_xdraw_gcode
     from src.gcode.preview import preview_strokes
 
     cfg = config or StructureMotionConfig()
@@ -70,7 +69,6 @@ def run_structure_motion(
         for stroke in laid_out
     ]
     strokes = [np.array(stroke.points, dtype=float) for stroke in laid_out]
-    finishes = [stroke.terminal for stroke in laid_out]
     trajectory = [
         point.to_dict()
         for point in synthesize_motion(
@@ -84,13 +82,19 @@ def run_structure_motion(
         )
     ]
 
-    generator = GCodeGenerator(PlotterConfig())
-    gcode_lines = generator.generate(strokes, finishes=finishes, vary_speed=True)
+    gcode_lines = export_xdraw_gcode(trajectory)
+    safety = validate_xdraw_gcode(gcode_lines)
     metrics = compute_trajectory_metrics(trajectory)
     metrics.update(
         {
             "structure_stroke_count": len(strokes),
             "gcode_line_count": len(gcode_lines),
+            "gcode_safety_ok": int(safety.ok),
+            "gcode_safety_violation_count": len(safety.violations),
+            "gcode_z_min": safety.z_min,
+            "gcode_z_max": safety.z_max,
+            "gcode_feed_min": safety.feed_min,
+            "gcode_feed_max": safety.feed_max,
             **compute_text_metrics(input_text),
         }
     )
@@ -98,6 +102,7 @@ def run_structure_motion(
     trajectory_path = artifacts.write_json(experiment_id, "trajectory.json", trajectory)
     config_path = artifacts.write_json(experiment_id, "motion_config.json", asdict(cfg))
     gcode_path = artifacts.write_text(experiment_id, "output.gcode", "\n".join(gcode_lines) + "\n")
+    safety_path = artifacts.write_json(experiment_id, "gcode_safety.json", safety.to_dict())
     preview_path = artifacts.experiment_dir(experiment_id) / "preview.png"
     preview_strokes(strokes, save_path=preview_path)
 
@@ -113,10 +118,11 @@ def run_structure_motion(
             "trajectory": trajectory_path,
             "motion_config": config_path,
             "gcode": gcode_path,
+            "gcode_safety": safety_path,
             "preview": str(preview_path),
         },
         metrics=metrics,
-        failure_tags=infer_structure_motion_failure_tags(input_text),
+        failure_tags=infer_structure_motion_failure_tags(input_text, safety_ok=safety.ok),
         next_action="compare against structure-uniform and tune skeleton rigidity",
         notes="Structure-motion uses dictionary skeletons with seeded motion timing.",
     )
@@ -155,10 +161,12 @@ def run_structure_motion_batch(
     return records
 
 
-def infer_structure_motion_failure_tags(input_text: str) -> list[str]:
+def infer_structure_motion_failure_tags(input_text: str, *, safety_ok: bool = True) -> list[str]:
     tags = ["skeleton-too-rigid"]
     if len(input_text) >= 5:
         tags.append("line-too-mechanical")
+    if not safety_ok:
+        tags.append("plotter-unsafe")
     return tags
 
 
@@ -231,6 +239,7 @@ def _ensure_paths() -> None:
         repo_root,
         repo_root / "research" / "scribing-lab" / "projects" / "character-dictionary",
         repo_root / "research" / "scribing-lab" / "projects" / "motion-synthesis",
+        repo_root / "research" / "scribing-lab" / "projects" / "plotter-export",
     ]
     for path in paths:
         path_str = str(path)

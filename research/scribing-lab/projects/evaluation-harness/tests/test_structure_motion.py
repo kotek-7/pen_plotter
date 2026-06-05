@@ -20,7 +20,11 @@ def test_run_structure_motion_registers_motion_metrics(tmp_path: Path) -> None:
     assert record.metrics["status"] == "ok"
     assert record.metrics["velocity_peak_count"] > 0
     assert record.metrics["draw_speed_cv"] > 0.0
+    assert record.metrics["gcode_safety_ok"] == 1
+    assert record.metrics["gcode_safety_violation_count"] == 0
+    assert "gcode_safety" in record.artifacts
     assert "too-uniform" not in record.failure_tags
+    assert "plotter-unsafe" not in record.failure_tags
     for path in record.artifacts.values():
         assert Path(path).exists()
 
