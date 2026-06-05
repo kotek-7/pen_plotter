@@ -18,3 +18,18 @@ def test_offline_review_parser_accepts_output_paths() -> None:
     assert args.root == "runs/test"
     assert args.output == "review.md"
     assert args.json_output == "review.json"
+
+
+def test_structure_motion_parser_accepts_shape_variation() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-motion-batch",
+            "--root",
+            "runs/test",
+            "--shape-variation",
+            "0.08",
+        ]
+    )
+
+    assert args.command == "structure-motion-batch"
+    assert args.shape_variation == 0.08

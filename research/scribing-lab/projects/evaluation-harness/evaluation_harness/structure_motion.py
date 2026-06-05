@@ -26,6 +26,7 @@ class StructureMotionConfig:
     samples_per_segment: int = 6
     timing_jitter_cv: float = 0.08
     tremor_mm: float = 0.015
+    shape_variation: float = 0.0
 
 
 def run_structure_motion(
@@ -57,6 +58,8 @@ def run_structure_motion(
             char_size=cfg.char_size,
             char_spacing=cfg.char_spacing,
             line_height=cfg.line_height,
+            shape_variation=cfg.shape_variation,
+            variation_seed=seed,
         ),
     )
     skeletons = [
@@ -88,6 +91,8 @@ def run_structure_motion(
     metrics.update(
         {
             "structure_stroke_count": len(strokes),
+            "shape_variation": cfg.shape_variation,
+            "shape_variation_mm": round(cfg.shape_variation * cfg.char_size, 4),
             "gcode_line_count": len(gcode_lines),
             "gcode_safety_ok": int(safety.ok),
             "gcode_safety_violation_count": len(safety.violations),
@@ -177,6 +182,10 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     safety_violations = [
         float(record.metrics.get("gcode_safety_violation_count", 0)) for record in records
     ]
+    shape_variation = [float(record.metrics.get("shape_variation", 0.0)) for record in records]
+    shape_variation_mm = [
+        float(record.metrics.get("shape_variation_mm", 0.0)) for record in records
+    ]
     z_min = [float(record.metrics.get("gcode_z_min", 0.0)) for record in records]
     z_max = [float(record.metrics.get("gcode_z_max", 0.0)) for record in records]
     feed_min = [float(record.metrics.get("gcode_feed_min", 0)) for record in records]
@@ -192,6 +201,8 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
         "failure_tag_counts": failure_tag_counts,
         "velocity_peak_count": _series_summary(velocity_peaks),
         "draw_speed_cv": _series_summary(speed_cv),
+        "shape_variation": _series_summary(shape_variation),
+        "shape_variation_mm": _series_summary(shape_variation_mm),
         "gcode_safety_ok_count": int(sum(safety_ok)),
         "gcode_safety_violation_count": _series_summary(safety_violations),
         "gcode_z_min": _series_summary(z_min),
@@ -205,6 +216,8 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
                 "seed": record.seed,
                 "velocity_peak_count": record.metrics.get("velocity_peak_count", 0),
                 "draw_speed_cv": record.metrics.get("draw_speed_cv", 0.0),
+                "shape_variation": record.metrics.get("shape_variation", 0.0),
+                "shape_variation_mm": record.metrics.get("shape_variation_mm", 0.0),
                 "gcode_safety_ok": record.metrics.get("gcode_safety_ok", 0),
                 "gcode_safety_violation_count": record.metrics.get(
                     "gcode_safety_violation_count", 0
@@ -226,6 +239,8 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
         f"- failure_tag_counts: `{summary['failure_tag_counts']}`",
         f"- velocity_peak_count: `{summary['velocity_peak_count']}`",
         f"- draw_speed_cv: `{summary['draw_speed_cv']}`",
+        f"- shape_variation: `{summary['shape_variation']}`",
+        f"- shape_variation_mm: `{summary['shape_variation_mm']}`",
         f"- gcode_safety_ok_count: `{summary['gcode_safety_ok_count']}`",
         f"- gcode_safety_violation_count: `{summary['gcode_safety_violation_count']}`",
         f"- gcode_z_min: `{summary['gcode_z_min']}`",
@@ -244,6 +259,8 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
             f"seed=`{record['seed']}`, "
             f"velocity_peaks=`{record['velocity_peak_count']}`, "
             f"draw_speed_cv=`{record['draw_speed_cv']}`, "
+            f"shape_variation=`{record['shape_variation']}`, "
+            f"shape_variation_mm=`{record['shape_variation_mm']}`, "
             f"gcode_safety_ok=`{record['gcode_safety_ok']}`, "
             f"violations=`{record['gcode_safety_violation_count']}`, "
             f"failure_tags=`{record['failure_tags']}`"

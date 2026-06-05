@@ -114,6 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     motion.add_argument("--input-text", default="永")
     motion.add_argument("--seed", type=int, default=1)
     motion.add_argument("--profile-id", default="baseline-neat")
+    motion.add_argument("--shape-variation", type=float, default=0.0)
 
     motion_batch = sub.add_parser(
         "structure-motion-batch",
@@ -122,6 +123,7 @@ def build_parser() -> argparse.ArgumentParser:
     motion_batch.add_argument("--root", default="runs/structure-motion")
     motion_batch.add_argument("--seeds", default="1,2,3")
     motion_batch.add_argument("--profile-id", default="baseline-neat")
+    motion_batch.add_argument("--shape-variation", type=float, default=0.0)
     return parser
 
 
@@ -231,7 +233,7 @@ def main() -> None:
             input_text=args.input_text,
             seed=args.seed,
             profile_id=args.profile_id,
-            config=StructureMotionConfig(),
+            config=StructureMotionConfig(shape_variation=args.shape_variation),
         )
         print(f"registered {record.experiment_id}")
         print(f"registry: {Path(args.root) / 'registry.jsonl'}")
@@ -242,7 +244,7 @@ def main() -> None:
             input_texts=DEFAULT_STRUCTURE_INPUTS,
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
-            config=StructureMotionConfig(),
+            config=StructureMotionConfig(shape_variation=args.shape_variation),
         )
         print(f"registered {len(records)} experiments")
         print(f"registry: {Path(args.root) / 'registry.jsonl'}")

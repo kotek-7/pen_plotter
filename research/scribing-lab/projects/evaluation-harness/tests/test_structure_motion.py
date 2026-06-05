@@ -2,7 +2,11 @@ from pathlib import Path
 
 from evaluation_harness.compare import compare_against_baseline
 from evaluation_harness.registry import ExperimentRegistry
-from evaluation_harness.structure_motion import run_structure_motion, run_structure_motion_batch
+from evaluation_harness.structure_motion import (
+    StructureMotionConfig,
+    run_structure_motion,
+    run_structure_motion_batch,
+)
 from evaluation_harness.structure_uniform import run_structure_uniform
 
 
@@ -41,6 +45,21 @@ def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     summary = (root / "motion_summary.md").read_text(encoding="utf-8")
     assert "gcode_safety_ok_count" in summary
     assert "gcode_safety_violation_count" in summary
+
+
+def test_run_structure_motion_records_shape_variation_metrics(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-varied",
+        input_text="永",
+        seed=1,
+        config=StructureMotionConfig(shape_variation=0.08),
+    )
+
+    assert record.metrics["shape_variation"] == 0.08
+    assert record.metrics["shape_variation_mm"] == 0.64
 
 
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
