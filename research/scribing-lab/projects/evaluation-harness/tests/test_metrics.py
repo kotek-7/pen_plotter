@@ -1,4 +1,4 @@
-from evaluation_harness.metrics import compute_trajectory_metrics
+from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_metrics
 
 
 def test_compute_trajectory_metrics_for_empty_input() -> None:
@@ -46,3 +46,27 @@ def test_compute_trajectory_metrics_reports_motion_variation() -> None:
     assert metrics["draw_speed_cv"] > 0.0
     assert metrics["mean_abs_acceleration_mm_s2"] > 0.0
     assert metrics["mean_abs_jerk_mm_s3"] > 0.0
+
+
+def test_compute_trajectory_metrics_reports_spacing_and_baseline() -> None:
+    points = [
+        {"x": 0.0, "y": 10.0, "t": 0, "pen_state": 1},
+        {"x": 1.0, "y": 10.0, "t": 100, "pen_state": 0},
+        {"x": 10.0, "y": 11.0, "t": 200, "pen_state": 1},
+        {"x": 11.0, "y": 11.0, "t": 300, "pen_state": 0},
+        {"x": 25.0, "y": 9.0, "t": 400, "pen_state": 1},
+        {"x": 26.0, "y": 9.0, "t": 500, "pen_state": 0},
+    ]
+
+    metrics = compute_trajectory_metrics(points)
+
+    assert metrics["stroke_start_spacing_cv"] > 0.0
+    assert metrics["baseline_drift_mm"] == 2.0
+
+
+def test_compute_text_metrics_counts_repeated_visible_chars() -> None:
+    metrics = compute_text_metrics("春の川をゆっくり歩く。")
+
+    assert metrics["visible_char_count"] == 11
+    assert metrics["repeated_char_count"] == 1
+    assert metrics["repeated_char_ratio"] > 0.0

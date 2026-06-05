@@ -22,6 +22,8 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
             "draw_speed_cv": 0.0,
             "mean_abs_acceleration_mm_s2": 0.0,
             "mean_abs_jerk_mm_s3": 0.0,
+            "stroke_start_spacing_cv": 0.0,
+            "baseline_drift_mm": 0.0,
             "status": "empty",
         }
 
@@ -32,6 +34,7 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
     was_down = False
     speeds: list[float] = []
     speed_times_s: list[float] = []
+    stroke_starts: list[tuple[float, float]] = []
 
     for prev, curr in zip(ordered, ordered[1:], strict=False):
         prev_down = int(prev.get("pen_state", 0)) == 1
@@ -50,6 +53,7 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
         is_down = int(point.get("pen_state", 0)) == 1
         if is_down and not was_down:
             stroke_count += 1
+            stroke_starts.append(_xy(point))
         was_down = is_down
 
     duration = int(float(ordered[-1].get("t", 0.0)) - float(ordered[0].get("t", 0.0)))
@@ -65,7 +69,20 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
         "draw_speed_cv": _coefficient_of_variation(speeds),
         "mean_abs_acceleration_mm_s2": _mean_abs_derivative(speeds, speed_times_s),
         "mean_abs_jerk_mm_s3": _mean_abs_second_derivative(speeds, speed_times_s),
+        "stroke_start_spacing_cv": _stroke_start_spacing_cv(stroke_starts),
+        "baseline_drift_mm": _baseline_drift(stroke_starts),
         "status": "ok",
+    }
+
+
+def compute_text_metrics(text: str) -> dict[str, float | int]:
+    visible = [char for char in text if not char.isspace()]
+    repeated_count = len(visible) - len(set(visible))
+    return {
+        "char_count": len(text),
+        "visible_char_count": len(visible),
+        "repeated_char_count": repeated_count,
+        "repeated_char_ratio": round(repeated_count / len(visible), 4) if visible else 0.0,
     }
 
 
@@ -75,6 +92,13 @@ def _distance(a: Point, b: Point) -> float:
     bx = float(b.get("x", b.get("x_mm", 0.0)))
     by = float(b.get("y", b.get("y_mm", 0.0)))
     return math.hypot(bx - ax, by - ay)
+
+
+def _xy(point: Point) -> tuple[float, float]:
+    return (
+        float(point.get("x", point.get("x_mm", 0.0))),
+        float(point.get("y", point.get("y_mm", 0.0))),
+    )
 
 
 def _count_local_peaks(values: Sequence[float]) -> int:
@@ -123,3 +147,22 @@ def _derivatives(values: Sequence[float], times_s: Sequence[float]) -> list[floa
             continue
         out.append((curr_value - prev_value) / dt)
     return out
+
+
+def _stroke_start_spacing_cv(starts: Sequence[tuple[float, float]]) -> float:
+    if len(starts) < 3:
+        return 0.0
+    sorted_starts = sorted(starts, key=lambda p: p[0])
+    gaps = [
+        curr[0] - prev[0]
+        for prev, curr in zip(sorted_starts, sorted_starts[1:], strict=False)
+        if curr[0] > prev[0]
+    ]
+    return _coefficient_of_variation(gaps)
+
+
+def _baseline_drift(starts: Sequence[tuple[float, float]]) -> float:
+    if len(starts) < 2:
+        return 0.0
+    ys = [point[1] for point in starts]
+    return round(max(ys) - min(ys), 4)

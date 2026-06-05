@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 
 from evaluation_harness.artifacts import ArtifactStore
-from evaluation_harness.metrics import compute_trajectory_metrics
+from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
@@ -86,6 +86,7 @@ def run_baseline_outline(
         {
             "baseline_stroke_count": len(strokes),
             "gcode_line_count": len(gcode_lines),
+            **compute_text_metrics(input_text),
         }
     )
 
