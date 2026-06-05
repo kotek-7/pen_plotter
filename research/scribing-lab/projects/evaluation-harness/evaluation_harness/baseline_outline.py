@@ -118,7 +118,7 @@ def run_baseline_outline(
             "preview": str(preview_path),
         },
         metrics=metrics,
-        failure_tags=[],
+        failure_tags=infer_baseline_failure_tags(input_text, metrics),
         next_action="compare this baseline against structure and motion generators with the same seed",
         notes=(
             "Trajectory timing is approximated from outline stroke geometry because the current "
@@ -158,13 +158,28 @@ def run_baseline_outline_batch(
     root.mkdir(parents=True, exist_ok=True)
     summary_json = root / "summary.json"
     summary_md = root / "summary.md"
+    review_packet_md = root / "review_packet.md"
     summary_json.write_text(_json_dumps(summary), encoding="utf-8")
     summary_md.write_text(render_summary_markdown(summary), encoding="utf-8")
+    review_packet_md.write_text(render_review_packet_markdown(summary), encoding="utf-8")
     return records
+
+
+def infer_baseline_failure_tags(input_text: str, metrics: dict[str, float | int | str]) -> list[str]:
+    """Return conservative review tags for the fixed font-outline baseline."""
+    tags = ["too-font-like", "terminal-too-uniform"]
+    if int(metrics.get("velocity_peak_count", 0)) == 0:
+        tags.append("too-uniform")
+    if len(input_text) >= 5:
+        tags.append("line-too-mechanical")
+    if _has_repeated_visible_char(input_text):
+        tags.append("repeated-char-too-identical")
+    return tags
 
 
 def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     status_counts: dict[str, int] = {}
+    failure_tag_counts: dict[str, int] = {}
     stroke_counts: list[float] = []
     draw_distances: list[float] = []
     penup_distances: list[float] = []
@@ -173,6 +188,8 @@ def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     for record in records:
         status = str(record.metrics.get("status", "unknown"))
         status_counts[status] = status_counts.get(status, 0) + 1
+        for tag in record.failure_tags:
+            failure_tag_counts[tag] = failure_tag_counts.get(tag, 0) + 1
         stroke_counts.append(float(record.metrics.get("baseline_stroke_count", 0)))
         draw_distances.append(float(record.metrics.get("draw_distance_mm", 0.0)))
         penup_distances.append(float(record.metrics.get("penup_distance_mm", 0.0)))
@@ -183,6 +200,7 @@ def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
         "input_count": len({record.input_text for record in records}),
         "seed_count": len({record.seed for record in records}),
         "status_counts": status_counts,
+        "failure_tag_counts": failure_tag_counts,
         "baseline_stroke_count": _series_summary(stroke_counts),
         "draw_distance_mm": _series_summary(draw_distances),
         "penup_distance_mm": _series_summary(penup_distances),
@@ -197,7 +215,10 @@ def summarize_records(records: list[ExperimentRecord]) -> dict[str, Any]:
                 "draw_distance_mm": record.metrics.get("draw_distance_mm", 0.0),
                 "penup_distance_mm": record.metrics.get("penup_distance_mm", 0.0),
                 "duration_ms": record.metrics.get("duration_ms", 0),
+                "failure_tags": list(record.failure_tags),
                 "report": record.artifacts.get("report", ""),
+                "preview": record.artifacts.get("preview", ""),
+                "gcode": record.artifacts.get("gcode", ""),
             }
             for record in records
         ],
@@ -212,6 +233,7 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
         f"- input_count: `{summary['input_count']}`",
         f"- seed_count: `{summary['seed_count']}`",
         f"- status_counts: `{summary['status_counts']}`",
+        f"- failure_tag_counts: `{summary['failure_tag_counts']}`",
         "",
         "## Metric Summary",
         "",
@@ -227,8 +249,80 @@ def render_summary_markdown(summary: dict[str, Any]) -> str:
             f"input=`{record['input_text']}`, "
             f"seed=`{record['seed']}`, "
             f"strokes=`{record['baseline_stroke_count']}`, "
-            f"duration_ms=`{record['duration_ms']}`"
+            f"duration_ms=`{record['duration_ms']}`, "
+            f"failure_tags=`{record['failure_tags']}`"
         )
+    return "\n".join(lines) + "\n"
+
+
+def render_review_packet_markdown(summary: dict[str, Any]) -> str:
+    lines = [
+        "# Baseline Outline Review Packet",
+        "",
+        "## Scope",
+        "",
+        (
+            "固定評価入力セットに対する `baseline-outline` の初期レビュー束。"
+            "新方式は同じ入力・seed・report 形式で比較する。"
+        ),
+        "",
+        "## Summary",
+        "",
+        f"- record_count: `{summary['record_count']}`",
+        f"- input_count: `{summary['input_count']}`",
+        f"- seed_count: `{summary['seed_count']}`",
+        f"- status_counts: `{summary['status_counts']}`",
+        f"- failure_tag_counts: `{summary['failure_tag_counts']}`",
+        "",
+        "## Metrics",
+        "",
+    ]
+    for key in ("baseline_stroke_count", "draw_distance_mm", "penup_distance_mm", "duration_ms"):
+        lines.append(f"- {key}: `{summary[key]}`")
+
+    lines.extend(
+        [
+            "",
+            "## Findings",
+            "",
+            "- `too-font-like`: font outline をなぞる baseline 固有の既知課題。",
+            "- `terminal-too-uniform`: 筆順・画種由来の払い、はね、とめを保持しない。",
+            "- `too-uniform`: 近似 trajectory が等速寄りで、motion model 比較の基準線になる。",
+            "- `line-too-mechanical`: 短文では字間、行方向、反復差分の評価が必要。",
+            "",
+            "## Records",
+            "",
+        ]
+    )
+    for record in summary["records"]:
+        lines.extend(
+            [
+                f"### {record['experiment_id']}",
+                "",
+                f"- input_text: `{record['input_text']}`",
+                f"- seed: `{record['seed']}`",
+                f"- failure_tags: `{record['failure_tags']}`",
+                f"- strokes: `{record['baseline_stroke_count']}`",
+                f"- draw_distance_mm: `{record['draw_distance_mm']}`",
+                f"- penup_distance_mm: `{record['penup_distance_mm']}`",
+                f"- duration_ms: `{record['duration_ms']}`",
+                f"- preview: `{record['preview']}`",
+                f"- gcode: `{record['gcode']}`",
+                f"- report: `{record['report']}`",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Next Action",
+            "",
+            (
+                "`structure + uniform speed` を同じ registry/artifact/report 形式で追加し、"
+                "`wrong-stroke-order`、`too-font-like`、`terminal-too-uniform` の差分を比較する。"
+            ),
+        ]
+    )
     return "\n".join(lines) + "\n"
 
 
@@ -324,6 +418,17 @@ def _series_summary(values: list[float]) -> dict[str, float]:
         "max": round(max(values), 4),
         "mean": round(sum(values) / len(values), 4),
     }
+
+
+def _has_repeated_visible_char(text: str) -> bool:
+    seen: set[str] = set()
+    for char in text:
+        if char.isspace() or char in "。、,.，．":
+            continue
+        if char in seen:
+            return True
+        seen.add(char)
+    return False
 
 
 def _json_dumps(data: Any) -> str:

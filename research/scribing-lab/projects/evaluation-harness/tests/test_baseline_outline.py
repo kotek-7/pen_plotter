@@ -2,6 +2,7 @@ from pathlib import Path
 
 from evaluation_harness.baseline_outline import (
     BaselineOutlineConfig,
+    infer_baseline_failure_tags,
     run_baseline_outline,
     run_baseline_outline_batch,
     strokes_to_trajectory,
@@ -39,6 +40,8 @@ def test_run_baseline_outline_registers_artifacts(tmp_path: Path) -> None:
 
     assert record.generator == "baseline-outline"
     assert record.exporter == "xdraw-gcode"
+    assert "too-font-like" in record.failure_tags
+    assert "terminal-too-uniform" in record.failure_tags
     assert record.metrics["status"] == "ok"
     assert record.metrics["baseline_stroke_count"] > 0
     for path in record.artifacts.values():
@@ -47,6 +50,7 @@ def test_run_baseline_outline_registers_artifacts(tmp_path: Path) -> None:
     loaded = ExperimentRegistry(root / "registry.jsonl").get("exp-baseline-test")
     assert loaded.artifacts["gcode"].endswith("output.gcode")
     assert loaded.metrics["baseline_stroke_count"] == record.metrics["baseline_stroke_count"]
+    assert loaded.failure_tags == record.failure_tags
 
 
 def test_run_baseline_outline_batch_writes_summary(tmp_path: Path) -> None:
@@ -62,4 +66,16 @@ def test_run_baseline_outline_batch_writes_summary(tmp_path: Path) -> None:
     assert len(records) == 4
     assert (root / "summary.json").exists()
     assert (root / "summary.md").exists()
+    assert (root / "review_packet.md").exists()
     assert len(ExperimentRegistry(root / "registry.jsonl").load_all()) == 4
+
+
+def test_infer_baseline_failure_tags_marks_repeated_text() -> None:
+    tags = infer_baseline_failure_tags(
+        "ああ",
+        {"velocity_peak_count": 0},
+    )
+
+    assert "too-font-like" in tags
+    assert "too-uniform" in tags
+    assert "repeated-char-too-identical" in tags
