@@ -48,12 +48,17 @@ def infer_offline_failure_tags(record: ExperimentRecord) -> list[str]:
     tags: set[str] = set(record.failure_tags)
     metrics = record.metrics
 
+    if _has_shape_variation(metrics):
+        tags.discard("skeleton-too-rigid")
+
     if _is_plotter_unsafe(metrics):
         tags.add("plotter-unsafe")
 
     if record.generator == "baseline-outline":
         tags.update({"too-font-like", "terminal-too-uniform"})
-    elif record.generator in {"structure-uniform", "structure-motion"}:
+    elif record.generator in {"structure-uniform", "structure-motion"} and not _has_shape_variation(
+        metrics
+    ):
         tags.add("skeleton-too-rigid")
 
     if _looks_too_uniform(metrics):
@@ -153,6 +158,10 @@ def _looks_too_uniform(metrics: dict[str, float | int | str]) -> bool:
     if point_count < 4:
         return False
     return velocity_peaks == 0 or draw_speed_cv < 0.05
+
+
+def _has_shape_variation(metrics: dict[str, float | int | str]) -> bool:
+    return float(metrics.get("shape_variation_mm", 0.0)) >= 0.5
 
 
 def _looks_line_mechanical(

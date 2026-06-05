@@ -37,6 +37,22 @@ def test_infer_offline_failure_tags_detects_plotter_unsafe() -> None:
     assert "skeleton-too-rigid" in tags
 
 
+def test_infer_offline_failure_tags_resolves_skeleton_rigidity_with_shape_variation() -> None:
+    record = _record(
+        generator="structure-motion",
+        metrics={
+            "point_count": 12,
+            "velocity_peak_count": 3,
+            "draw_speed_cv": 0.3,
+            "shape_variation": 0.08,
+            "shape_variation_mm": 0.64,
+        },
+        failure_tags=["skeleton-too-rigid"],
+    )
+
+    assert "skeleton-too-rigid" not in infer_offline_failure_tags(record)
+
+
 def test_infer_offline_failure_tags_detects_mechanical_line() -> None:
     record = _record(
         input_text="あいうえお",
@@ -109,6 +125,7 @@ def _record(
     input_text: str = "永",
     generator: str = "structure-uniform",
     metrics: dict[str, float | int | str] | None = None,
+    failure_tags: list[str] | None = None,
 ) -> ExperimentRecord:
     return ExperimentRecord(
         experiment_id=experiment_id,
@@ -119,4 +136,5 @@ def _record(
         generator=generator,
         exporter="xdraw-gcode",
         metrics=metrics or {},
+        failure_tags=failure_tags or [],
     )
