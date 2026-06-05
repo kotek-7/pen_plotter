@@ -9,6 +9,7 @@ from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
+from evaluation_harness.scan import ScanMetadata, validate_scan_metadata
 from evaluation_harness.taxonomy import FAILURE_TAGS
 
 __all__ = [
@@ -18,8 +19,10 @@ __all__ = [
     "ExperimentRecord",
     "ExperimentRegistry",
     "FAILURE_TAGS",
+    "ScanMetadata",
     "compute_trajectory_metrics",
     "render_markdown_report",
     "run_baseline_outline",
     "run_baseline_outline_batch",
+    "validate_scan_metadata",
 ]
