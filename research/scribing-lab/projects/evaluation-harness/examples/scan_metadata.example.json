@@ -1,0 +1,10 @@
+{
+  "scanner": "flatbed-a",
+  "resolution_dpi": 600,
+  "crop_method": "manual-a4-corners",
+  "pen_type": "mechanical-pencil-hb",
+  "paper_type": "plain-a4-copy-paper",
+  "plotter": "xdraw-a4",
+  "captured_at": "2026-06-05T12:00:00+09:00",
+  "operator_note": "scan artifact registration example"
+}

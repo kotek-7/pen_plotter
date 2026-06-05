@@ -58,11 +58,15 @@ python3 -m evaluation_harness compare \
 
 ```sh
 python3 -m evaluation_harness attach-scan \
-  --root runs/baseline-outline \
-  --experiment-id exp-baseline-i01-s001 \
+  --root runs/plotter-export-final \
+  --experiment-id exp-motion-i01-s001 \
   --scan-path plotted_scan.png \
-  --metadata-json scan_metadata.json
+  --metadata-json examples/scan_metadata.example.json
 ```
+
+`attach-scan` は、対象 experiment の `gcode_safety_ok` が `1` で、`gcode_safety`
+artifact が存在する場合だけ登録する。実機送信前に `gcode_safety.json` の
+`ok: true` と `violations: []` を確認する。
 
 生成物は `runs/` に保存される。`runs/` は実験出力なので git 管理しない。
 
