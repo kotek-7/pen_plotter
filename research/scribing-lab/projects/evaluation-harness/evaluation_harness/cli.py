@@ -4,6 +4,12 @@ import argparse
 from pathlib import Path
 
 from evaluation_harness.artifacts import ArtifactStore
+from evaluation_harness.baseline_outline import (
+    DEFAULT_EVALUATION_INPUTS,
+    BaselineOutlineConfig,
+    run_baseline_outline,
+    run_baseline_outline_batch,
+)
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -18,6 +24,34 @@ def build_parser() -> argparse.ArgumentParser:
     smoke.add_argument("--root", default="runs", help="Run output directory")
     smoke.add_argument("--experiment-id", default="exp-000001")
     smoke.add_argument("--input-text", default="永")
+
+    baseline = sub.add_parser(
+        "baseline-outline",
+        help="Run the fixed font-outline baseline and register artifacts",
+    )
+    baseline.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
+    baseline.add_argument("--experiment-id", default="exp-baseline-000001")
+    baseline.add_argument("--input-text", default="永")
+    baseline.add_argument("--seed", type=int, default=1)
+    baseline.add_argument("--profile-id", default="baseline-neat")
+    baseline.add_argument("--font-size", type=float, default=7.0)
+    baseline.add_argument("--jitter", type=float, default=0.08)
+    baseline.add_argument("--wobble", type=float, default=0.04)
+    baseline.add_argument("--no-optimize", action="store_true")
+    baseline.add_argument("--no-vary-speed", action="store_true")
+
+    batch = sub.add_parser(
+        "baseline-outline-batch",
+        help="Run baseline-outline for the fixed evaluation input set",
+    )
+    batch.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
+    batch.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    batch.add_argument("--profile-id", default="baseline-neat")
+    batch.add_argument("--font-size", type=float, default=7.0)
+    batch.add_argument("--jitter", type=float, default=0.08)
+    batch.add_argument("--wobble", type=float, default=0.04)
+    batch.add_argument("--no-optimize", action="store_true")
+    batch.add_argument("--no-vary-speed", action="store_true")
     return parser
 
 
@@ -25,6 +59,41 @@ def main() -> None:
     args = build_parser().parse_args()
     if args.command == "smoke":
         run_smoke(Path(args.root), args.experiment_id, args.input_text)
+    elif args.command == "baseline-outline":
+        record = run_baseline_outline(
+            root=Path(args.root),
+            experiment_id=args.experiment_id,
+            input_text=args.input_text,
+            seed=args.seed,
+            profile_id=args.profile_id,
+            config=BaselineOutlineConfig(
+                font_size=args.font_size,
+                jitter=args.jitter,
+                wobble=args.wobble,
+                optimize=not args.no_optimize,
+                vary_speed=not args.no_vary_speed,
+            ),
+        )
+        print(f"registered {record.experiment_id}")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"report: {record.artifacts['report']}")
+    elif args.command == "baseline-outline-batch":
+        records = run_baseline_outline_batch(
+            root=Path(args.root),
+            input_texts=DEFAULT_EVALUATION_INPUTS,
+            seeds=_parse_seeds(args.seeds),
+            profile_id=args.profile_id,
+            config=BaselineOutlineConfig(
+                font_size=args.font_size,
+                jitter=args.jitter,
+                wobble=args.wobble,
+                optimize=not args.no_optimize,
+                vary_speed=not args.no_vary_speed,
+            ),
+        )
+        print(f"registered {len(records)} experiments")
+        print(f"registry: {Path(args.root) / 'registry.jsonl'}")
+        print(f"summary: {Path(args.root) / 'summary.md'}")
 
 
 def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:
@@ -57,6 +126,15 @@ def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:
     print(f"registered {experiment_id}")
     print(f"registry: {registry.path}")
     print(f"report: {report_path}")
+
+
+def _parse_seeds(raw: str) -> list[int]:
+    seeds = [int(part.strip()) for part in raw.split(",") if part.strip()]
+    if not seeds:
+        raise ValueError("at least one seed is required")
+    if any(seed < 0 for seed in seeds):
+        raise ValueError("seeds must be non-negative")
+    return seeds
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ data/experiments/
 data/subsets/
 data/inkscape_ext/
 data/samples/
+research/scribing-lab/projects/*/runs/
 
 # G-code
 *.gcode

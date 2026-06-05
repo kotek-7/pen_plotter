@@ -22,6 +22,25 @@
 python3 -m evaluation_harness smoke --root runs/smoke
 ```
 
+現行アプリの `font outline + jitter/wobble` を `baseline-outline` として固定し、
+registry / artifact / report に保存する場合:
+
+```sh
+python3 -m evaluation_harness baseline-outline \
+  --root runs/baseline-outline \
+  --experiment-id exp-baseline-000001 \
+  --input-text "永" \
+  --seed 1
+```
+
+固定評価入力セット 5 件を複数 seed で一括登録する場合:
+
+```sh
+python3 -m evaluation_harness baseline-outline-batch \
+  --root runs/baseline-outline \
+  --seeds 1,2,3
+```
+
 生成物は `runs/` に保存される。`runs/` は実験出力なので git 管理しない。
 
 ## テスト
