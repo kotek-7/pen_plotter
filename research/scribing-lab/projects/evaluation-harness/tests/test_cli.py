@@ -61,6 +61,28 @@ def test_validate_human_review_parser_accepts_response_paths() -> None:
     assert args.json_output == "summary.json"
 
 
+def test_plot_ready_packet_parser_accepts_summary_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "plot-ready-packet",
+            "--root",
+            "runs/test",
+            "--human-summary-json",
+            "runs/test/human_review_response_summary.json",
+            "--output",
+            "plot_ready.md",
+            "--json-output",
+            "plot_ready.json",
+        ]
+    )
+
+    assert args.command == "plot-ready-packet"
+    assert args.root == "runs/test"
+    assert args.human_summary_json == "runs/test/human_review_response_summary.json"
+    assert args.output == "plot_ready.md"
+    assert args.json_output == "plot_ready.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [

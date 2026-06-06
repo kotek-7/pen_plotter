@@ -19,6 +19,7 @@
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 実機出力前の目視レビュー向け preview / metrics 束。
 - `validate-human-review`: 目視レビュー response の検証と集計。
+- `plot-ready-packet`: accepted record の G-code / safety / preview 束。
 - `ScanMetadata`: 実機スキャン artifact の metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
@@ -89,6 +90,18 @@ python3 -m evaluation_harness validate-human-review \
 response は `accept`、`reject`、`needs-tuning` のいずれかを記録する。
 `validate-human-review` は代表 record との対応、未回答、未知 ID、重複を検証し、
 `can_proceed_to_plot` を summary に保存する。
+
+実機送信前に accepted record の G-code と safety を束ねる場合:
+
+```sh
+python3 -m evaluation_harness plot-ready-packet \
+  --root runs/structure-motion \
+  --human-summary-json runs/structure-motion/human_review_response_summary.json
+```
+
+`plot-ready-packet` は G-code を自動送信しない。`gcode_safety_ok` と
+`gcode_safety` artifact を再確認し、xDraw A4 のホーミング、`G92 X0 Y297 Z0`、
+Z 軸ペン制御、scan 登録先 experiment ID を checklist として保存する。
 
 実機スキャンを既存 experiment に紐付ける場合:
 

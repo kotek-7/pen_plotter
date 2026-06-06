@@ -24,6 +24,7 @@ from evaluation_harness.human_review_response import (
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.offline_review import build_offline_review, render_offline_review_markdown
+from evaluation_harness.plot_ready import build_plot_ready_packet, render_plot_ready_packet_markdown
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact
@@ -107,6 +108,15 @@ def build_parser() -> argparse.ArgumentParser:
     validate_human.add_argument("--responses-json", required=True)
     validate_human.add_argument("--output", default="human_review_response_summary.md")
     validate_human.add_argument("--json-output", default="human_review_response_summary.json")
+
+    plot_ready = sub.add_parser(
+        "plot-ready-packet",
+        help="Create a safe pre-plot packet from accepted human review responses",
+    )
+    plot_ready.add_argument("--root", required=True, help="Run output directory")
+    plot_ready.add_argument("--human-summary-json", required=True)
+    plot_ready.add_argument("--output", default="plot_ready_packet.md")
+    plot_ready.add_argument("--json-output", default="plot_ready_packet.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -254,6 +264,23 @@ def main() -> None:
         print(f"response_count: {summary['response_count']}")
         print(f"can_proceed_to_plot: {summary['can_proceed_to_plot']}")
         print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "plot-ready-packet":
+        root = Path(args.root)
+        human_summary_path = Path(args.human_summary_json)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        human_summary = json.loads(human_summary_path.read_text(encoding="utf-8"))
+        packet = build_plot_ready_packet(registry.load_all(), human_summary)
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_plot_ready_packet_markdown(packet), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"plot_ready_count: {packet['plot_ready_count']}")
+        print(f"safety_ok_count: {packet['safety_ok_count']}")
+        print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "attach-scan":
         root = Path(args.root)
