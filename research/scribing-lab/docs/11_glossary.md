@@ -2,8 +2,6 @@
 
 この文書は、`scribing-lab` で頻出する用語の前提知識をまとめた用語集である。
 
-`10_research_flow.md` はフローの実務ガイドとして短く保ち、この文書に詳細を集約する。
-
 ## 前提知識
 
 ### experiment registry
