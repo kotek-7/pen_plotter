@@ -422,7 +422,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._reason_tags_list.setFont(self._body_font)
         self._reason_tags_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         for tag in ALLOWED_REASON_TAGS:
-            item = QListWidgetItem(tag)
+            item = QListWidgetItem(self._reason_tag_list_label(tag))
             item.setToolTip(self._reason_tag_tooltip(tag))
             self._reason_tags_list.addItem(item)
         self._reason_tags_list.itemSelectionChanged.connect(self._sync_from_widgets)
@@ -476,6 +476,12 @@ class HumanFeedbackQtWindow(QMainWindow):
                 f"description: {description}",
             ]
         )
+
+    def _reason_tag_list_label(self, tag: str) -> str:
+        group = failure_tag_group(tag)
+        description = describe_failure_tag(tag) or "説明なし"
+        short_description = description.rstrip("。")
+        return f"{tag}  [{group}]  - {short_description}"
 
     def _build_reason_tag_legend_widget(self) -> QWidget:
         widget = QWidget(self)

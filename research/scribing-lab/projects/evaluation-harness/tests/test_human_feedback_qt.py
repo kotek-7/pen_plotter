@@ -169,8 +169,9 @@ def test_qt_feedback_ui_shows_reason_tag_legend_and_tooltips() -> None:
     tooltip = None
     for index in range(window._reason_tags_list.count()):
         item = window._reason_tags_list.item(index)
-        if item is not None and item.text() == "too-font-like":
+        if item is not None and item.text().startswith("too-font-like"):
             tooltip = item.toolTip()
+            assert "[shape]" in item.text()
             break
 
     assert tooltip is not None
