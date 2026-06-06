@@ -27,6 +27,7 @@ class StructureMotionConfig:
     timing_jitter_cv: float = 0.08
     tremor_mm: float = 0.015
     shape_variation: float = 0.0
+    layout_variation: float = 0.0
 
 
 def run_structure_motion(
@@ -59,6 +60,7 @@ def run_structure_motion(
             char_spacing=cfg.char_spacing,
             line_height=cfg.line_height,
             shape_variation=cfg.shape_variation,
+            layout_variation=cfg.layout_variation,
             variation_seed=seed,
         ),
     )
@@ -93,6 +95,8 @@ def run_structure_motion(
             "structure_stroke_count": len(strokes),
             "shape_variation": cfg.shape_variation,
             "shape_variation_mm": round(cfg.shape_variation * cfg.char_size, 4),
+            "layout_variation": cfg.layout_variation,
+            "layout_variation_mm": round(cfg.layout_variation * cfg.char_size, 4),
             "gcode_line_count": len(gcode_lines),
             "gcode_safety_ok": int(safety.ok),
             "gcode_safety_violation_count": len(safety.violations),
@@ -131,6 +135,7 @@ def run_structure_motion(
             input_text,
             safety_ok=safety.ok,
             shape_variation_mm=float(metrics["shape_variation_mm"]),
+            layout_variation_mm=float(metrics["layout_variation_mm"]),
         ),
         next_action="compare against structure-uniform and tune skeleton rigidity",
         notes="Structure-motion uses dictionary skeletons with seeded motion timing.",
@@ -175,11 +180,12 @@ def infer_structure_motion_failure_tags(
     *,
     safety_ok: bool = True,
     shape_variation_mm: float = 0.0,
+    layout_variation_mm: float = 0.0,
 ) -> list[str]:
     tags = []
     if shape_variation_mm < 0.5:
         tags.append("skeleton-too-rigid")
-    if len(input_text) >= 5:
+    if len(input_text) >= 5 and layout_variation_mm < 0.5:
         tags.append("line-too-mechanical")
     if not safety_ok:
         tags.append("plotter-unsafe")
@@ -196,6 +202,10 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
     shape_variation = [float(record.metrics.get("shape_variation", 0.0)) for record in records]
     shape_variation_mm = [
         float(record.metrics.get("shape_variation_mm", 0.0)) for record in records
+    ]
+    layout_variation = [float(record.metrics.get("layout_variation", 0.0)) for record in records]
+    layout_variation_mm = [
+        float(record.metrics.get("layout_variation_mm", 0.0)) for record in records
     ]
     z_min = [float(record.metrics.get("gcode_z_min", 0.0)) for record in records]
     z_max = [float(record.metrics.get("gcode_z_max", 0.0)) for record in records]
@@ -214,6 +224,8 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
         "draw_speed_cv": _series_summary(speed_cv),
         "shape_variation": _series_summary(shape_variation),
         "shape_variation_mm": _series_summary(shape_variation_mm),
+        "layout_variation": _series_summary(layout_variation),
+        "layout_variation_mm": _series_summary(layout_variation_mm),
         "gcode_safety_ok_count": int(sum(safety_ok)),
         "gcode_safety_violation_count": _series_summary(safety_violations),
         "gcode_z_min": _series_summary(z_min),
@@ -229,6 +241,8 @@ def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
                 "draw_speed_cv": record.metrics.get("draw_speed_cv", 0.0),
                 "shape_variation": record.metrics.get("shape_variation", 0.0),
                 "shape_variation_mm": record.metrics.get("shape_variation_mm", 0.0),
+                "layout_variation": record.metrics.get("layout_variation", 0.0),
+                "layout_variation_mm": record.metrics.get("layout_variation_mm", 0.0),
                 "gcode_safety_ok": record.metrics.get("gcode_safety_ok", 0),
                 "gcode_safety_violation_count": record.metrics.get(
                     "gcode_safety_violation_count", 0
@@ -252,6 +266,8 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
         f"- draw_speed_cv: `{summary['draw_speed_cv']}`",
         f"- shape_variation: `{summary['shape_variation']}`",
         f"- shape_variation_mm: `{summary['shape_variation_mm']}`",
+        f"- layout_variation: `{summary['layout_variation']}`",
+        f"- layout_variation_mm: `{summary['layout_variation_mm']}`",
         f"- gcode_safety_ok_count: `{summary['gcode_safety_ok_count']}`",
         f"- gcode_safety_violation_count: `{summary['gcode_safety_violation_count']}`",
         f"- gcode_z_min: `{summary['gcode_z_min']}`",
@@ -272,6 +288,8 @@ def render_motion_summary_markdown(summary: dict[str, Any]) -> str:
             f"draw_speed_cv=`{record['draw_speed_cv']}`, "
             f"shape_variation=`{record['shape_variation']}`, "
             f"shape_variation_mm=`{record['shape_variation_mm']}`, "
+            f"layout_variation=`{record['layout_variation']}`, "
+            f"layout_variation_mm=`{record['layout_variation_mm']}`, "
             f"gcode_safety_ok=`{record['gcode_safety_ok']}`, "
             f"violations=`{record['gcode_safety_violation_count']}`, "
             f"failure_tags=`{record['failure_tags']}`"

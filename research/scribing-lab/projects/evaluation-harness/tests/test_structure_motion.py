@@ -45,6 +45,7 @@ def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     summary = (root / "motion_summary.md").read_text(encoding="utf-8")
     assert "gcode_safety_ok_count" in summary
     assert "gcode_safety_violation_count" in summary
+    assert "layout_variation_mm" in summary
 
 
 def test_run_structure_motion_records_shape_variation_metrics(tmp_path: Path) -> None:
@@ -61,6 +62,22 @@ def test_run_structure_motion_records_shape_variation_metrics(tmp_path: Path) ->
     assert record.metrics["shape_variation"] == 0.08
     assert record.metrics["shape_variation_mm"] == 0.64
     assert "skeleton-too-rigid" not in record.failure_tags
+
+
+def test_run_structure_motion_records_layout_variation_metrics(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-layout-varied",
+        input_text="あいうえお",
+        seed=1,
+        config=StructureMotionConfig(shape_variation=0.08, layout_variation=0.12),
+    )
+
+    assert record.metrics["layout_variation"] == 0.12
+    assert record.metrics["layout_variation_mm"] == 0.96
+    assert "line-too-mechanical" not in record.failure_tags
 
 
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
