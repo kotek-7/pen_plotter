@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import random
+from typing import Any
 
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
@@ -10,7 +12,10 @@ class DictionaryLookupError(KeyError):
     pass
 
 
-BUILTIN_CHARACTERS = frozenset({"永", "あ", "い", "う", "え", "お"})
+SCHEMA_VERSION = 1
+DICTIONARY_ID = "manual-kanjivg-mvp"
+BUILTIN_CHARACTER_ORDER = ("永", "あ", "い", "う", "え", "お")
+BUILTIN_CHARACTERS = frozenset(BUILTIN_CHARACTER_ORDER)
 
 
 def get_template(literal: str) -> CharacterTemplate:
@@ -18,6 +23,23 @@ def get_template(literal: str) -> CharacterTemplate:
         return _TEMPLATES[literal]
     except KeyError as exc:
         raise DictionaryLookupError(literal) from exc
+
+
+def iter_builtin_templates() -> tuple[CharacterTemplate, ...]:
+    return tuple(get_template(literal) for literal in BUILTIN_CHARACTER_ORDER)
+
+
+def export_dictionary() -> dict[str, Any]:
+    return {
+        "schema_version": SCHEMA_VERSION,
+        "dictionary_id": DICTIONARY_ID,
+        "character_count": len(BUILTIN_CHARACTER_ORDER),
+        "characters": [template.to_dict() for template in iter_builtin_templates()],
+    }
+
+
+def export_dictionary_json(indent: int = 2) -> str:
+    return json.dumps(export_dictionary(), ensure_ascii=False, indent=indent, sort_keys=True) + "\n"
 
 
 def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutStroke]:

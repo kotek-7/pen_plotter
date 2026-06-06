@@ -79,6 +79,7 @@ KanjiVG path から得た skeleton が、手書き骨格として硬すぎない
 
 - `stroke-template.schema.json` 案。
 - 小規模辞書データ。
+- 正規化済み辞書 JSON 出力。
 - KanjiVG parser 仕様。
 - terminal mapping table。
 - skeleton rigidity review。

@@ -2,9 +2,15 @@ import pytest
 
 from character_dictionary import (
     BUILTIN_CHARACTERS,
+    BUILTIN_CHARACTER_ORDER,
     DictionaryLookupError,
     LayoutConfig,
+    DICTIONARY_ID,
+    SCHEMA_VERSION,
+    export_dictionary,
+    export_dictionary_json,
     get_template,
+    iter_builtin_templates,
     layout_text,
     map_stroke_type_to_terminal,
 )
@@ -85,6 +91,40 @@ def test_layout_text_rejects_unknown_character() -> None:
 
 def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"永", "あ", "い", "う", "え", "お"} <= BUILTIN_CHARACTERS
+
+
+def test_builtin_character_order_is_stable() -> None:
+    assert BUILTIN_CHARACTER_ORDER == ("永", "あ", "い", "う", "え", "お")
+    assert [template.literal for template in iter_builtin_templates()] == list(
+        BUILTIN_CHARACTER_ORDER
+    )
+
+
+def test_export_dictionary_is_normalized_and_deterministic() -> None:
+    first = export_dictionary()
+    second = export_dictionary()
+
+    assert first == second
+    assert first["schema_version"] == SCHEMA_VERSION
+    assert first["dictionary_id"] == DICTIONARY_ID
+    assert first["character_count"] == len(BUILTIN_CHARACTER_ORDER)
+    assert [item["literal"] for item in first["characters"]] == list(BUILTIN_CHARACTER_ORDER)
+    assert [item["strokes"][0]["stroke_id"] for item in first["characters"] if item["strokes"]] == [
+        1,
+        1,
+        1,
+        1,
+        1,
+        1,
+    ]
+
+
+def test_export_dictionary_json_is_stable() -> None:
+    json_text = export_dictionary_json()
+
+    assert '"schema_version": 1' in json_text
+    assert '"dictionary_id": "manual-kanjivg-mvp"' in json_text
+    assert json_text.endswith("\n")
 
 
 @pytest.mark.parametrize(
