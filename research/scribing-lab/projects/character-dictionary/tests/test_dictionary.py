@@ -172,6 +172,33 @@ def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"が", "っ", "ア", "レ", "ビ", "ュ"} <= BUILTIN_CHARACTERS
 
 
+def test_builtin_dictionary_covers_fixed_evaluation_inputs() -> None:
+    texts = [
+        "永",
+        "あいうえお",
+        "今日はよい天気です。",
+        "春の川をゆっくり歩く。",
+        "本日はありがとうございました。",
+        "文字列の品質を評価するために、少し長めの文章を用意します。",
+        "同じ文字が続くときのばらつきと、字間の自然さを確認する。",
+        "評価器の人間レビューでは、候補ごとの差が読み取れることが重要です。",
+        "一行だけでなく、複数の文や改行を含むケースも確認する。\nここでは行間と整列も見る。",
+        "この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。",
+        "ああああいいううええおおお",
+        "長文の比較に十分な余白と字数を持たせるため、ここでは少しだけ冗長に書いています。",
+    ]
+    missing = sorted(
+        {
+            char
+            for text in texts
+            for char in text
+            if not char.isspace() and char not in BUILTIN_CHARACTERS
+        }
+    )
+
+    assert missing == []
+
+
 def test_builtin_character_order_is_stable() -> None:
     assert BUILTIN_CHARACTER_ORDER[:6] == ("永", "あ", "い", "う", "え", "お")
     assert len(BUILTIN_CHARACTER_ORDER) > 6
