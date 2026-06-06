@@ -16,6 +16,7 @@
 - `baseline-outline-batch`: 固定評価入力セットの batch runner。
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
+- `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -66,6 +67,17 @@ python3 -m evaluation_harness compare-fixed-inputs \
   --root runs/baseline-outline \
   --seeds 1,2,3
 ```
+
+固定評価入力セットの preview 由来の差分を確認する場合:
+
+```sh
+python3 -m evaluation_harness compare-preview-fixed-inputs \
+  --root runs/baseline-outline \
+  --seeds 1,2,3
+```
+
+`compare-preview-fixed-inputs` は、baseline と candidate の `preview` artifact の
+存在、サイズ、SHA-256 を比較し、preview が更新されたかを記録する。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

@@ -1,9 +1,13 @@
+from pathlib import Path
+
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.compare import (
     compare_against_baseline,
     compare_fixed_input_set,
+    compare_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
+    render_preview_fixed_input_comparison_markdown,
 )
 from evaluation_harness.models import ExperimentRecord
 
@@ -117,12 +121,81 @@ def test_compare_fixed_input_set_reports_missing_baselines() -> None:
     assert comparison["group_summaries"][0]["status"] == "missing-baseline"
 
 
+def test_compare_preview_fixed_input_set_reports_preview_hash_deltas(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    candidate_preview.write_bytes(b"candidate-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            artifacts={"preview": str(candidate_preview)},
+        ),
+    ]
+
+    comparison = compare_preview_fixed_input_set(
+        records,
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    assert comparison["expected_group_count"] == 1
+    assert comparison["preview_ready_count"] == 1
+    assert comparison["preview_hash_changed_count"] == 1
+    assert comparison["preview_group_summaries"][0]["preview_comparison_count"] == 1
+    assert comparison["preview_comparisons"][0]["preview_hash_changed"] is True
+    report = render_preview_fixed_input_comparison_markdown(comparison)
+    assert "# Preview Comparison Report" in report
+    assert "preview_hash_changed" in report
+
+
+def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+
+    comparison = compare_preview_fixed_input_set(
+        [
+            _record(
+                experiment_id="exp-baseline",
+                input_text="永",
+                seed=1,
+                generator="baseline-outline",
+                artifacts={"preview": str(baseline_preview)},
+            ),
+            _record(
+                experiment_id="exp-candidate",
+                input_text="永",
+                seed=1,
+                generator="structure-motion",
+                artifacts={},
+            ),
+        ],
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    assert comparison["preview_ready_count"] == 0
+    assert comparison["preview_comparisons"][0]["preview_comparable"] is False
+
+
 def _record(
     *,
     experiment_id: str,
     input_text: str,
     seed: int,
     generator: str,
+    artifacts: dict[str, str] | None = None,
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
 ) -> ExperimentRecord:
@@ -134,6 +207,7 @@ def _record(
         seed=seed,
         generator=generator,
         exporter="xdraw-gcode",
+        artifacts=artifacts or {},
         metrics=metrics or {},
         failure_tags=failure_tags or [],
     )

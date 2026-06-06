@@ -132,6 +132,31 @@ def test_compare_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.json_output == "fixed.json"
 
 
+def test_compare_preview_fixed_inputs_parser_accepts_seeds() -> None:
+    args = build_parser().parse_args(
+        [
+            "compare-preview-fixed-inputs",
+            "--root",
+            "runs/test",
+            "--baseline-generator",
+            "baseline-outline",
+            "--seeds",
+            "1,2",
+            "--output",
+            "preview.md",
+            "--json-output",
+            "preview.json",
+        ]
+    )
+
+    assert args.command == "compare-preview-fixed-inputs"
+    assert args.root == "runs/test"
+    assert args.baseline_generator == "baseline-outline"
+    assert args.seeds == "1,2"
+    assert args.output == "preview.md"
+    assert args.json_output == "preview.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -219,6 +244,67 @@ def test_compare_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch
     assert '"coverage_ratio": 1.0' in json_text
 
 
+def test_compare_preview_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for input_text in DEFAULT_EVALUATION_INPUTS:
+        for seed in (1, 2):
+            baseline_id = f"exp-baseline-{input_text}-{seed}"
+            candidate_id = f"exp-candidate-{input_text}-{seed}"
+            baseline_preview = root / f"{baseline_id}.png"
+            candidate_preview = root / f"{candidate_id}.png"
+            baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+            baseline_preview.write_bytes(b"baseline")
+            candidate_preview.write_bytes(b"candidate")
+            registry.append(
+                _record(
+                    experiment_id=baseline_id,
+                    input_text=input_text,
+                    seed=seed,
+                    generator="baseline-outline",
+                    artifacts={"preview": str(baseline_preview)},
+                )
+            )
+            registry.append(
+                _record(
+                    experiment_id=candidate_id,
+                    input_text=input_text,
+                    seed=seed,
+                    generator="structure-motion",
+                    metrics={"duration_ms": 900, "draw_speed_cv": 0.2},
+                    failure_tags=["terminal-too-uniform"],
+                    artifacts={"preview": str(candidate_preview)},
+                )
+            )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "compare-preview-fixed-inputs",
+            "--root",
+            str(root),
+            "--seeds",
+            "1,2",
+            "--output",
+            "preview.md",
+            "--json-output",
+            "preview.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "preview.md").read_text(encoding="utf-8")
+    json_text = (root / "preview.json").read_text(encoding="utf-8")
+
+    assert "Preview Comparison Report" in markdown
+    assert "preview_hash_changed_count" in markdown
+    assert '"preview_hash_changed_count": 10' in json_text
+
+
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "runs"
     registry = ExperimentRegistry(root / "registry.jsonl")
@@ -263,9 +349,13 @@ def _record(
     input_text: str,
     seed: int,
     generator: str,
+    artifacts: dict[str, str] | None = None,
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
 ) -> ExperimentRecord:
+    resolved_artifacts = {"report": f"artifacts/{experiment_id}/report.md"}
+    if artifacts:
+        resolved_artifacts.update(artifacts)
     return ExperimentRecord(
         experiment_id=experiment_id,
         hypothesis="test",
@@ -274,7 +364,7 @@ def _record(
         seed=seed,
         generator=generator,
         exporter="xdraw-gcode",
-        artifacts={"report": f"artifacts/{experiment_id}/report.md"},
+        artifacts=resolved_artifacts,
         metrics=metrics or {"duration_ms": 1000, "stroke_count": 1},
         failure_tags=failure_tags or [],
         next_action="validate fixed input comparison",
