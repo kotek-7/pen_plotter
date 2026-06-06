@@ -27,6 +27,8 @@
 - `evaluate-data-driven-writer-prior`: JSONL のオンライン筆記サンプルから推定した prior を評価。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
+- `human-feedback-loop`: packet, response template, validation summary, next actions を 1 つにまとめた人間主観 FB ループ束。
+- `human-feedback-ui`: packet を画面に並べて response を入力・検証・保存する Tkinter UI。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
 - `validate-human-review`: 目視レビュー response の検証と集計。
 - `plot-ready-packet`: accepted record の G-code / safety / preview 束。
@@ -142,6 +144,31 @@ python3 -m evaluation_harness human-review-packet \
 `human-review-packet` と `preview-review-packet` は、代表 seed の preview、主要 metrics、
 failure tags と、input ごとの全 preview path を `human_review_packet.md` / `.json`
 または `preview_review_packet.md` / `.json` に保存する。
+
+```sh
+python3 -m evaluation_harness human-feedback-loop \
+  --root runs/structure-motion
+```
+
+`human-feedback-loop` は response template 付きの統合束を `human_feedback_loop.md` / `.json`
+に保存する。responses を渡すと、検証結果と次アクションも同じ束に入る。
+
+```sh
+python3 -m evaluation_harness human-feedback-ui \
+  --root runs/structure-motion
+```
+
+`human-feedback-ui` は代表 preview を画面上で切り替えながら、`accept` / `reject` /
+`needs-tuning` と reason tags を入力し、`human_review_responses.json` と
+`human_review_response_summary.json` を保存する。
+
+既存の review packet から開く場合は `--packet-json` を使う。既存の回答を読み込んで
+続きからレビューする場合は `--responses-json`、保存先を明示したい場合は
+`--summary-json` を併用する。
+
+`human-feedback-loop` は、同じ review packet に加えて response template と validation summary を
+1 つの `human_feedback_loop.md` / `.json` にまとめる。responses を渡すと、
+`accept` / `reject` / `needs-tuning` の集計と次アクションまで出力する。
 
 目視レビュー結果を packet と照合して集計する場合:
 

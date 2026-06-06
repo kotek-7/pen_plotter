@@ -44,6 +44,54 @@ def test_human_review_packet_parser_accepts_output_paths() -> None:
     assert args.json_output == "packet.json"
 
 
+def test_human_feedback_loop_parser_accepts_response_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-loop",
+            "--root",
+            "runs/test",
+            "--responses-json",
+            "runs/test/human_review_responses.json",
+            "--reviewer-id",
+            "reviewer-1",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-loop"
+    assert args.root == "runs/test"
+    assert args.responses_json == "runs/test/human_review_responses.json"
+    assert args.reviewer_id == "reviewer-1"
+    assert args.output == "loop.md"
+    assert args.json_output == "loop.json"
+
+
+def test_human_feedback_ui_parser_accepts_packet_or_root() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--responses-json",
+            "runs/test/human_review_responses.json",
+            "--summary-json",
+            "runs/test/human_review_response_summary.json",
+            "--reviewer-id",
+            "reviewer-1",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.packet_json is None
+    assert args.responses_json == "runs/test/human_review_responses.json"
+    assert args.summary_json == "runs/test/human_review_response_summary.json"
+    assert args.reviewer_id == "reviewer-1"
+
+
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
     args = build_parser().parse_args(
         [

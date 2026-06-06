@@ -20,6 +20,13 @@ from evaluation_harness.compare import (
     render_preview_recommendation_markdown,
     render_preview_revision_plan_markdown,
 )
+from evaluation_harness.human_feedback_loop import (
+    build_human_feedback_loop,
+    build_human_review_response_template,
+    render_human_feedback_loop_markdown,
+    render_human_review_response_template_markdown,
+    summarize_human_review_draft_rows,
+)
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -73,6 +80,8 @@ __all__ = [
     "compare_against_baseline",
     "compare_fixed_input_set",
     "compare_preview_fixed_input_set",
+    "build_human_feedback_loop",
+    "build_human_review_response_template",
     "recommend_preview_fixed_input_set",
     "propose_preview_fixed_input_set",
     "preview_iteration_fixed_input_set",
@@ -84,6 +93,8 @@ __all__ = [
     "render_preview_iteration_markdown",
     "render_preview_recommendation_markdown",
     "render_preview_revision_plan_markdown",
+    "render_human_feedback_loop_markdown",
+    "render_human_review_response_template_markdown",
     "render_reference_basis_markdown",
     "render_self_check_markdown",
     "render_preview_revision_loop_markdown",
@@ -95,6 +106,7 @@ __all__ = [
     "run_baseline_outline_batch",
     "run_preview_revision_loop_fixed_input_set",
     "run_self_check",
+    "summarize_human_review_draft_rows",
     "evaluate_data_driven_writer_prior_fixed_input_set",
     "evaluate_stable_writer_profile_candidates",
     "propose_stable_writer_profile_candidates",

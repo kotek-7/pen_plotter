@@ -42,6 +42,10 @@ from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
 )
+from evaluation_harness.human_feedback_loop import (
+    build_human_feedback_loop,
+    render_human_feedback_loop_markdown,
+)
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -259,6 +263,27 @@ def build_parser() -> argparse.ArgumentParser:
     human_review.add_argument("--root", required=True, help="Run output directory")
     human_review.add_argument("--output", default="human_review_packet.md")
     human_review.add_argument("--json-output", default="human_review_packet.json")
+
+    human_feedback = sub.add_parser(
+        "human-feedback-loop",
+        help="Create a human subjective feedback loop packet and optional response summary",
+    )
+    human_feedback.add_argument("--root", required=True, help="Run output directory")
+    human_feedback.add_argument("--responses-json", help="Human review response JSON")
+    human_feedback.add_argument("--reviewer-id", default="")
+    human_feedback.add_argument("--output", default="human_feedback_loop.md")
+    human_feedback.add_argument("--json-output", default="human_feedback_loop.json")
+
+    human_feedback_ui = sub.add_parser(
+        "human-feedback-ui",
+        help="Launch a Tkinter human review UI for the feedback loop",
+    )
+    target = human_feedback_ui.add_mutually_exclusive_group(required=True)
+    target.add_argument("--root", help="Run output directory")
+    target.add_argument("--packet-json", help="Existing review packet or loop JSON")
+    human_feedback_ui.add_argument("--responses-json", help="Existing human responses JSON")
+    human_feedback_ui.add_argument("--summary-json", help="Human review summary output path")
+    human_feedback_ui.add_argument("--reviewer-id", default="")
 
     preview_review = sub.add_parser(
         "preview-review-packet",
@@ -634,6 +659,43 @@ def main() -> None:
         print(f"representative_count: {packet['representative_count']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
+    elif args.command == "human-feedback-loop":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        responses_data = None
+        if args.responses_json:
+            responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+        loop = build_human_feedback_loop(
+            registry.load_all(),
+            responses_data=responses_data,
+            reviewer_id=args.reviewer_id,
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_human_feedback_loop_markdown(loop), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"loop_status: {loop['loop_status']}")
+        print(f"representative_count: {loop['packet']['representative_count']}")
+        print(f"next_actions: {len(loop['next_actions'])}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-feedback-ui":
+        from evaluation_harness.human_feedback_ui import launch_human_feedback_ui
+
+        root = Path(args.root) if args.root else None
+        packet_json = Path(args.packet_json) if args.packet_json else None
+        responses_json = Path(args.responses_json) if args.responses_json else None
+        summary_json = Path(args.summary_json) if args.summary_json else None
+        launch_human_feedback_ui(
+            root=root,
+            packet_json=packet_json,
+            responses_json=responses_json,
+            summary_json=summary_json,
+            reviewer_id=args.reviewer_id,
+        )
     elif args.command == "preview-review-packet":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")
