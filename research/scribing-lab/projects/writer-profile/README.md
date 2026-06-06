@@ -6,7 +6,8 @@
 `structure-uniform` と `structure-motion` に適用できるレジストリである。
 
 `writer_profile.prior` は、JSONL 形式のオンライン筆記サンプルから統計を推定し、
-data-driven な derived profile を作る最小実装である。
+data-driven な derived profile を作る最小実装である。大きいデータセットでは writer ごとに
+集計してから統合するため、サンプル数の偏りに引っ張られにくい。
 
 ```py
 from writer_profile import estimate_writer_profile_from_jsonl

@@ -9,7 +9,7 @@ from pathlib import Path
 from statistics import mean, pstdev
 from typing import Any
 
-from writer_profile.models import WriterProfile, WriterProfileParameters
+from writer_profile.models import WriterProfileParameters
 from writer_profile.registry import get_profile
 
 
@@ -145,6 +145,21 @@ def summarize_handwriting_samples(
             "pressure_cv": 0.0,
             "terminal_pressure_mean": 0.0,
             "terminal_pressure_cv": 0.0,
+            "balanced_sample_count": 0,
+            "balanced_writer_count": 0,
+            "balanced_mean_speed_mm_s": 0.0,
+            "balanced_speed_cv": 0.0,
+            "balanced_spacing_mean_mm": 0.0,
+            "balanced_spacing_cv": 0.0,
+            "balanced_slant_deg": 0.0,
+            "balanced_baseline_drift_mm": 0.0,
+            "balanced_tremor_mm": 0.0,
+            "balanced_pressure_mean": 0.0,
+            "balanced_pressure_cv": 0.0,
+            "balanced_terminal_pressure_mean": 0.0,
+            "balanced_terminal_pressure_cv": 0.0,
+            "writer_sample_counts": {},
+            "writer_summaries": [],
             "source_counts": {},
             "license_scope_counts": {},
             "sample_summaries": [],
@@ -164,7 +179,12 @@ def summarize_handwriting_samples(
     stroke_count = 0
 
     sample_summaries: list[dict[str, Any]] = []
+    writer_metric_buckets: dict[str, dict[str, list[float]]] = defaultdict(
+        lambda: defaultdict(list)
+    )
+    writer_sample_counts: dict[str, int] = defaultdict(int)
     for sample in samples:
+        writer_sample_counts[sample.writer_id] += 1
         source_counts[sample.source] += 1
         license_scope_counts[sample.license_scope] += 1
         segments = _pen_down_segments(sample.points)
@@ -205,6 +225,68 @@ def summarize_handwriting_samples(
                 "tremor_mm": round(sample_tremor or 0.0, 4),
             }
         )
+        if sample_speed is not None:
+            writer_metric_buckets[sample.writer_id]["mean_speed_mm_s"].append(sample_speed)
+        if sample_spacing is not None:
+            writer_metric_buckets[sample.writer_id]["spacing_mean_mm"].append(sample_spacing)
+        if sample_slant is not None:
+            writer_metric_buckets[sample.writer_id]["slant_deg"].append(sample_slant)
+        if sample_drift is not None:
+            writer_metric_buckets[sample.writer_id]["baseline_drift_mm"].append(sample_drift)
+        if sample_tremor is not None:
+            writer_metric_buckets[sample.writer_id]["tremor_mm"].append(sample_tremor)
+        for value in sample_pressures:
+            writer_metric_buckets[sample.writer_id]["pressure_mean"].append(float(value))
+        for value in (
+            float(segment[-1].pressure_optional)
+            for segment in segments
+            if segment and segment[-1].pressure_optional is not None
+        ):
+            writer_metric_buckets[sample.writer_id]["terminal_pressure_mean"].append(value)
+
+    writer_summaries: list[dict[str, Any]] = []
+    balanced_speed_values: list[float] = []
+    balanced_spacing_values: list[float] = []
+    balanced_slant_values: list[float] = []
+    balanced_drift_values: list[float] = []
+    balanced_tremor_values: list[float] = []
+    balanced_pressure_values: list[float] = []
+    balanced_terminal_pressure_values: list[float] = []
+    for writer_id in sorted(writer_metric_buckets):
+        buckets = writer_metric_buckets[writer_id]
+        sample_count = writer_sample_counts[writer_id]
+        writer_summary = {
+            "writer_id": writer_id,
+            "sample_count": sample_count,
+            "mean_speed_mm_s": _safe_mean(buckets["mean_speed_mm_s"]),
+            "speed_cv": _safe_cv(buckets["mean_speed_mm_s"]),
+            "spacing_mean_mm": _safe_mean(buckets["spacing_mean_mm"]),
+            "spacing_cv": _safe_cv(buckets["spacing_mean_mm"]),
+            "slant_deg": _safe_mean(buckets["slant_deg"]),
+            "baseline_drift_mm": _safe_mean(buckets["baseline_drift_mm"]),
+            "tremor_mm": _safe_mean(buckets["tremor_mm"]),
+            "pressure_mean": _safe_mean(buckets["pressure_mean"]),
+            "pressure_cv": _safe_cv(buckets["pressure_mean"]),
+            "terminal_pressure_mean": _safe_mean(buckets["terminal_pressure_mean"]),
+            "terminal_pressure_cv": _safe_cv(buckets["terminal_pressure_mean"]),
+        }
+        writer_summaries.append(writer_summary)
+        balanced_speed_values.append(float(writer_summary["mean_speed_mm_s"]))
+        balanced_spacing_values.append(float(writer_summary["spacing_mean_mm"]))
+        balanced_slant_values.append(float(writer_summary["slant_deg"]))
+        balanced_drift_values.append(float(writer_summary["baseline_drift_mm"]))
+        balanced_tremor_values.append(float(writer_summary["tremor_mm"]))
+        balanced_pressure_values.append(float(writer_summary["pressure_mean"]))
+        balanced_terminal_pressure_values.append(float(writer_summary["terminal_pressure_mean"]))
+
+    balanced_writer_count = len(writer_summaries)
+    balanced_sample_count = sum(writer_sample_counts.values())
+    dominant_writer_sample_count = max(writer_sample_counts.values(), default=0)
+    dominant_writer_sample_ratio = (
+        round(dominant_writer_sample_count / balanced_sample_count, 4)
+        if balanced_sample_count
+        else 0.0
+    )
 
     summary = {
         "sample_count": len(samples),
@@ -223,6 +305,22 @@ def summarize_handwriting_samples(
         "pressure_cv": _safe_cv(pressures),
         "terminal_pressure_mean": _safe_mean(terminal_pressures),
         "terminal_pressure_cv": _safe_cv(terminal_pressures),
+        "balanced_sample_count": balanced_sample_count,
+        "balanced_writer_count": balanced_writer_count,
+        "balanced_mean_speed_mm_s": _safe_mean(balanced_speed_values),
+        "balanced_speed_cv": _safe_cv(balanced_speed_values),
+        "balanced_spacing_mean_mm": _safe_mean(balanced_spacing_values),
+        "balanced_spacing_cv": _safe_cv(balanced_spacing_values),
+        "balanced_slant_deg": _safe_mean(balanced_slant_values),
+        "balanced_baseline_drift_mm": _safe_mean(balanced_drift_values),
+        "balanced_tremor_mm": _safe_mean(balanced_tremor_values),
+        "balanced_pressure_mean": _safe_mean(balanced_pressure_values),
+        "balanced_pressure_cv": _safe_cv(balanced_pressure_values),
+        "balanced_terminal_pressure_mean": _safe_mean(balanced_terminal_pressure_values),
+        "balanced_terminal_pressure_cv": _safe_cv(balanced_terminal_pressure_values),
+        "dominant_writer_sample_ratio": dominant_writer_sample_ratio,
+        "writer_sample_counts": dict(sorted(writer_sample_counts.items())),
+        "writer_summaries": writer_summaries,
         "source_counts": dict(sorted(source_counts.items())),
         "license_scope_counts": dict(sorted(license_scope_counts.items())),
         "sample_summaries": sample_summaries,
@@ -359,14 +457,14 @@ def _profile_params_from_summary(
     summary: dict[str, Any],
     base_params: WriterProfileParameters,
 ) -> WriterProfileParameters:
-    mean_speed = summary["mean_speed_mm_s"] or base_params.speed_mean_mm_s
-    spacing_mean = summary["spacing_mean_mm"] or base_params.spacing_mean_mm
-    slant = summary["slant_deg"] or base_params.slant_deg
-    drift = summary["baseline_drift_mm"] or base_params.baseline_drift_mm
-    tremor = summary["tremor_mm"] or base_params.tremor_mm
-    speed_cv = summary["speed_cv"] or base_params.timing_jitter_cv
-    pressure_mean = summary["terminal_pressure_mean"] or 1.0
-    pressure_cv = summary["terminal_pressure_cv"] or 0.0
+    mean_speed = _prefer_balanced(summary, "mean_speed_mm_s", base_params.speed_mean_mm_s)
+    spacing_mean = _prefer_balanced(summary, "spacing_mean_mm", base_params.spacing_mean_mm)
+    slant = _prefer_balanced(summary, "slant_deg", base_params.slant_deg)
+    drift = _prefer_balanced(summary, "baseline_drift_mm", base_params.baseline_drift_mm)
+    tremor = _prefer_balanced(summary, "tremor_mm", base_params.tremor_mm)
+    speed_cv = _prefer_balanced(summary, "speed_cv", base_params.timing_jitter_cv)
+    pressure_mean = _prefer_balanced(summary, "terminal_pressure_mean", 1.0)
+    pressure_cv = _prefer_balanced(summary, "terminal_pressure_cv", 0.0)
 
     return WriterProfileParameters(
         slant_deg=_clamp(slant, -15.0, 15.0),
@@ -380,7 +478,10 @@ def _profile_params_from_summary(
         baseline_drift_mm=_clamp(max(abs(drift), base_params.baseline_drift_mm), 0.0, 2.0),
         shape_variation=_clamp(max(tremor or base_params.shape_variation, 0.0) * 1.2, 0.0, 0.15),
         layout_variation=_clamp(
-            max(abs(drift) * 0.25 + summary["spacing_cv"] * 0.15, base_params.layout_variation),
+            max(
+                abs(drift) * 0.25 + _prefer_balanced(summary, "spacing_cv", 0.0) * 0.15,
+                base_params.layout_variation,
+            ),
             0.0,
             0.2,
         ),
@@ -412,6 +513,8 @@ def _prior_notes(base_notes: str, summary: dict[str, Any]) -> str:
         "data-driven prior from "
         f"{summary['sample_count']} samples / {summary['writer_count']} writers"
     )
+    if summary.get("balanced_writer_count", 0) > 1:
+        note_parts.append("writer-balanced aggregation")
     return "; ".join(note_parts)
 
 
@@ -444,3 +547,14 @@ def _safe_cv(values: list[float]) -> float:
 
 def _clamp(value: float, lower: float, upper: float) -> float:
     return round(max(lower, min(upper, float(value))), 4)
+
+
+def _prefer_balanced(summary: dict[str, Any], key: str, fallback: float) -> float:
+    balanced_key = f"balanced_{key}"
+    balanced_value = summary.get(balanced_key)
+    if summary.get("balanced_writer_count", 0) > 0 and balanced_value is not None:
+        return float(balanced_value)
+    value = summary.get(key)
+    if value is not None:
+        return float(value)
+    return float(fallback)

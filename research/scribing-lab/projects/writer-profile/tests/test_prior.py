@@ -84,7 +84,98 @@ def test_estimate_writer_profile_from_jsonl_builds_derived_profile(
     assert profile.params.baseline_drift_mm >= 0.0
     assert summary["sample_count"] == 2
     assert summary["stroke_count"] == 4
+    assert summary["balanced_writer_count"] == 2
     assert "data-driven prior from 2 samples / 2 writers" in profile.notes
+
+
+def test_estimate_writer_profile_from_jsonl_balances_large_writer_skew(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "skewed_samples.jsonl"
+    lines = []
+    for index in range(20):
+        lines.extend(
+            [
+                _point_line(
+                    f"sample-a-{index}",
+                    "writer-a",
+                    "永",
+                    0.0,
+                    0.0,
+                    0,
+                    1,
+                    1.0,
+                ),
+                _point_line(
+                    f"sample-a-{index}",
+                    "writer-a",
+                    "永",
+                    1.0,
+                    0.0,
+                    100,
+                    1,
+                    1.0,
+                ),
+                _point_line(
+                    f"sample-a-{index}",
+                    "writer-a",
+                    "永",
+                    1.2,
+                    0.1,
+                    130,
+                    0,
+                    None,
+                ),
+            ]
+        )
+    for index in range(2):
+        lines.extend(
+            [
+                _point_line(
+                    f"sample-b-{index}",
+                    "writer-b",
+                    "あ",
+                    0.0,
+                    0.0,
+                    0,
+                    1,
+                    1.0,
+                ),
+                _point_line(
+                    f"sample-b-{index}",
+                    "writer-b",
+                    "あ",
+                    4.0,
+                    0.0,
+                    50,
+                    1,
+                    1.0,
+                ),
+                _point_line(
+                    f"sample-b-{index}",
+                    "writer-b",
+                    "あ",
+                    4.6,
+                    0.1,
+                    80,
+                    0,
+                    None,
+                ),
+            ]
+        )
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+    estimate = estimate_writer_profile_from_jsonl(path)
+    summary = estimate["summary"]
+    profile = estimate["profile"]
+
+    assert summary["sample_count"] == 22
+    assert summary["writer_count"] == 2
+    assert summary["dominant_writer_sample_ratio"] > 0.85
+    assert summary["balanced_writer_count"] == 2
+    assert summary["balanced_mean_speed_mm_s"] > 40.0
+    assert profile.params.speed_mean_mm_s > 40.0
+    assert "writer-balanced aggregation" in profile.notes
 
 
 def _point_line(
