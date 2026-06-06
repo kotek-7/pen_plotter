@@ -160,6 +160,16 @@ preview 比較、候補選定、改版提案を 1 ラウンドに束ね、次の
 - selected candidate がある group とない group を区別できる。
 - 次の実験ヒントを 1 つの summary で確認できる。
 
+### Experiment 9: preview revision application
+
+revision plan を derived profile に変換して再生成し、同じ input / seed で再比較する。
+
+評価:
+
+- applied / unapplied changes を分離して記録できる。
+- 再生成した experiment が registry に追加される。
+- before / after の preview iteration を Markdown と JSON で保存できる。
+
 ## 成果物
 
 - metrics spec。

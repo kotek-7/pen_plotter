@@ -138,6 +138,106 @@ def apply_writer_profile_to_motion_config(config: Any, profile: WriterProfile) -
     )
 
 
+def build_revision_profile(
+    profile: WriterProfile,
+    proposed_changes: list[dict[str, Any]],
+    *,
+    revision_profile_id: str | None = None,
+    created_from_experiment: str | None = None,
+) -> dict[str, Any]:
+    params = profile.params
+    applied_changes: list[dict[str, Any]] = []
+    unapplied_changes: list[dict[str, Any]] = []
+
+    for change in proposed_changes:
+        updated_params, applied = _apply_revision_change(params, change)
+        if applied:
+            params = updated_params
+            applied_changes.append(change)
+        else:
+            unapplied_changes.append(change)
+
+    revision_profile = replace(
+        profile,
+        profile_id=revision_profile_id or f"{profile.profile_id}-revision",
+        version=profile.version + 1,
+        source="derived",
+        parent_profile=profile.profile_id,
+        created_from_experiment=created_from_experiment,
+        params=params,
+        notes=_revision_notes(profile.notes, applied_changes, unapplied_changes),
+    )
+    return {
+        "profile": revision_profile,
+        "applied_changes": applied_changes,
+        "unapplied_changes": unapplied_changes,
+    }
+
+
+def _apply_revision_change(
+    params: WriterProfileParameters,
+    change: dict[str, Any],
+) -> tuple[WriterProfileParameters, bool]:
+    parameter = str(change.get("parameter", ""))
+    direction = str(change.get("direction", ""))
+    amount_hint = change.get("amount_hint")
+
+    if parameter == "terminal_gains" and direction == "increase-contrast":
+        spread = float(amount_hint or 0.1)
+        return (
+            replace(
+                params,
+                harai_gain=max(0.0, params.harai_gain - spread),
+                hane_gain=max(0.0, params.hane_gain),
+                tome_gain=max(0.0, params.tome_gain + spread),
+            ),
+            True,
+        )
+
+    if amount_hint is None:
+        return params, False
+
+    delta = float(amount_hint)
+    if direction == "decrease":
+        delta = -delta
+    elif direction not in {"increase", "adjust"}:
+        return params, False
+
+    mapping = {
+        "slant_deg": "slant_deg",
+        "spacing_mean_mm": "spacing_mean_mm",
+        "speed_mean_mm_s": "speed_mean_mm_s",
+        "harai_gain": "harai_gain",
+        "hane_gain": "hane_gain",
+        "tome_gain": "tome_gain",
+        "timing_jitter_cv": "timing_jitter_cv",
+        "tremor_mm": "tremor_mm",
+        "baseline_drift_mm": "baseline_drift_mm",
+        "shape_variation": "shape_variation",
+        "layout_variation": "layout_variation",
+    }
+    attr = mapping.get(parameter)
+    if attr is None:
+        return params, False
+
+    current_value = float(getattr(params, attr))
+    updated_value = max(0.0, current_value + delta)
+    return replace(params, **{attr: updated_value}), True
+
+
+def _revision_notes(
+    base_notes: str,
+    applied_changes: list[dict[str, Any]],
+    unapplied_changes: list[dict[str, Any]],
+) -> str:
+    note_parts = [base_notes.strip()] if base_notes.strip() else []
+    if applied_changes:
+        note_parts.append(f"applied={len(applied_changes)}")
+    if unapplied_changes:
+        note_parts.append(f"unapplied={len(unapplied_changes)}")
+    return "; ".join(note_parts)
+
+
 def _scaled_pressure(base_pressure: float, profile_gain: float, baseline_gain: float) -> float:
     if baseline_gain <= 0:
         return base_pressure

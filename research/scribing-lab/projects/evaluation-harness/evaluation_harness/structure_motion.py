@@ -47,6 +47,7 @@ def run_structure_motion(
     input_text: str,
     seed: int,
     profile_id: str = "baseline-neat",
+    writer_profile: Any | None = None,
     config: StructureMotionConfig | None = None,
 ) -> ExperimentRecord:
     _ensure_paths()
@@ -58,7 +59,7 @@ def run_structure_motion(
     from src.gcode.preview import preview_strokes
 
     cfg = config or StructureMotionConfig()
-    profile = resolve_writer_profile(profile_id)
+    profile = writer_profile or resolve_writer_profile(profile_id)
     cfg = apply_writer_profile_to_structure_motion_config(cfg, profile)
     registry = ExperimentRegistry(root / "registry.jsonl")
     artifacts = ArtifactStore(root / "artifacts")
@@ -139,7 +140,7 @@ def run_structure_motion(
         experiment_id=experiment_id,
         hypothesis="structure-motion adds non-uniform timing and pressure events to skeleton strokes",
         input_text=input_text,
-        profile_id=profile_id,
+        profile_id=profile.profile_id,
         seed=seed,
         generator="structure-motion",
         exporter="xdraw-gcode",

@@ -25,6 +25,10 @@ from evaluation_harness.compare import (
     render_preview_revision_plan_markdown,
     preview_iteration_fixed_input_set,
 )
+from evaluation_harness.revision_loop import (
+    render_preview_revision_loop_markdown,
+    run_preview_revision_loop_fixed_input_set,
+)
 from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
@@ -166,6 +170,20 @@ def build_parser() -> argparse.ArgumentParser:
     preview_iteration.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     preview_iteration.add_argument("--output", default="preview_iteration.md")
     preview_iteration.add_argument("--json-output", default="preview_iteration.json")
+
+    preview_apply = sub.add_parser(
+        "apply-preview-revision-fixed-inputs",
+        help="Apply preview revision plans and rerun the fixed input set",
+    )
+    preview_apply.add_argument(
+        "--root",
+        default="runs/baseline-outline",
+        help="Run output directory",
+    )
+    preview_apply.add_argument("--baseline-generator", default="baseline-outline")
+    preview_apply.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_apply.add_argument("--output", default="preview_revision_loop.md")
+    preview_apply.add_argument("--json-output", default="preview_revision_loop.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -410,6 +428,28 @@ def main() -> None:
         print(f"expected_group_count: {iteration['expected_group_count']}")
         print(f"selected_candidate_count: {iteration['selected_candidate_count']}")
         print(f"iteration_status: {iteration['iteration_status']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "apply-preview-revision-fixed-inputs":
+        root = Path(args.root)
+        loop = run_preview_revision_loop_fixed_input_set(
+            root,
+            baseline_generator=args.baseline_generator,
+            expected_input_texts=DEFAULT_EVALUATION_INPUTS,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(
+            render_preview_revision_loop_markdown(loop), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"rerun_count: {loop['rerun_count']}")
+        print(f"before_iteration_status: {loop['before_iteration']['iteration_status']}")
+        print(f"after_iteration_status: {loop['after_iteration']['iteration_status']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":
