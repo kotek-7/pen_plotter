@@ -36,7 +36,75 @@ class DictionaryLookupError(KeyError):
 
 SCHEMA_VERSION = 1
 DICTIONARY_ID = "manual-kanjivg-mvp"
-BUILTIN_CHARACTER_ORDER = ("永", "あ", "い", "う", "え", "お")
+
+
+def _dedupe_character_order(chars: tuple[str, ...]) -> tuple[str, ...]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for char in chars:
+        if char in seen:
+            continue
+        seen.add(char)
+        ordered.append(char)
+    return tuple(ordered)
+
+
+CORE_BUILTIN_CHARACTER_ORDER = ("永", "あ", "い", "う", "え", "お")
+EXTENDED_FONT_OUTLINE_CHARACTER_ORDER = (
+    "今",
+    "日",
+    "本",
+    "天",
+    "気",
+    "春",
+    "川",
+    "歩",
+    "文",
+    "字",
+    "列",
+    "質",
+    "評",
+    "価",
+    "少",
+    "長",
+    "余",
+    "白",
+    "確",
+    "認",
+    "観",
+    "察",
+    "重",
+    "要",
+    "続",
+    "複",
+    "数",
+    "行",
+    "改",
+    "同",
+    "差",
+    "変",
+    "動",
+    "速",
+    "違",
+    "終",
+    "筆",
+    "手",
+    "持",
+    "用",
+    "意",
+    "読",
+    "見",
+    "補",
+    "候",
+    "人",
+    "一",
+)
+EXTENDED_PUNCTUATION_ORDER = ("、", "。", "，", "．", "！", "？", "「", "」", "・", "ー")
+BUILTIN_CHARACTER_ORDER = _dedupe_character_order(
+    CORE_BUILTIN_CHARACTER_ORDER
+    + EXTENDED_FONT_OUTLINE_CHARACTER_ORDER
+    + EXTENDED_PUNCTUATION_ORDER
+)
 BUILTIN_CHARACTERS = frozenset(BUILTIN_CHARACTER_ORDER)
 
 
@@ -399,20 +467,24 @@ def _slant_offset(py: float, config: LayoutConfig) -> float:
     return math.tan(math.radians(config.slant_deg)) * (py - 0.5) * config.char_size
 
 
-_TEMPLATES: dict[str, CharacterTemplate] = {
-    "永": _template(
-        "永",
-        (
-            _stroke(1, "ten", ((0.50, 0.08), (0.54, 0.20))),
-            _stroke(2, "yoko", ((0.28, 0.30), (0.74, 0.30))),
-            _stroke(3, "tate", ((0.50, 0.22), (0.50, 0.78), (0.42, 0.94))),
-            _stroke(4, "hidari", ((0.44, 0.52), (0.30, 0.72), (0.16, 0.88))),
-            _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
+def _build_templates() -> dict[str, CharacterTemplate]:
+    templates: dict[str, CharacterTemplate] = {
+        "永": _template(
+            "永",
+            (
+                _stroke(1, "ten", ((0.50, 0.08), (0.54, 0.20))),
+                _stroke(2, "yoko", ((0.28, 0.30), (0.74, 0.30))),
+                _stroke(3, "tate", ((0.50, 0.22), (0.50, 0.78), (0.42, 0.94))),
+                _stroke(4, "hidari", ((0.44, 0.52), (0.30, 0.72), (0.16, 0.88))),
+                _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
+            ),
         ),
-    ),
-    "あ": _font_outline_template("あ"),
-    "い": _font_outline_template("い"),
-    "う": _font_outline_template("う"),
-    "え": _font_outline_template("え"),
-    "お": _font_outline_template("お"),
-}
+    }
+    for literal in BUILTIN_CHARACTER_ORDER:
+        if literal in templates:
+            continue
+        templates[literal] = _font_outline_template(literal)
+    return templates
+
+
+_TEMPLATES: dict[str, CharacterTemplate] = _build_templates()

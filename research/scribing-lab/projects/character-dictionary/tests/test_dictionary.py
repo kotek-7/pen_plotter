@@ -168,10 +168,12 @@ def test_layout_text_falls_back_for_unknown_character() -> None:
 
 def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"永", "あ", "い", "う", "え", "お"} <= BUILTIN_CHARACTERS
+    assert {"今", "日", "本", "天", "気", "春", "川", "歩", "、", "。"} <= BUILTIN_CHARACTERS
 
 
 def test_builtin_character_order_is_stable() -> None:
-    assert BUILTIN_CHARACTER_ORDER == ("永", "あ", "い", "う", "え", "お")
+    assert BUILTIN_CHARACTER_ORDER[:6] == ("永", "あ", "い", "う", "え", "お")
+    assert len(BUILTIN_CHARACTER_ORDER) > 6
     assert [template.literal for template in iter_builtin_templates()] == list(
         BUILTIN_CHARACTER_ORDER
     )
@@ -186,14 +188,10 @@ def test_export_dictionary_is_normalized_and_deterministic() -> None:
     assert first["dictionary_id"] == DICTIONARY_ID
     assert first["character_count"] == len(BUILTIN_CHARACTER_ORDER)
     assert [item["literal"] for item in first["characters"]] == list(BUILTIN_CHARACTER_ORDER)
-    assert [item["strokes"][0]["stroke_id"] for item in first["characters"] if item["strokes"]] == [
-        1,
-        1,
-        1,
-        1,
-        1,
-        1,
-    ]
+    assert all(item["strokes"] for item in first["characters"])
+    assert [item["strokes"][0]["stroke_id"] for item in first["characters"] if item["strokes"]][
+        :6
+    ] == [1, 1, 1, 1, 1, 1]
 
 
 def test_export_dictionary_json_is_stable() -> None:

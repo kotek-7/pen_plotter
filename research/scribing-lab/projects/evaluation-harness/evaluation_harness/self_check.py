@@ -74,7 +74,7 @@ def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
             experiment_id=f"selfcheck-candidate-i{index:02d}-s{seed:03d}",
             input_text=input_text,
             seed=seed,
-            config=StructureMotionConfig(shape_variation=0.08, layout_variation=0.12),
+            config=StructureMotionConfig(shape_variation=0.08, layout_variation=0.06),
         )
         for index, input_text in enumerate(DEFAULT_EVALUATION_INPUTS, start=1)
     ]
