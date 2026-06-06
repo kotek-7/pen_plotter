@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QMessageBox,
+    QScrollArea,
     QPlainTextEdit,
     QPushButton,
     QRadioButton,
@@ -427,12 +428,13 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._reason_tags_list.itemSelectionChanged.connect(self._sync_from_widgets)
         layout.addWidget(self._reason_tags_list)
 
-        self._reason_tag_legend = QPlainTextEdit(group)
-        self._reason_tag_legend.setReadOnly(True)
-        self._reason_tag_legend.setFont(self._mono_font)
-        self._reason_tag_legend.setMaximumHeight(230)
-        self._reason_tag_legend.setPlainText(self._build_reason_tag_legend_text())
-        layout.addWidget(self._reason_tag_legend)
+        self._reason_tag_legend_area = QScrollArea(group)
+        self._reason_tag_legend_area.setWidgetResizable(True)
+        self._reason_tag_legend_area.setFrameShape(QScrollArea.Shape.NoFrame)
+        self._reason_tag_legend_area.setMinimumHeight(210)
+        self._reason_tag_legend_area.setMaximumHeight(280)
+        self._reason_tag_legend_area.setWidget(self._build_reason_tag_legend_widget())
+        layout.addWidget(self._reason_tag_legend_area)
         return group
 
     def _build_notes_box(self) -> QGroupBox:
@@ -475,25 +477,48 @@ class HumanFeedbackQtWindow(QMainWindow):
             ]
         )
 
-    def _build_reason_tag_legend_text(self) -> str:
-        lines = [
-            "Reason tag legend",
-            "",
-            "tag / group / meaning / when to use",
-            "",
-        ]
+    def _build_reason_tag_legend_widget(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(8)
+
+        title = QLabel("Reason tag legend", widget)
+        title.setFont(self._body_bold_font)
+        layout.addWidget(title)
+
+        for group_name, tags in self._reason_tag_groups().items():
+            card = QGroupBox(group_name, widget)
+            card_layout = QVBoxLayout(card)
+            card_layout.setContentsMargins(10, 10, 10, 10)
+            card_layout.setSpacing(6)
+
+            for tag in tags:
+                tag_label = QLabel(self._reason_tag_summary_text(tag), card)
+                tag_label.setWordWrap(True)
+                tag_label.setFont(self._body_font)
+                tag_label.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
+                card_layout.addWidget(tag_label)
+
+            layout.addWidget(card)
+
+        layout.addStretch(1)
+        return widget
+
+    def _reason_tag_groups(self) -> dict[str, list[str]]:
+        groups: dict[str, list[str]] = {}
         for tag in ALLOWED_REASON_TAGS:
-            description = describe_failure_tag(tag) or "説明なし"
-            group = failure_tag_group(tag)
-            lines.extend(
-                [
-                    f"- {tag}",
-                    f"  group: {group}",
-                    f"  meaning: {description}",
-                    f"  use: {self._reason_tag_use_hint(tag)}",
-                ]
-            )
-        return "\n".join(lines)
+            groups.setdefault(failure_tag_group(tag), []).append(tag)
+        return {group: sorted(tags) for group, tags in sorted(groups.items())}
+
+    def _reason_tag_summary_text(self, tag: str) -> str:
+        description = describe_failure_tag(tag) or "説明なし"
+        return "\n".join(
+            [
+                f"{tag}: {description}",
+                f"  use: {self._reason_tag_use_hint(tag)}",
+            ]
+        )
 
     def _reason_tag_use_hint(self, tag: str) -> str:
         hints = {

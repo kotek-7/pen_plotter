@@ -5,7 +5,7 @@ import os
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 
 import pytest
-from PySide6.QtWidgets import QApplication  # noqa: E402
+from PySide6.QtWidgets import QApplication, QGroupBox, QLabel  # noqa: E402
 
 from evaluation_harness.human_feedback_common import HumanFeedbackDraft  # noqa: E402
 from evaluation_harness.human_feedback_qt import HumanFeedbackQtWindow  # noqa: E402
@@ -176,6 +176,10 @@ def test_qt_feedback_ui_shows_reason_tag_legend_and_tooltips() -> None:
     assert tooltip is not None
     assert "tag: too-font-like" in tooltip
     assert "手書きよりフォント輪郭に寄っている" in tooltip
-    assert "Reason tag legend" in window._reason_tag_legend.toPlainText()
-    assert "too-font-like" in window._reason_tag_legend.toPlainText()
-    assert "terminal-too-uniform" in window._reason_tag_legend.toPlainText()
+    legend_widget = window._reason_tag_legend_area.widget()
+    assert legend_widget is not None
+    labels = legend_widget.findChildren(QLabel)
+    groups = legend_widget.findChildren(QGroupBox)
+    assert any(label.text() == "Reason tag legend" for label in labels)
+    assert any(group.title() == "motion" for group in groups)
+    assert any(group.title() == "shape" for group in groups)
