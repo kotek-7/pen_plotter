@@ -1,0 +1,21 @@
+{
+  "reviewer_id": "reviewer-001",
+  "responses": [
+    {
+      "decision": "accept",
+      "experiment_id": "exp-motion-i03-s001",
+      "notes": "Repeated input preview is acceptable.",
+      "reason_tags": [],
+      "reviewer_id": "reviewer-001"
+    },
+    {
+      "decision": "needs-tuning",
+      "experiment_id": "exp-motion-i07-s001",
+      "notes": "Newline spacing should be reviewed before plotting.",
+      "reason_tags": [
+        "line-spacing-odd"
+      ],
+      "reviewer_id": "reviewer-001"
+    }
+  ]
+}

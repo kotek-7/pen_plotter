@@ -16,6 +16,11 @@ from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
 )
+from evaluation_harness.human_review_response import (
+    load_human_review_responses,
+    render_human_review_response_markdown,
+    summarize_human_review_responses,
+)
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.offline_review import build_offline_review, render_offline_review_markdown
@@ -93,6 +98,15 @@ def build_parser() -> argparse.ArgumentParser:
     human_review.add_argument("--root", required=True, help="Run output directory")
     human_review.add_argument("--output", default="human_review_packet.md")
     human_review.add_argument("--json-output", default="human_review_packet.json")
+
+    validate_human = sub.add_parser(
+        "validate-human-review",
+        help="Validate and summarize human review responses against a review packet",
+    )
+    validate_human.add_argument("--packet-json", required=True)
+    validate_human.add_argument("--responses-json", required=True)
+    validate_human.add_argument("--output", default="human_review_response_summary.md")
+    validate_human.add_argument("--json-output", default="human_review_response_summary.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -221,6 +235,25 @@ def main() -> None:
         print(f"record_count: {packet['record_count']}")
         print(f"representative_count: {packet['representative_count']}")
         print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "validate-human-review":
+        packet_path = Path(args.packet_json)
+        responses_path = Path(args.responses_json)
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        responses = load_human_review_responses(
+            json.loads(responses_path.read_text(encoding="utf-8"))
+        )
+        summary = summarize_human_review_responses(packet, responses)
+        output_path = responses_path.parent / args.output
+        json_path = responses_path.parent / args.json_output
+        output_path.write_text(render_human_review_response_markdown(summary), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"response_count: {summary['response_count']}")
+        print(f"can_proceed_to_plot: {summary['can_proceed_to_plot']}")
+        print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "attach-scan":
         root = Path(args.root)
