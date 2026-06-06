@@ -63,8 +63,17 @@ class ExperimentRegistry:
             "profile_id": record.profile_id,
             "generator": record.generator,
             "exporter": record.exporter,
+            "next_action": record.next_action,
         }
         missing = [name for name, value in required.items() if not value.strip()]
+        if not record.artifacts:
+            missing.append("artifacts")
+        else:
+            report = record.artifacts.get("report", "")
+            if not report.strip():
+                missing.append("artifacts.report")
+        if not record.metrics:
+            missing.append("metrics")
         if missing:
             raise ValueError(f"Missing required fields: {', '.join(missing)}")
         if record.seed < 0:

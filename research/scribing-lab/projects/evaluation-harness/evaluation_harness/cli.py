@@ -374,8 +374,14 @@ def run_smoke(root: Path, experiment_id: str, input_text: str) -> None:
         failure_tags=[],
         next_action="replace smoke trajectory with baseline generator output",
     )
-    registry.append(record)
     report_path = artifacts.write_text(experiment_id, "report.md", render_markdown_report(record))
+    record = ExperimentRecord(
+        **{
+            **record.to_dict(),
+            "artifacts": {**record.artifacts, "report": report_path},
+        }
+    )
+    registry.append(record)
     print(f"registered {experiment_id}")
     print(f"registry: {registry.path}")
     print(f"report: {report_path}")

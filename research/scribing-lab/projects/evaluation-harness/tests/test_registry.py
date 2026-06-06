@@ -15,6 +15,12 @@ def _record(experiment_id: str = "exp-000001") -> ExperimentRecord:
         seed=1,
         generator="test-generator",
         exporter="test-exporter",
+        artifacts={
+            "trajectory": f"artifacts/{experiment_id}/trajectory.json",
+            "report": f"artifacts/{experiment_id}/report.md",
+        },
+        metrics={"stroke_count": 1},
+        next_action="validate the generated record completeness",
     )
 
 
@@ -47,6 +53,12 @@ def test_registry_rejects_unknown_failure_tag(tmp_path: Path) -> None:
         seed=1,
         generator="test-generator",
         exporter="test-exporter",
+        artifacts={
+            "trajectory": "artifacts/exp-000002/trajectory.json",
+            "report": "artifacts/exp-000002/report.md",
+        },
+        metrics={"stroke_count": 1},
+        next_action="validate the generated record completeness",
         failure_tags=["not-a-real-tag"],
     )
 
@@ -64,6 +76,12 @@ def test_registry_accepts_extended_failure_tags(tmp_path: Path) -> None:
         seed=1,
         generator="test-generator",
         exporter="test-exporter",
+        artifacts={
+            "trajectory": "artifacts/exp-000003/trajectory.json",
+            "report": "artifacts/exp-000003/report.md",
+        },
+        metrics={"stroke_count": 1},
+        next_action="validate the generated record completeness",
         failure_tags=["too-font-like", "scan-mismatch", "plotter-line-quality-bad"],
     )
 
@@ -91,3 +109,22 @@ def test_registry_replaces_existing_record(tmp_path: Path) -> None:
     )
 
     assert registry.get("exp-000001").metrics["duration_ms"] == 1200
+
+
+def test_registry_rejects_missing_report_artifact(tmp_path: Path) -> None:
+    registry = ExperimentRegistry(tmp_path / "registry.jsonl")
+    record = ExperimentRecord(
+        experiment_id="exp-000004",
+        hypothesis="test hypothesis",
+        input_text="永",
+        profile_id="baseline-neat",
+        seed=1,
+        generator="test-generator",
+        exporter="test-exporter",
+        artifacts={"trajectory": "artifacts/exp-000004/trajectory.json"},
+        metrics={"stroke_count": 1},
+        next_action="validate the generated record completeness",
+    )
+
+    with pytest.raises(ValueError, match="artifacts\\.report"):
+        registry.append(record)

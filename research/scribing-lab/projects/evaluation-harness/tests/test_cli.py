@@ -1,4 +1,6 @@
-from evaluation_harness.cli import build_parser
+from pathlib import Path
+
+from evaluation_harness.cli import build_parser, run_smoke
 
 
 def test_offline_review_parser_accepts_output_paths() -> None:
@@ -102,3 +104,15 @@ def test_structure_motion_parser_accepts_shape_variation() -> None:
     assert args.shape_variation == 0.08
     assert args.layout_variation == 0.12
     assert args.input_set == "extended"
+
+
+def test_run_smoke_registers_a_complete_record(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    run_smoke(root, "exp-smoke", "永")
+
+    registry_path = root / "registry.jsonl"
+    assert registry_path.exists()
+    text = registry_path.read_text(encoding="utf-8")
+    assert '"report"' in text
+    assert '"next_action"' in text

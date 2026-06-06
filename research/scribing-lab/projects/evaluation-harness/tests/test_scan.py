@@ -65,8 +65,12 @@ def test_attach_scan_artifact_updates_registry(tmp_path) -> None:
             seed=1,
             generator="baseline-outline",
             exporter="xdraw-gcode",
-            artifacts={"gcode_safety": "artifacts/exp-000001/gcode_safety.json"},
+            artifacts={
+                "gcode_safety": "artifacts/exp-000001/gcode_safety.json",
+                "report": "artifacts/exp-000001/report.md",
+            },
             metrics={"gcode_safety_ok": 1, "gcode_safety_violation_count": 0},
+            next_action="attach the plotted scan after validation",
         )
     )
     scan_path = tmp_path / "scan.png"
@@ -107,8 +111,12 @@ def test_attach_scan_artifact_rejects_unsafe_experiment(tmp_path) -> None:
             seed=1,
             generator="structure-motion",
             exporter="xdraw-gcode",
-            artifacts={"gcode_safety": "artifacts/exp-unsafe/gcode_safety.json"},
+            artifacts={
+                "gcode_safety": "artifacts/exp-unsafe/gcode_safety.json",
+                "report": "artifacts/exp-unsafe/report.md",
+            },
             metrics={"gcode_safety_ok": 0, "gcode_safety_violation_count": 1},
+            next_action="fix safety violations before attaching a scan",
         )
     )
     scan_path = tmp_path / "scan.png"
