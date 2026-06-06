@@ -23,6 +23,7 @@ xDraw A4 は Z 軸でペン上下を制御する。AxiDraw API は pen height、
 - trajectory to SVG。
 - pressure to Z/feedrate mapping。
 - safety validation。
+- trajectory input validation。
 - scan artifact metadata。
 - pen / paper / plotter profile。
 

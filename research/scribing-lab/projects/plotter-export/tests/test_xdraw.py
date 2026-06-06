@@ -1,3 +1,7 @@
+import math
+
+import pytest
+
 from plotter_export import XDrawExportConfig, export_xdraw_gcode, validate_xdraw_gcode
 
 
@@ -52,3 +56,32 @@ def test_export_xdraw_gcode_respects_custom_feed_limits() -> None:
         if line.startswith("G1 X") and "F" in line
     ]
     assert max(draw_feeds) <= 600
+
+
+def test_export_xdraw_gcode_sorts_by_time() -> None:
+    trajectory = list(reversed(_trajectory()))
+
+    lines = export_xdraw_gcode(trajectory)
+
+    first_travel = lines.index("G0 X10.00 Y290.00 F5000")
+    second_draw = lines.index("G1 X20.00 Y290.00 Z2.75 F1800")
+
+    assert first_travel < second_draw
+
+
+def test_export_xdraw_gcode_rejects_missing_required_fields() -> None:
+    with pytest.raises(ValueError, match="missing required field"):
+        export_xdraw_gcode(
+            [
+                {"x": 10.0, "y": 290.0, "t": 0, "pen_state": 0},
+            ]
+        )
+
+
+def test_export_xdraw_gcode_rejects_non_finite_values() -> None:
+    with pytest.raises(ValueError, match="finite"):
+        export_xdraw_gcode(
+            [
+                {"x": math.nan, "y": 290.0, "t": 0, "pen_state": 0, "pressure": 0.0},
+            ]
+        )
