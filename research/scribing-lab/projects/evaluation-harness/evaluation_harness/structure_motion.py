@@ -14,6 +14,14 @@ from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.structure_uniform import DEFAULT_STRUCTURE_INPUTS
+from evaluation_harness.writer_profile import (
+    apply_writer_profile_to_layout_config,
+    apply_writer_profile_to_motion_config,
+    apply_writer_profile_to_structure_motion_config,
+    resolve_writer_profile,
+    writer_profile_artifact,
+    writer_profile_metrics,
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +31,8 @@ class StructureMotionConfig:
     margin_top: float = 16.0
     char_spacing: float = 2.0
     line_height: float = 1.45
+    draw_speed_mm_s: float = 40.0
+    penup_speed_mm_s: float = 120.0
     samples_per_segment: int = 6
     timing_jitter_cv: float = 0.08
     tremor_mm: float = 0.015
@@ -48,20 +58,25 @@ def run_structure_motion(
     from src.gcode.preview import preview_strokes
 
     cfg = config or StructureMotionConfig()
+    profile = resolve_writer_profile(profile_id)
+    cfg = apply_writer_profile_to_structure_motion_config(cfg, profile)
     registry = ExperimentRegistry(root / "registry.jsonl")
     artifacts = ArtifactStore(root / "artifacts")
 
     laid_out = layout_text(
         input_text,
-        LayoutConfig(
-            margin_left=cfg.margin_left,
-            margin_top=cfg.margin_top,
-            char_size=cfg.char_size,
-            char_spacing=cfg.char_spacing,
-            line_height=cfg.line_height,
-            shape_variation=cfg.shape_variation,
-            layout_variation=cfg.layout_variation,
-            variation_seed=seed,
+        apply_writer_profile_to_layout_config(
+            LayoutConfig(
+                margin_left=cfg.margin_left,
+                margin_top=cfg.margin_top,
+                char_size=cfg.char_size,
+                char_spacing=cfg.char_spacing,
+                line_height=cfg.line_height,
+                shape_variation=cfg.shape_variation,
+                layout_variation=cfg.layout_variation,
+                variation_seed=seed,
+            ),
+            profile,
         ),
     )
     skeletons = [
@@ -74,18 +89,17 @@ def run_structure_motion(
         for stroke in laid_out
     ]
     strokes = [np.array(stroke.points, dtype=float) for stroke in laid_out]
-    trajectory = [
-        point.to_dict()
-        for point in synthesize_motion(
-            skeletons,
-            seed=seed,
-            config=MotionConfig(
-                samples_per_segment=cfg.samples_per_segment,
-                timing_jitter_cv=cfg.timing_jitter_cv,
-                tremor_mm=cfg.tremor_mm,
-            ),
-        )
-    ]
+    motion_cfg = apply_writer_profile_to_motion_config(
+        MotionConfig(
+            draw_speed_mm_s=cfg.draw_speed_mm_s,
+            penup_speed_mm_s=cfg.penup_speed_mm_s,
+            samples_per_segment=cfg.samples_per_segment,
+            timing_jitter_cv=cfg.timing_jitter_cv,
+            tremor_mm=cfg.tremor_mm,
+        ),
+        profile,
+    )
+    trajectory = [point.to_dict() for point in synthesize_motion(skeletons, seed=seed, config=motion_cfg)]
 
     gcode_lines = export_xdraw_gcode(trajectory)
     safety = validate_xdraw_gcode(gcode_lines)
@@ -98,6 +112,7 @@ def run_structure_motion(
             "layout_variation": cfg.layout_variation,
             "layout_variation_mm": round(cfg.layout_variation * cfg.char_size, 4),
             "gcode_line_count": len(gcode_lines),
+            **writer_profile_metrics(profile),
             "gcode_safety_ok": int(safety.ok),
             "gcode_safety_violation_count": len(safety.violations),
             "gcode_z_min": safety.z_min,
@@ -109,7 +124,12 @@ def run_structure_motion(
     )
 
     trajectory_path = artifacts.write_json(experiment_id, "trajectory.json", trajectory)
-    config_path = artifacts.write_json(experiment_id, "motion_config.json", asdict(cfg))
+    config_path = artifacts.write_json(experiment_id, "motion_config.json", asdict(motion_cfg))
+    profile_path = artifacts.write_json(
+        experiment_id,
+        "writer_profile.json",
+        writer_profile_artifact(profile),
+    )
     gcode_path = artifacts.write_text(experiment_id, "output.gcode", "\n".join(gcode_lines) + "\n")
     safety_path = artifacts.write_json(experiment_id, "gcode_safety.json", safety.to_dict())
     preview_path = artifacts.experiment_dir(experiment_id) / "preview.png"
@@ -126,6 +146,7 @@ def run_structure_motion(
         artifacts={
             "trajectory": trajectory_path,
             "motion_config": config_path,
+            "writer_profile": profile_path,
             "gcode": gcode_path,
             "gcode_safety": safety_path,
             "preview": str(preview_path),
@@ -312,6 +333,7 @@ def _ensure_paths() -> None:
         repo_root / "research" / "scribing-lab" / "projects" / "character-dictionary",
         repo_root / "research" / "scribing-lab" / "projects" / "motion-synthesis",
         repo_root / "research" / "scribing-lab" / "projects" / "plotter-export",
+        repo_root / "research" / "scribing-lab" / "projects" / "writer-profile",
     ]
     for path in paths:
         path_str = str(path)

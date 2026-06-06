@@ -84,6 +84,28 @@ def test_layout_text_layout_variation_changes_character_positions() -> None:
     ]
 
 
+def test_layout_text_slant_changes_x_offsets() -> None:
+    default_strokes = layout_text("永", LayoutConfig())
+    slanted_strokes = layout_text("永", LayoutConfig(slant_deg=10.0))
+
+    default_points = default_strokes[2].points
+    slanted_points = slanted_strokes[2].points
+
+    assert slanted_points[0][0] != default_points[0][0]
+    assert slanted_points[-1][0] != default_points[-1][0]
+    assert slanted_points[-1][0] - default_points[-1][0] > slanted_points[0][0] - default_points[0][0]
+
+
+def test_layout_text_baseline_drift_moves_lower_lines() -> None:
+    default_strokes = layout_text("永\n永", LayoutConfig())
+    drifted_strokes = layout_text("永\n永", LayoutConfig(baseline_drift_mm=1.0))
+
+    default_second_line_y = min(y for _, y in default_strokes[5].points)
+    drifted_second_line_y = min(y for _, y in drifted_strokes[5].points)
+
+    assert drifted_second_line_y < default_second_line_y
+
+
 def test_layout_text_rejects_unknown_character() -> None:
     with pytest.raises(DictionaryLookupError):
         layout_text("未")

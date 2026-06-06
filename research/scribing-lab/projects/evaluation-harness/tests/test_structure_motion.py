@@ -26,6 +26,8 @@ def test_run_structure_motion_registers_motion_metrics(tmp_path: Path) -> None:
     assert record.metrics["draw_speed_cv"] > 0.0
     assert record.metrics["gcode_safety_ok"] == 1
     assert record.metrics["gcode_safety_violation_count"] == 0
+    assert record.metrics["writer_profile_speed_mean_mm_s"] == 40.0
+    assert "writer_profile" in record.artifacts
     assert "gcode_safety" in record.artifacts
     assert "too-uniform" not in record.failure_tags
     assert "plotter-unsafe" not in record.failure_tags
@@ -102,3 +104,26 @@ def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_pat
 
     assert comparison["comparison_count"] == 1
     assert "too-uniform" in comparison["comparisons"][0]["resolved_failure_tags"]
+
+
+def test_structure_motion_profile_changes_timing_and_pressure(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    baseline = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-baseline",
+        input_text="永",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+    fast = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-fast",
+        input_text="永",
+        seed=1,
+        profile_id="fast-casual",
+    )
+
+    assert fast.metrics["writer_profile_speed_mean_mm_s"] == 54.0
+    assert fast.metrics["writer_profile_timing_jitter_cv"] == 0.14
+    assert fast.metrics["duration_ms"] != baseline.metrics["duration_ms"]

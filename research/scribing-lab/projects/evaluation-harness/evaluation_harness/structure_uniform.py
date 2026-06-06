@@ -18,6 +18,13 @@ from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
+from evaluation_harness.writer_profile import (
+    apply_writer_profile_to_layout_config,
+    apply_writer_profile_to_structure_uniform_config,
+    resolve_writer_profile,
+    writer_profile_artifact,
+    writer_profile_metrics,
+)
 
 DEFAULT_STRUCTURE_INPUTS: tuple[str, ...] = ("永", "あいうえお")
 EXTENDED_STRUCTURE_INPUTS: tuple[str, ...] = (
@@ -60,17 +67,22 @@ def run_structure_uniform(
     from src.gcode.preview import preview_strokes
 
     cfg = config or StructureUniformConfig()
+    profile = resolve_writer_profile(profile_id)
+    cfg = apply_writer_profile_to_structure_uniform_config(cfg, profile)
     registry = ExperimentRegistry(root / "registry.jsonl")
     artifacts = ArtifactStore(root / "artifacts")
 
     laid_out = layout_text(
         input_text,
-        LayoutConfig(
-            margin_left=cfg.margin_left,
-            margin_top=cfg.margin_top,
-            char_size=cfg.char_size,
-            char_spacing=cfg.char_spacing,
-            line_height=cfg.line_height,
+        apply_writer_profile_to_layout_config(
+            LayoutConfig(
+                margin_left=cfg.margin_left,
+                margin_top=cfg.margin_top,
+                char_size=cfg.char_size,
+                char_spacing=cfg.char_spacing,
+                line_height=cfg.line_height,
+            ),
+            profile,
         ),
     )
     strokes = [np.array(stroke.points, dtype=float) for stroke in laid_out]
@@ -87,6 +99,7 @@ def run_structure_uniform(
         {
             "structure_stroke_count": len(strokes),
             "gcode_line_count": len(gcode_lines),
+            **writer_profile_metrics(profile),
             **compute_text_metrics(input_text),
         }
     )
@@ -107,6 +120,11 @@ def run_structure_uniform(
         ],
     )
     config_path = artifacts.write_json(experiment_id, "structure_config.json", asdict(cfg))
+    profile_path = artifacts.write_json(
+        experiment_id,
+        "writer_profile.json",
+        writer_profile_artifact(profile),
+    )
     gcode_path = artifacts.write_text(experiment_id, "output.gcode", "\n".join(gcode_lines) + "\n")
     preview_path = artifacts.experiment_dir(experiment_id) / "preview.png"
     preview_strokes(strokes, save_path=preview_path)
@@ -123,6 +141,7 @@ def run_structure_uniform(
             "trajectory": trajectory_path,
             "stroke_templates": template_path,
             "structure_config": config_path,
+            "writer_profile": profile_path,
             "gcode": gcode_path,
             "preview": str(preview_path),
         },
@@ -240,6 +259,7 @@ def _ensure_paths() -> None:
     paths = [
         repo_root,
         repo_root / "research" / "scribing-lab" / "projects" / "character-dictionary",
+        repo_root / "research" / "scribing-lab" / "projects" / "writer-profile",
     ]
     for path in paths:
         path_str = str(path)

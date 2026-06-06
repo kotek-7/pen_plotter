@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import math
 import random
 from typing import Any
 
@@ -47,13 +48,17 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
     x = cfg.margin_left
     baseline_top = cfg.paper_height - cfg.margin_top
     y_top = baseline_top
+    line_index = 0
     strokes: list[LaidOutStroke] = []
 
     char_index = 0
     for char in text:
         if char == "\n":
             x = cfg.margin_left
-            y_top -= cfg.char_size * cfg.line_height
+            line_index += 1
+            y_top = baseline_top - line_index * (
+                cfg.char_size * cfg.line_height + cfg.baseline_drift_mm
+            )
             continue
         if char.isspace():
             x += cfg.char_size * 0.5
@@ -74,7 +79,10 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
             )
             points = tuple(
                 (
-                    x + layout_offset_x + px * cfg.char_size,
+                    x
+                    + layout_offset_x
+                    + px * cfg.char_size
+                    + _slant_offset(py, cfg),
                     y_top + layout_offset_y - py * cfg.char_size,
                 )
                 for px, py in skeleton_points
@@ -170,6 +178,12 @@ def _layout_offsets(
 
 def _clamp_unit(value: float) -> float:
     return min(max(value, 0.04), 0.96)
+
+
+def _slant_offset(py: float, config: LayoutConfig) -> float:
+    if config.slant_deg == 0.0:
+        return 0.0
+    return math.tan(math.radians(config.slant_deg)) * (py - 0.5) * config.char_size
 
 
 _TEMPLATES: dict[str, CharacterTemplate] = {

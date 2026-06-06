@@ -24,6 +24,8 @@ def test_run_structure_uniform_registers_artifacts(tmp_path: Path) -> None:
     assert record.generator == "structure-uniform"
     assert record.metrics["status"] == "ok"
     assert record.metrics["structure_stroke_count"] == 5
+    assert record.metrics["writer_profile_speed_mean_mm_s"] == 40.0
+    assert "writer_profile" in record.artifacts
     assert "skeleton-too-rigid" in record.failure_tags
     for path in record.artifacts.values():
         assert Path(path).exists()
@@ -62,6 +64,29 @@ def test_structure_uniform_can_be_compared_with_baseline(tmp_path: Path) -> None
 
     assert comparison["comparison_count"] == 1
     assert comparison["comparisons"][0]["candidate_generator"] == "structure-uniform"
+
+
+def test_structure_uniform_profile_changes_spacing_and_speed(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    baseline = run_structure_uniform(
+        root=root,
+        experiment_id="exp-structure-baseline",
+        input_text="永",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+    fast = run_structure_uniform(
+        root=root,
+        experiment_id="exp-structure-fast",
+        input_text="永",
+        seed=1,
+        profile_id="fast-casual",
+    )
+
+    assert fast.metrics["writer_profile_speed_mean_mm_s"] == 54.0
+    assert fast.metrics["writer_profile_spacing_mean_mm"] == 1.0
+    assert fast.metrics["duration_ms"] != baseline.metrics["duration_ms"]
 
 
 def test_extended_structure_inputs_cover_basic_and_stress_cases() -> None:

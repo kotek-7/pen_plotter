@@ -6,6 +6,15 @@
 
 writer profile は単なる個人癖モデルではなく、実験条件として versioning され、評価結果と対応付けられる探索対象である。
 
+## MVP 状況
+
+以下は実装済みである。
+
+- `baseline-neat` / `fast-casual` / `shaky-slow` の手動 profile registry。
+- `structure-uniform` / `structure-motion` への profile 適用。
+- `writer_profile.json` artifact の保存。
+- `profile_id` と profile パラメータの experiment record への記録。
+
 ## 背景
 
 深層 style embedding は強力だが、実機出力や安全性の調整が難しい。研究初期では、明示パラメータを持ち、少量サンプルから統計推定できる構成が扱いやすい。
