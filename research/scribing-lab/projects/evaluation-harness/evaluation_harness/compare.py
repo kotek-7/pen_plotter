@@ -4,6 +4,7 @@ from collections import defaultdict
 from collections.abc import Iterable
 from typing import Any
 
+from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 
 
@@ -66,6 +67,63 @@ def compare_against_baseline(
     }
 
 
+def compare_fixed_input_set(
+    records: Iterable[ExperimentRecord],
+    *,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    baseline_generator: str = "baseline-outline",
+    metrics: tuple[str, ...] = DEFAULT_COMPARE_METRICS,
+) -> dict[str, Any]:
+    record_list = list(records)
+    baseline_comparison = compare_against_baseline(
+        record_list,
+        baseline_generator=baseline_generator,
+        metrics=metrics,
+    )
+    grouped = _group_records_by_input_and_seed(record_list)
+    expected_groups = [(input_text, seed) for input_text in expected_input_texts for seed in expected_seeds]
+
+    group_summaries: list[dict[str, Any]] = []
+    complete_group_count = 0
+    for input_text, seed in expected_groups:
+        group = grouped.get((input_text, seed), [])
+        baseline = next((record for record in group if record.generator == baseline_generator), None)
+        candidate_count = sum(1 for record in group if record.generator != baseline_generator)
+        status: str
+        if baseline is None:
+            status = "missing-baseline"
+        elif candidate_count == 0:
+            status = "baseline-only"
+        else:
+            status = "complete"
+            complete_group_count += 1
+
+        group_summaries.append(
+            {
+                "input_text": input_text,
+                "seed": seed,
+                "status": status,
+                "record_count": len(group),
+                "candidate_count": candidate_count,
+                "has_baseline": baseline is not None,
+            }
+        )
+
+    expected_group_count = len(expected_groups)
+    return {
+        **baseline_comparison,
+        "expected_input_texts": list(expected_input_texts),
+        "expected_seeds": list(expected_seeds),
+        "expected_group_count": expected_group_count,
+        "complete_group_count": complete_group_count,
+        "coverage_ratio": round(complete_group_count / expected_group_count, 4)
+        if expected_group_count
+        else 0.0,
+        "group_summaries": group_summaries,
+    }
+
+
 def render_comparison_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Baseline Comparison Report",
@@ -104,6 +162,52 @@ def render_comparison_markdown(comparison: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_fixed_input_comparison_markdown(comparison: dict[str, Any]) -> str:
+    lines = [
+        "# Fixed Input Comparison Report",
+        "",
+        f"- baseline_generator: `{comparison['baseline_generator']}`",
+        f"- expected_input_texts: `{comparison['expected_input_texts']}`",
+        f"- expected_seeds: `{comparison['expected_seeds']}`",
+        f"- expected_group_count: `{comparison['expected_group_count']}`",
+        f"- complete_group_count: `{comparison['complete_group_count']}`",
+        f"- coverage_ratio: `{comparison['coverage_ratio']}`",
+        "",
+        "## Coverage",
+        "",
+    ]
+    for item in comparison["group_summaries"]:
+        lines.append(
+            "- "
+            f"input=`{item['input_text']}`, "
+            f"seed=`{item['seed']}`, "
+            f"status=`{item['status']}`, "
+            f"record_count=`{item['record_count']}`, "
+            f"candidate_count=`{item['candidate_count']}`"
+        )
+    lines.extend(["", "## Comparisons", ""])
+    if not comparison["comparisons"]:
+        lines.append("- none")
+    for item in comparison["comparisons"]:
+        lines.extend(
+            [
+                f"### {item['candidate_experiment_id']}",
+                "",
+                f"- input_text: `{item['input_text']}`",
+                f"- seed: `{item['seed']}`",
+                f"- baseline: `{item['baseline_experiment_id']}`",
+                f"- candidate_generator: `{item['candidate_generator']}`",
+                f"- resolved_failure_tags: `{item['resolved_failure_tags']}`",
+                f"- new_failure_tags: `{item['new_failure_tags']}`",
+                "- metric_deltas:",
+            ]
+        )
+        for name, delta in item["metric_deltas"].items():
+            lines.append(f"  - {name}: `{delta}`")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def _metric_deltas(
     baseline: ExperimentRecord,
     candidate: ExperimentRecord,
@@ -118,3 +222,12 @@ def _metric_deltas(
         if isinstance(base_value, (int, float)) and isinstance(candidate_value, (int, float)):
             deltas[name] = round(float(candidate_value) - float(base_value), 4)
     return deltas
+
+
+def _group_records_by_input_and_seed(
+    records: Iterable[ExperimentRecord],
+) -> dict[tuple[str, int], list[ExperimentRecord]]:
+    grouped: dict[tuple[str, int], list[ExperimentRecord]] = defaultdict(list)
+    for record in records:
+        grouped[(record.input_text, record.seed)].append(record)
+    return grouped

@@ -11,7 +11,12 @@ from evaluation_harness.baseline_outline import (
     run_baseline_outline,
     run_baseline_outline_batch,
 )
-from evaluation_harness.compare import compare_against_baseline, render_comparison_markdown
+from evaluation_harness.compare import (
+    compare_against_baseline,
+    compare_fixed_input_set,
+    render_comparison_markdown,
+    render_fixed_input_comparison_markdown,
+)
 from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
@@ -83,6 +88,20 @@ def build_parser() -> argparse.ArgumentParser:
     compare.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
     compare.add_argument("--baseline-generator", default="baseline-outline")
     compare.add_argument("--output", default="comparison_report.md")
+
+    fixed_compare = sub.add_parser(
+        "compare-fixed-inputs",
+        help="Compare the fixed evaluation input set against a baseline generator",
+    )
+    fixed_compare.add_argument(
+        "--root",
+        default="runs/baseline-outline",
+        help="Run output directory",
+    )
+    fixed_compare.add_argument("--baseline-generator", default="baseline-outline")
+    fixed_compare.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    fixed_compare.add_argument("--output", default="fixed_input_comparison.md")
+    fixed_compare.add_argument("--json-output", default="fixed_input_comparison.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -217,6 +236,26 @@ def main() -> None:
         output_path.write_text(render_comparison_markdown(comparison), encoding="utf-8")
         print(f"comparison_count: {comparison['comparison_count']}")
         print(f"report: {output_path}")
+    elif args.command == "compare-fixed-inputs":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        comparison = compare_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_fixed_input_comparison_markdown(comparison), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(comparison, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"expected_group_count: {comparison['expected_group_count']}")
+        print(f"complete_group_count: {comparison['complete_group_count']}")
+        print(f"coverage_ratio: {comparison['coverage_ratio']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
     elif args.command == "offline-review":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")

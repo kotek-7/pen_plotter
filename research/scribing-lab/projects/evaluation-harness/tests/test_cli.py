@@ -1,5 +1,8 @@
 from pathlib import Path
 
+from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
+from evaluation_harness.models import ExperimentRecord
+from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.cli import build_parser, run_smoke
 
 
@@ -85,6 +88,31 @@ def test_plot_ready_packet_parser_accepts_summary_paths() -> None:
     assert args.json_output == "plot_ready.json"
 
 
+def test_compare_fixed_inputs_parser_accepts_seeds() -> None:
+    args = build_parser().parse_args(
+        [
+            "compare-fixed-inputs",
+            "--root",
+            "runs/test",
+            "--baseline-generator",
+            "baseline-outline",
+            "--seeds",
+            "1,2",
+            "--output",
+            "fixed.md",
+            "--json-output",
+            "fixed.json",
+        ]
+    )
+
+    assert args.command == "compare-fixed-inputs"
+    assert args.root == "runs/test"
+    assert args.baseline_generator == "baseline-outline"
+    assert args.seeds == "1,2"
+    assert args.output == "fixed.md"
+    assert args.json_output == "fixed.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -116,3 +144,81 @@ def test_run_smoke_registers_a_complete_record(tmp_path: Path) -> None:
     text = registry_path.read_text(encoding="utf-8")
     assert '"report"' in text
     assert '"next_action"' in text
+
+
+def test_compare_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for input_text in DEFAULT_EVALUATION_INPUTS:
+        for seed in (1, 2):
+            baseline_id = f"exp-baseline-{input_text}-{seed}"
+            candidate_id = f"exp-candidate-{input_text}-{seed}"
+            registry.append(
+                _record(
+                    experiment_id=baseline_id,
+                    input_text=input_text,
+                    seed=seed,
+                    generator="baseline-outline",
+                )
+            )
+            registry.append(
+                _record(
+                    experiment_id=candidate_id,
+                    input_text=input_text,
+                    seed=seed,
+                    generator="structure-uniform",
+                    metrics={"duration_ms": 900, "draw_speed_cv": 0.2},
+                    failure_tags=["terminal-too-uniform"],
+                )
+            )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "compare-fixed-inputs",
+            "--root",
+            str(root),
+            "--seeds",
+            "1,2",
+            "--output",
+            "fixed.md",
+            "--json-output",
+            "fixed.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "fixed.md").read_text(encoding="utf-8")
+    json_text = (root / "fixed.json").read_text(encoding="utf-8")
+
+    assert "Fixed Input Comparison Report" in markdown
+    assert "coverage_ratio" in markdown
+    assert '"coverage_ratio": 1.0' in json_text
+
+
+def _record(
+    *,
+    experiment_id: str,
+    input_text: str,
+    seed: int,
+    generator: str,
+    metrics: dict[str, float | int | str] | None = None,
+    failure_tags: list[str] | None = None,
+) -> ExperimentRecord:
+    return ExperimentRecord(
+        experiment_id=experiment_id,
+        hypothesis="test",
+        input_text=input_text,
+        profile_id="baseline-neat",
+        seed=seed,
+        generator=generator,
+        exporter="xdraw-gcode",
+        artifacts={"report": f"artifacts/{experiment_id}/report.md"},
+        metrics=metrics or {"duration_ms": 1000, "stroke_count": 1},
+        failure_tags=failure_tags or [],
+        next_action="validate fixed input comparison",
+    )

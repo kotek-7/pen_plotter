@@ -58,6 +58,14 @@ python3 -m evaluation_harness compare \
   --baseline-generator baseline-outline
 ```
 
+固定評価入力セットの比較完備性を確認する場合:
+
+```sh
+python3 -m evaluation_harness compare-fixed-inputs \
+  --root runs/baseline-outline \
+  --seeds 1,2,3
+```
+
 実機出力の前に、registry 内の metrics / failure tags から次の調整候補を出す場合:
 
 ```sh
