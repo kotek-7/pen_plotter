@@ -24,6 +24,23 @@ def test_get_template_returns_ordered_strokes_for_ei() -> None:
     assert {stroke.terminal for stroke in template.strokes} >= {"tome", "harai"}
 
 
+@pytest.mark.parametrize("literal", ["あ", "い", "う", "え", "お"])
+def test_kana_templates_are_font_outlines(literal: str) -> None:
+    template = get_template(literal)
+
+    assert template.source == "font-outline"
+    assert template.strokes
+    assert all(stroke.stroke_type == "outline" for stroke in template.strokes)
+    assert all(stroke.terminal == "none" for stroke in template.strokes)
+
+    xs = [x for stroke in template.strokes for x, _ in stroke.skeleton_points]
+    ys = [y for stroke in template.strokes for _, y in stroke.skeleton_points]
+    assert min(xs) >= 0.0
+    assert max(xs) <= 1.0
+    assert min(ys) >= 0.0
+    assert max(ys) <= 1.0
+
+
 def test_layout_text_places_points_in_a4_coordinates() -> None:
     strokes = layout_text("あい", LayoutConfig(char_size=10.0, margin_left=12.0, margin_top=16.0))
 
@@ -143,6 +160,10 @@ def test_layout_text_falls_back_for_unknown_character() -> None:
     assert strokes
     assert all(stroke.literal == "今" for stroke in strokes)
     assert all(stroke.terminal == "none" for stroke in strokes)
+    assert min(x for stroke in strokes for x, _ in stroke.points) >= 0.0
+    assert max(x for stroke in strokes for x, _ in stroke.points) <= 210.0
+    assert min(y for stroke in strokes for _, y in stroke.points) >= 0.0
+    assert max(y for stroke in strokes for _, y in stroke.points) <= 297.0
 
 
 def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:

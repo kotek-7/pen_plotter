@@ -17,7 +17,6 @@ from character_dictionary.models import CharacterTemplate, LaidOutStroke, Layout
 from character_dictionary.terminal import map_stroke_type_to_terminal
 
 Stroke = npt.NDArray[np.float64]
-PT_TO_MM = 25.4 / 72.0
 
 DEFAULT_FONT_CANDIDATES = (
     "Noto Sans CJK JP",
@@ -234,6 +233,21 @@ def _template(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTem
     )
 
 
+def _font_outline_template(literal: str) -> CharacterTemplate:
+    strokes = _font_outline_points(literal)
+    return CharacterTemplate(
+        char_id=f"U+{ord(literal):04X}",
+        literal=literal,
+        source="font-outline",
+        license="research-internal",
+        bbox=(0.0, 0.0, 1.0, 1.0),
+        strokes=tuple(
+            _stroke(index + 1, "outline", points)
+            for index, points in enumerate(strokes)
+        ),
+    )
+
+
 def _vary_skeleton_points(
     literal: str,
     *,
@@ -301,9 +315,7 @@ def _line_offsets(config: LayoutConfig, line_index: int) -> tuple[float, float, 
 
 
 def _fallback_glyph_strokes(char: str) -> list[Stroke]:
-    font = _find_font(None, None)
-    char_path = TextPath((0, 0), char, size=1.0, prop=font)
-    return [stroke * PT_TO_MM for stroke in _flatten_text_path(char_path)]
+    return [np.array(points, dtype=float) for points in _font_outline_points(char)]
 
 
 def _find_font(name: str | None, path: str | None) -> FontProperties:
@@ -345,6 +357,42 @@ def _clamp_unit(value: float) -> float:
     return min(max(value, 0.04), 0.96)
 
 
+def _font_outline_points(char: str) -> list[tuple[tuple[float, float], ...]]:
+    font = _find_font(None, None)
+    char_path = TextPath((0, 0), char, size=1.0, prop=font)
+    strokes = _flatten_text_path(char_path)
+    return _normalize_strokes_to_unit_square(strokes)
+
+
+def _normalize_strokes_to_unit_square(strokes: list[Stroke]) -> list[tuple[tuple[float, float], ...]]:
+    if not strokes:
+        return []
+
+    all_points = np.concatenate(strokes, axis=0)
+    min_x = float(np.min(all_points[:, 0]))
+    max_x = float(np.max(all_points[:, 0]))
+    min_y = float(np.min(all_points[:, 1]))
+    max_y = float(np.max(all_points[:, 1]))
+    width = max(max_x - min_x, 1e-9)
+    height = max(max_y - min_y, 1e-9)
+    size = max(width, height, 1e-9)
+    offset_x = (size - width) / 2.0
+    offset_y = (size - height) / 2.0
+
+    normalized: list[tuple[tuple[float, float], ...]] = []
+    for stroke in strokes:
+        normalized.append(
+            tuple(
+                (
+                    _clamp_unit((float(x) - min_x + offset_x) / size),
+                    _clamp_unit((float(y) - min_y + offset_y) / size),
+                )
+                for x, y in stroke
+            )
+        )
+    return normalized
+
+
 def _slant_offset(py: float, config: LayoutConfig) -> float:
     if config.slant_deg == 0.0:
         return 0.0
@@ -362,43 +410,9 @@ _TEMPLATES: dict[str, CharacterTemplate] = {
             _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
         ),
     ),
-    "あ": _template(
-        "あ",
-        (
-            _stroke(1, "yoko", ((0.28, 0.28), (0.76, 0.28))),
-            _stroke(2, "tate", ((0.50, 0.14), (0.48, 0.54))),
-            _stroke(3, "migi", ((0.34, 0.54), (0.30, 0.82), (0.58, 0.90), (0.82, 0.66), (0.66, 0.48))),
-        ),
-    ),
-    "い": _template(
-        "い",
-        (
-            _stroke(1, "hidari", ((0.42, 0.22), (0.34, 0.48), (0.30, 0.72), (0.36, 0.90))),
-            _stroke(2, "hane", ((0.66, 0.24), (0.72, 0.50), (0.68, 0.72), (0.60, 0.84))),
-        ),
-    ),
-    "う": _template(
-        "う",
-        (
-            _stroke(1, "ten", ((0.46, 0.18), (0.58, 0.22))),
-            _stroke(2, "hidari", ((0.30, 0.42), (0.66, 0.38), (0.74, 0.62), (0.42, 0.86))),
-        ),
-    ),
-    "え": _template(
-        "え",
-        (
-            _stroke(1, "ten", ((0.46, 0.16), (0.58, 0.22))),
-            _stroke(2, "yoko", ((0.30, 0.38), (0.70, 0.38))),
-            _stroke(3, "migi", ((0.54, 0.40), (0.34, 0.68), (0.52, 0.64), (0.76, 0.86))),
-        ),
-    ),
-    "お": _template(
-        "お",
-        (
-            _stroke(1, "yoko", ((0.26, 0.28), (0.72, 0.28))),
-            _stroke(2, "tate", ((0.48, 0.14), (0.48, 0.76))),
-            _stroke(3, "migi", ((0.36, 0.58), (0.22, 0.82), (0.52, 0.88), (0.72, 0.66), (0.54, 0.50))),
-            _stroke(4, "ten", ((0.74, 0.38), (0.84, 0.44))),
-        ),
-    ),
+    "あ": _font_outline_template("あ"),
+    "い": _font_outline_template("い"),
+    "う": _font_outline_template("う"),
+    "え": _font_outline_template("え"),
+    "お": _font_outline_template("お"),
 }
