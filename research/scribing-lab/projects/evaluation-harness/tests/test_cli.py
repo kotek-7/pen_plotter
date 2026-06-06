@@ -439,6 +439,21 @@ def test_structure_motion_parser_accepts_evaluation_input_set() -> None:
     assert args.input_set == "evaluation"
 
 
+def test_structure_motion_parser_accepts_review_input_set() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-motion-batch",
+            "--root",
+            "runs/test",
+            "--input-set",
+            "review",
+        ]
+    )
+
+    assert args.command == "structure-motion-batch"
+    assert args.input_set == "review"
+
+
 def test_run_smoke_registers_a_complete_record(tmp_path: Path) -> None:
     root = tmp_path / "runs"
 

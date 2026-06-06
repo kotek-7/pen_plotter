@@ -62,6 +62,7 @@ from evaluation_harness.structure_uniform import (
     DEFAULT_STRUCTURE_INPUTS,
     EVALUATION_STRUCTURE_INPUTS,
     EXTENDED_STRUCTURE_INPUTS,
+    REVIEW_STRUCTURE_INPUTS,
     StructureUniformConfig,
     run_structure_uniform,
     run_structure_uniform_batch,
@@ -354,7 +355,7 @@ def build_parser() -> argparse.ArgumentParser:
     structure_batch.add_argument("--root", default="runs/structure-uniform")
     structure_batch.add_argument("--seeds", default="1,2,3")
     structure_batch.add_argument("--profile-id", default="baseline-neat")
-    structure_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation"), default="evaluation")
+    structure_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation", "review"), default="review")
 
     motion = sub.add_parser(
         "structure-motion",
@@ -377,7 +378,7 @@ def build_parser() -> argparse.ArgumentParser:
     motion_batch.add_argument("--profile-id", default="baseline-neat")
     motion_batch.add_argument("--shape-variation", type=float, default=0.0)
     motion_batch.add_argument("--layout-variation", type=float, default=0.0)
-    motion_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation"), default="evaluation")
+    motion_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation", "review"), default="review")
     return parser
 
 
@@ -909,6 +910,8 @@ def _structure_inputs(input_set: str) -> tuple[str, ...]:
         return EXTENDED_STRUCTURE_INPUTS
     if input_set == "evaluation":
         return EVALUATION_STRUCTURE_INPUTS
+    if input_set == "review":
+        return REVIEW_STRUCTURE_INPUTS
     raise ValueError(f"unknown input set: {input_set}")
 
 
