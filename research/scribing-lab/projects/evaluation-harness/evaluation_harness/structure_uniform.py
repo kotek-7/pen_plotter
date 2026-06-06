@@ -97,6 +97,7 @@ def run_structure_uniform(
                 char_size=cfg.char_size,
                 char_spacing=cfg.char_spacing,
                 line_height=cfg.line_height,
+                fit_to_page=True,
             ),
             profile,
         ),

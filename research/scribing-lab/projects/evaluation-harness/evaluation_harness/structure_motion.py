@@ -76,6 +76,7 @@ def run_structure_motion(
                 shape_variation=cfg.shape_variation,
                 layout_variation=cfg.layout_variation,
                 variation_seed=seed,
+                fit_to_page=True,
             ),
             profile,
         ),

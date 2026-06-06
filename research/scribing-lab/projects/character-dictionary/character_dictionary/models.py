@@ -57,6 +57,7 @@ class LayoutConfig:
     shape_variation: float = 0.0
     layout_variation: float = 0.0
     variation_seed: int = 0
+    fit_to_page: bool = False
 
 
 @dataclass(frozen=True)

@@ -62,6 +62,34 @@ def test_build_human_review_packet_selects_representatives() -> None:
     assert packet["robustness"]["uncertain_record_ids"]
 
 
+def test_build_human_review_packet_scales_with_larger_record_sets() -> None:
+    records = [
+        _record(
+            f"exp-{index:02d}",
+            input_text="永",
+            seed=index,
+            metrics={
+                "draw_speed_cv": 0.2 + index * 0.01,
+                "mean_abs_jerk_mm_s3": 1000.0 + index * 10.0,
+                "stroke_start_spacing_cv": 0.1,
+                "baseline_drift_mm": 0.2,
+                "repeated_char_ratio": 0.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        )
+        for index in range(40)
+    ]
+
+    packet = build_human_review_packet(records)
+
+    assert packet["representative_count"] == 20
+    assert len(packet["representatives"]) == 20
+    assert packet["representatives"][0]["experiment_id"].startswith("exp-")
+
+
 def test_render_human_review_packet_markdown_includes_preview_paths() -> None:
     packet = build_human_review_packet(
         [

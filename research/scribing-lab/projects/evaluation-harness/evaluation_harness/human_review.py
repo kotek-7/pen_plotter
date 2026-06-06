@@ -111,7 +111,33 @@ def _select_representative_ids(
         _append_unique(selected, _min_metric_record(records, "draw_speed_cv").experiment_id)
         _append_unique(selected, _max_metric_record(records, "draw_speed_cv").experiment_id)
 
-    return selected[:12]
+    target_count = _target_representative_count(len(records))
+    if len(selected) < target_count:
+        ranked_ids = [
+            str(item["experiment_id"])
+            for item in sorted(
+                review.get("items", []),
+                key=lambda item: (
+                    -float(item.get("risk_score", 0.0)),
+                    float(item.get("confidence", 0.0)),
+                    str(item.get("experiment_id", "")),
+                ),
+            )
+        ]
+        for experiment_id in ranked_ids:
+            _append_unique(selected, experiment_id)
+            if len(selected) >= target_count:
+                break
+
+    return selected[:target_count]
+
+
+def _target_representative_count(record_count: int) -> int:
+    if record_count <= 0:
+        return 0
+    target = max(12, record_count // 2)
+    target = min(target, 36)
+    return target
 
 
 def _representative_reason(record: ExperimentRecord, review: dict[str, Any]) -> str:

@@ -51,6 +51,22 @@ def test_run_structure_motion_supports_fixed_sentence_inputs(tmp_path: Path) -> 
     assert record.metrics["gcode_safety_ok"] == 1
 
 
+def test_run_structure_motion_fits_long_input_to_page(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-long",
+        input_text="この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。",
+        seed=1,
+        profile_id="fast-casual",
+    )
+
+    assert record.metrics["gcode_safety_ok"] == 1
+    assert record.metrics["gcode_safety_violation_count"] == 0
+    assert "plotter-unsafe" not in record.failure_tags
+
+
 def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     root = tmp_path / "runs"
 

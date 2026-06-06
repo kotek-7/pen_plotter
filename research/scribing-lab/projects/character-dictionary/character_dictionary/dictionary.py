@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import random
+from dataclasses import replace
 from typing import Any
 
 import numpy as np
@@ -66,6 +67,8 @@ def export_dictionary_json(indent: int = 2) -> str:
 
 def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutStroke]:
     cfg = config or LayoutConfig()
+    if cfg.fit_to_page:
+        cfg = _fit_layout_to_page(text, cfg)
     x = cfg.margin_left
     baseline_top = cfg.paper_height - cfg.margin_top
     y_top = baseline_top
@@ -167,6 +170,47 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
         char_index += 1
         line_char_index += 1
     return strokes
+
+
+def _fit_layout_to_page(text: str, config: LayoutConfig) -> LayoutConfig:
+    visible_lines = text.splitlines() or [text]
+    usable_width = max(config.paper_width - config.margin_left * 2.0, config.char_size)
+    usable_height = max(config.paper_height - config.margin_top * 2.0, config.char_size)
+
+    estimated_line_widths = [_estimate_line_width(line, config) for line in visible_lines]
+    widest_line = max(estimated_line_widths, default=0.0)
+    line_step = config.char_size * config.line_height + config.baseline_drift_mm
+    estimated_height = (
+        config.char_size if len(visible_lines) <= 1 else config.char_size + (len(visible_lines) - 1) * line_step
+    )
+
+    width_scale = usable_width / widest_line if widest_line > 0.0 else 1.0
+    height_scale = usable_height / estimated_height if estimated_height > 0.0 else 1.0
+    scale = min(1.0, width_scale, height_scale)
+    if scale >= 1.0:
+        return config
+
+    return replace(
+        config,
+        char_size=config.char_size * scale,
+        char_spacing=config.char_spacing * scale,
+        line_height=config.line_height * scale,
+        baseline_drift_mm=config.baseline_drift_mm * scale,
+    )
+
+
+def _estimate_line_width(line: str, config: LayoutConfig) -> float:
+    visible_count = 0
+    width = 0.0
+    for char in line:
+        if char.isspace():
+            width += config.char_size * 0.48
+            continue
+        visible_count += 1
+        width += config.char_size + config.char_spacing
+    if visible_count > 0:
+        width -= config.char_spacing
+    return max(width, 0.0)
 
 
 def _stroke(stroke_id: int, stroke_type: str, points: tuple[tuple[float, float], ...]) -> StrokeTemplate:

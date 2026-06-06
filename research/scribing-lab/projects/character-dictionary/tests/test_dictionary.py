@@ -38,6 +38,31 @@ def test_layout_text_places_points_in_a4_coordinates() -> None:
     assert any(stroke.literal == "い" for stroke in strokes)
 
 
+def test_layout_text_fit_to_page_scales_long_lines_into_paper_width() -> None:
+    text = "この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。"
+    default_strokes = layout_text(
+        text,
+        LayoutConfig(char_size=9.2, char_spacing=1.6, margin_left=12.0, margin_top=16.0),
+    )
+    fitted_strokes = layout_text(
+        text,
+        LayoutConfig(
+            char_size=9.2,
+            char_spacing=1.6,
+            margin_left=12.0,
+            margin_top=16.0,
+            fit_to_page=True,
+        ),
+    )
+
+    default_xs = [x for stroke in default_strokes for x, _ in stroke.points]
+    fitted_xs = [x for stroke in fitted_strokes for x, _ in stroke.points]
+
+    assert max(default_xs) > 210.0
+    assert max(fitted_xs) <= 210.0
+    assert max(fitted_xs) < max(default_xs)
+
+
 def test_layout_text_shape_variation_is_disabled_by_default() -> None:
     default_strokes = layout_text("永", LayoutConfig())
     explicit_strokes = layout_text("永", LayoutConfig(shape_variation=0.0, variation_seed=42))
