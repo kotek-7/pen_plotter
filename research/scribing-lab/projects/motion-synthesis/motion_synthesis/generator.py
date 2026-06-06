@@ -27,16 +27,19 @@ def synthesize_motion(
     config: MotionConfig | None = None,
 ) -> list[MotionPoint]:
     cfg = config or MotionConfig()
-    rng = random.Random(seed)
     t_ms = 0.0
     current = (0.0, 297.0)
     trajectory = [MotionPoint(x=current[0], y=current[1], t=0, pen_state=0, pressure=0.0)]
+    literal_counts: dict[str, int] = {}
 
     for stroke in strokes:
         if len(stroke.points) < 2:
             continue
+        occurrence_index = literal_counts.get(stroke.literal, 0)
+        literal_counts[stroke.literal] = occurrence_index + 1
+        stroke_rng = _stroke_rng(seed, stroke, occurrence_index)
         start = stroke.points[0]
-        t_ms += _duration_ms(_distance(current, start), cfg.penup_speed_mm_s, rng, cfg)
+        t_ms += _duration_ms(_distance(current, start), cfg.penup_speed_mm_s, stroke_rng, cfg)
         trajectory.append(_point(start, t_ms, pen_state=0, pressure=0.0))
         trajectory.append(_point(start, t_ms, pen_state=1, pressure=0.9))
 
@@ -51,11 +54,11 @@ def synthesize_motion(
             duration = _duration_ms(
                 segment_distances[i - 1] * weights[i - 1],
                 cfg.draw_speed_mm_s,
-                rng,
+                stroke_rng,
                 cfg,
             )
             t_ms += max(duration, cfg.min_segment_duration_ms)
-            px, py = _apply_tremor(point, i, len(sampled), rng, cfg)
+            px, py = _apply_tremor(point, i, len(sampled), stroke_rng, cfg)
             trajectory.append(
                 MotionPoint(
                     x=round(px, 4),
@@ -88,8 +91,11 @@ def _speed_profile_weights(n_segments: int) -> list[float]:
     weights: list[float] = []
     for i in range(n_segments):
         phase = i / max(n_segments - 1, 1)
-        # Smaller duration weight around the middle means faster mid-stroke motion.
-        weights.append(1.35 - 0.7 * math.sin(math.pi * phase))
+        # 小さいほど速い。始筆と終筆を遅くし、中盤を速くする。
+        ease_in = phase**1.7
+        ease_out = (1.0 - phase) ** 1.7
+        peak = math.sin(math.pi * phase)
+        weights.append(1.45 - 0.55 * peak + 0.08 * (ease_in + ease_out))
     return weights
 
 
@@ -115,6 +121,12 @@ def _duration_ms(distance_mm: float, speed_mm_s: float, rng: random.Random, cfg:
     base = distance_mm / speed_mm_s * 1000.0
     jitter = rng.gauss(1.0, cfg.timing_jitter_cv)
     return base * max(0.65, min(1.35, jitter))
+
+
+def _stroke_rng(seed: int, stroke: SkeletonStroke, occurrence_index: int) -> random.Random:
+    return random.Random(
+        f"{seed}:{stroke.literal}:{occurrence_index}:{stroke.stroke_type}:{stroke.terminal}:{len(stroke.points)}"
+    )
 
 
 def _distance(a: Point, b: Point) -> float:

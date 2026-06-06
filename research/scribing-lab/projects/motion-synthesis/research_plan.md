@@ -25,6 +25,7 @@ stroke template から `x,y,t,pen_state,pressure` を生成する。字形だけ
 - line-level drift。
 - repeated character variation。
 - deterministic seed。
+- stroke-local variation を使った比較可能な再現性。
 
 含まない:
 

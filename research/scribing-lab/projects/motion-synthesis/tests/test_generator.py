@@ -47,3 +47,32 @@ def test_synthesize_motion_applies_terminal_pressure() -> None:
     tome_down = [point.pressure for point in tome if point.pen_state == 1]
     assert harai_down[-1] < harai_down[1]
     assert tome_down[-1] > tome_down[1]
+
+
+def test_synthesize_motion_is_stable_for_same_first_stroke() -> None:
+    first_only = synthesize_motion(
+        [SkeletonStroke(points=((0.0, 0.0), (10.0, 0.0)), terminal="tome", literal="永")],
+        seed=2,
+    )
+    with_following = synthesize_motion(
+        [
+            SkeletonStroke(points=((0.0, 0.0), (10.0, 0.0)), terminal="tome", literal="永"),
+            SkeletonStroke(points=((10.0, 0.0), (20.0, 0.0)), terminal="harai", literal="あ"),
+        ],
+        seed=2,
+    )
+
+    assert _first_stroke_trace(first_only) == _first_stroke_trace(with_following)
+
+
+def _first_stroke_trace(trajectory):
+    trace = []
+    started = False
+    for point in trajectory:
+        if point.pen_state == 1:
+            started = True
+        if started:
+            trace.append(point)
+            if point.pen_state == 0 and len(trace) > 1:
+                break
+    return trace
