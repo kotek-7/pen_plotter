@@ -86,6 +86,24 @@ TUAT がすぐ使えない場合の代替主データ。Wacom、iPad、Android s
 
 - [IAM-OnDB download page](https://fki.tic.heia-fr.ch/databases/download-the-iam-on-line-handwriting-database)
 
+## finnbusse/handwriting-v1
+
+用途:
+
+- 公開の stroke sequence データを大量投入するための即応 fallback。
+- `session_id` を writer_id の代理として扱い、writer-balanced 集計の検証に使う。
+- 文字列と stroke の対応、ペンアップ境界、タイミング合成のパイプライン検証。
+
+制約:
+
+- true writer_id は公開されていないため、writer profile 学習では session 単位の代理集計になる。
+- 時系列は raw で付いていないため、canonical 変換では合成タイムスタンプを使う。
+- 日本語主データではなく、あくまで公開ベースラインと実装検証用の補助データである。
+
+参照:
+
+- [finnbusse/handwriting-v1](https://huggingface.co/datasets/finnbusse/handwriting-v1)
+
 ## ETL Character Database
 
 用途:

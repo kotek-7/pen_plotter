@@ -8,6 +8,15 @@ from writer_profile.prior import (
     load_handwriting_points_jsonl,
     summarize_handwriting_samples,
 )
+from writer_profile.public_datasets import (
+    HF_HANDWRITING_V1_DATASET_ID,
+    HF_HANDWRITING_V1_LICENSE_SCOPE,
+    HF_HANDWRITING_V1_SOURCE,
+    convert_finnbusse_handwriting_v1_entry,
+    convert_finnbusse_handwriting_v1_jsonl,
+    download_and_convert_finnbusse_handwriting_v1,
+    download_finnbusse_handwriting_v1_jsonl_files,
+)
 from writer_profile.registry import (
     BUILTIN_PROFILE_IDS,
     BUILTIN_PROFILE_ORDER,
@@ -28,10 +37,17 @@ __all__ = [
     "WriterProfileParameters",
     "HandwritingPointRecord",
     "HandwritingSample",
+    "HF_HANDWRITING_V1_DATASET_ID",
+    "HF_HANDWRITING_V1_LICENSE_SCOPE",
+    "HF_HANDWRITING_V1_SOURCE",
     "export_registry",
     "export_registry_json",
     "estimate_writer_profile_from_jsonl",
     "estimate_writer_profile_from_points",
+    "convert_finnbusse_handwriting_v1_entry",
+    "convert_finnbusse_handwriting_v1_jsonl",
+    "download_and_convert_finnbusse_handwriting_v1",
+    "download_finnbusse_handwriting_v1_jsonl_files",
     "get_profile",
     "group_handwriting_samples",
     "iter_builtin_profiles",
