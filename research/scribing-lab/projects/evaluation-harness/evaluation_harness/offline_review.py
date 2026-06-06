@@ -50,6 +50,8 @@ def infer_offline_failure_tags(record: ExperimentRecord) -> list[str]:
 
     if _has_shape_variation(metrics):
         tags.discard("skeleton-too-rigid")
+    if _has_layout_variation(metrics):
+        tags.discard("line-too-mechanical")
 
     if _is_plotter_unsafe(metrics):
         tags.add("plotter-unsafe")
@@ -64,7 +66,7 @@ def infer_offline_failure_tags(record: ExperimentRecord) -> list[str]:
     if _looks_too_uniform(metrics):
         tags.add("too-uniform")
 
-    if _looks_line_mechanical(record, metrics):
+    if _looks_line_mechanical(record, metrics) and not _has_layout_variation(metrics):
         tags.add("line-too-mechanical")
 
     if _looks_over_jittered(metrics):
@@ -164,6 +166,10 @@ def _has_shape_variation(metrics: dict[str, float | int | str]) -> bool:
     return float(metrics.get("shape_variation_mm", 0.0)) >= 0.5
 
 
+def _has_layout_variation(metrics: dict[str, float | int | str]) -> bool:
+    return float(metrics.get("layout_variation_mm", 0.0)) >= 0.5
+
+
 def _looks_line_mechanical(
     record: ExperimentRecord,
     metrics: dict[str, float | int | str],
@@ -199,6 +205,8 @@ def _review_evidence(record: ExperimentRecord) -> dict[str, float | int | str]:
         "mean_abs_jerk_mm_s3",
         "stroke_start_spacing_cv",
         "baseline_drift_mm",
+        "shape_variation_mm",
+        "layout_variation_mm",
         "repeated_char_ratio",
         "gcode_safety_ok",
         "gcode_safety_violation_count",

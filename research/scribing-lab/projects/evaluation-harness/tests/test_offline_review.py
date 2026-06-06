@@ -69,6 +69,26 @@ def test_infer_offline_failure_tags_detects_mechanical_line() -> None:
     assert "line-too-mechanical" in infer_offline_failure_tags(record)
 
 
+def test_infer_offline_failure_tags_resolves_mechanical_line_with_layout_variation() -> None:
+    record = _record(
+        input_text="あいうえお",
+        generator="structure-motion",
+        metrics={
+            "point_count": 20,
+            "velocity_peak_count": 4,
+            "draw_speed_cv": 0.2,
+            "visible_char_count": 5,
+            "stroke_start_spacing_cv": 0.01,
+            "baseline_drift_mm": 0.2,
+            "layout_variation": 0.12,
+            "layout_variation_mm": 0.96,
+        },
+        failure_tags=["line-too-mechanical"],
+    )
+
+    assert "line-too-mechanical" not in infer_offline_failure_tags(record)
+
+
 def test_infer_offline_failure_tags_detects_over_jittered() -> None:
     record = _record(
         metrics={
