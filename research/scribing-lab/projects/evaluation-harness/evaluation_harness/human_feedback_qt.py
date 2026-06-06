@@ -44,6 +44,7 @@ from evaluation_harness.human_feedback_common import (
     validate_response_drafts,
 )
 from evaluation_harness.human_feedback_loop import ALLOWED_REASON_TAGS
+from evaluation_harness.taxonomy import describe_failure_tag, failure_tag_group
 
 
 DEFAULT_WINDOW_SIZE = (1760, 1120)
@@ -414,14 +415,24 @@ class HumanFeedbackQtWindow(QMainWindow):
         group = QGroupBox("Reason Tags", self)
         layout = QVBoxLayout(group)
         layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
 
         self._reason_tags_list = QListWidget(group)
         self._reason_tags_list.setFont(self._body_font)
         self._reason_tags_list.setSelectionMode(QListWidget.SelectionMode.MultiSelection)
         for tag in ALLOWED_REASON_TAGS:
-            self._reason_tags_list.addItem(QListWidgetItem(tag))
+            item = QListWidgetItem(tag)
+            item.setToolTip(self._reason_tag_tooltip(tag))
+            self._reason_tags_list.addItem(item)
         self._reason_tags_list.itemSelectionChanged.connect(self._sync_from_widgets)
         layout.addWidget(self._reason_tags_list)
+
+        self._reason_tag_legend = QPlainTextEdit(group)
+        self._reason_tag_legend.setReadOnly(True)
+        self._reason_tag_legend.setFont(self._mono_font)
+        self._reason_tag_legend.setMaximumHeight(230)
+        self._reason_tag_legend.setPlainText(self._build_reason_tag_legend_text())
+        layout.addWidget(self._reason_tag_legend)
         return group
 
     def _build_notes_box(self) -> QGroupBox:
@@ -452,6 +463,54 @@ class HumanFeedbackQtWindow(QMainWindow):
             if str(item["experiment_id"]) == self._current_experiment_id:
                 return item
         return None
+
+    def _reason_tag_tooltip(self, tag: str) -> str:
+        description = describe_failure_tag(tag) or "説明なし"
+        group = failure_tag_group(tag)
+        return "\n".join(
+            [
+                f"tag: {tag}",
+                f"group: {group}",
+                f"description: {description}",
+            ]
+        )
+
+    def _build_reason_tag_legend_text(self) -> str:
+        lines = [
+            "Reason tag legend",
+            "",
+            "tag / group / meaning / when to use",
+            "",
+        ]
+        for tag in ALLOWED_REASON_TAGS:
+            description = describe_failure_tag(tag) or "説明なし"
+            group = failure_tag_group(tag)
+            lines.extend(
+                [
+                    f"- {tag}",
+                    f"  group: {group}",
+                    f"  meaning: {description}",
+                    f"  use: {self._reason_tag_use_hint(tag)}",
+                ]
+            )
+        return "\n".join(lines)
+
+    def _reason_tag_use_hint(self, tag: str) -> str:
+        hints = {
+            "too-small": "文字が小さくて読みにくいとき。",
+            "glyph-orientation-odd": "文字や部品の向きが変に見えるとき。",
+            "spacing-too-wide": "字間や余白が広すぎるとき。",
+            "spacing-unnatural": "配置や行間の揺れが不自然なとき。",
+            "skeleton-too-rigid": "骨格が硬すぎて変化がないとき。",
+            "too-font-like": "手書きよりフォントっぽいとき。",
+            "too-uniform": "速度や形が均一すぎて機械的なとき。",
+            "line-too-mechanical": "行全体が機械的に整いすぎているとき。",
+            "terminal-too-uniform": "終筆の抜きに差が少ないとき。",
+            "repeated-char-too-identical": "反復文字が同じ形に寄りすぎるとき。",
+            "over-jittered": "揺れが強すぎて荒れて見えるとき。",
+            "plotter-unsafe": "実機制約に対して危険なとき。",
+        }
+        return hints.get(tag, "該当する見え方があるとき。")
 
     def _on_select_item(self, row: int) -> None:
         if row < 0:

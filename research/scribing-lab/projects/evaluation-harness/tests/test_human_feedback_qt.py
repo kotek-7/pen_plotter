@@ -143,3 +143,39 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820
+
+
+def test_qt_feedback_ui_shows_reason_tag_legend_and_tooltips() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": ["too-font-like", "terminal-too-uniform"],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+
+    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
+
+    tooltip = None
+    for index in range(window._reason_tags_list.count()):
+        item = window._reason_tags_list.item(index)
+        if item is not None and item.text() == "too-font-like":
+            tooltip = item.toolTip()
+            break
+
+    assert tooltip is not None
+    assert "tag: too-font-like" in tooltip
+    assert "手書きよりフォント輪郭に寄っている" in tooltip
+    assert "Reason tag legend" in window._reason_tag_legend.toPlainText()
+    assert "too-font-like" in window._reason_tag_legend.toPlainText()
+    assert "terminal-too-uniform" in window._reason_tag_legend.toPlainText()
