@@ -12,6 +12,10 @@ from evaluation_harness.baseline_outline import (
     run_baseline_outline_batch,
 )
 from evaluation_harness.compare import compare_against_baseline, render_comparison_markdown
+from evaluation_harness.human_review import (
+    build_human_review_packet,
+    render_human_review_packet_markdown,
+)
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.offline_review import build_offline_review, render_offline_review_markdown
@@ -81,6 +85,14 @@ def build_parser() -> argparse.ArgumentParser:
     offline_review.add_argument("--root", required=True, help="Run output directory")
     offline_review.add_argument("--output", default="offline_review.md")
     offline_review.add_argument("--json-output", default="offline_review.json")
+
+    human_review = sub.add_parser(
+        "human-review-packet",
+        help="Create a compact preview and metrics packet for pre-plot human review",
+    )
+    human_review.add_argument("--root", required=True, help="Run output directory")
+    human_review.add_argument("--output", default="human_review_packet.md")
+    human_review.add_argument("--json-output", default="human_review_packet.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -193,6 +205,21 @@ def main() -> None:
             encoding="utf-8",
         )
         print(f"record_count: {review['record_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-review-packet":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        packet = build_human_review_packet(registry.load_all())
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"record_count: {packet['record_count']}")
+        print(f"representative_count: {packet['representative_count']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "attach-scan":

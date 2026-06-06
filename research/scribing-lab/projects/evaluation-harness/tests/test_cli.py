@@ -20,6 +20,25 @@ def test_offline_review_parser_accepts_output_paths() -> None:
     assert args.json_output == "review.json"
 
 
+def test_human_review_packet_parser_accepts_output_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-review-packet",
+            "--root",
+            "runs/test",
+            "--output",
+            "packet.md",
+            "--json-output",
+            "packet.json",
+        ]
+    )
+
+    assert args.command == "human-review-packet"
+    assert args.root == "runs/test"
+    assert args.output == "packet.md"
+    assert args.json_output == "packet.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
