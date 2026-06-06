@@ -14,6 +14,7 @@ writer profile は単なる個人癖モデルではなく、実験条件とし�
 - `structure-uniform` / `structure-motion` への profile 適用。
 - `writer_profile.json` artifact の保存。
 - `profile_id` と profile パラメータの experiment record への記録。
+- JSONL 形式のオンライン筆記サンプルから、data-driven な derived profile を推定する最小 prior。
 
 ## 背景
 
@@ -164,6 +165,16 @@ evaluation harness の failure tags をもとに profile を派生させる。
 ### Experiment 5: profile ABX
 
 人間評価で、同じ profile から生成された文字列が同じ人らしいかを見る。
+
+### Experiment 6: JSONL prior estimation
+
+オンライン筆記サンプルの JSONL を読み込み、sample / writer / text 単位の統計から derived profile を作る。
+
+評価:
+
+- sample_id ごとに point 群を復元できる。
+- 平均速度、速度 CV、字間、baseline drift、tremor を集計できる。
+- 集計結果から baseline profile 派生の data-driven profile を作れる。
 
 ## 成果物
 

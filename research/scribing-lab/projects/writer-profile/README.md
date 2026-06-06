@@ -5,4 +5,14 @@
 実装済みの MVP は、`baseline-neat` / `fast-casual` / `shaky-slow` の 3 つの手動 profile を登録し、
 `structure-uniform` と `structure-motion` に適用できるレジストリである。
 
+`writer_profile.prior` は、JSONL 形式のオンライン筆記サンプルから統計を推定し、
+data-driven な derived profile を作る最小実装である。
+
+```py
+from writer_profile import estimate_writer_profile_from_jsonl
+
+estimate = estimate_writer_profile_from_jsonl("samples.jsonl")
+profile = estimate["profile"]
+```
+
 詳細は [research_plan.md](research_plan.md) を参照する。
