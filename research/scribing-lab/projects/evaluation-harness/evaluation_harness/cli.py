@@ -276,7 +276,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     human_feedback_ui = sub.add_parser(
         "human-feedback-ui",
-        help="Launch a Tkinter human review UI for the feedback loop",
+        help="Launch a Qt human review UI for the feedback loop",
     )
     target = human_feedback_ui.add_mutually_exclusive_group(required=True)
     target.add_argument("--root", help="Run output directory")
@@ -683,7 +683,7 @@ def main() -> None:
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "human-feedback-ui":
-        from evaluation_harness.human_feedback_ui import launch_human_feedback_ui
+        from evaluation_harness.human_feedback_qt import launch_human_feedback_ui
 
         root = Path(args.root) if args.root else None
         packet_json = Path(args.packet_json) if args.packet_json else None

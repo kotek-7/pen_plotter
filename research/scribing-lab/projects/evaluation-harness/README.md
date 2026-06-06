@@ -28,7 +28,7 @@
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `human-feedback-loop`: packet, response template, validation summary, next actions を 1 つにまとめた人間主観 FB ループ束。
-- `human-feedback-ui`: packet を画面に並べて response を入力・検証・保存する Tkinter UI。
+- `human-feedback-ui`: packet を画面に並べて response を入力・検証・保存する Qt UI。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
 - `validate-human-review`: 目視レビュー response の検証と集計。
 - `plot-ready-packet`: accepted record の G-code / safety / preview 束。
@@ -160,7 +160,8 @@ python3 -m evaluation_harness human-feedback-ui \
 
 `human-feedback-ui` は代表 preview を画面上で切り替えながら、`accept` / `reject` /
 `needs-tuning` と reason tags を入力し、`human_review_responses.json` と
-`human_review_response_summary.json` を保存する。
+`human_review_response_summary.json` を保存する。UI は Qt ベースなので、日本語と英字の
+表示品質が Tkinter 版より安定している。
 
 既存の review packet から開く場合は `--packet-json` を使う。既存の回答を読み込んで
 続きからレビューする場合は `--responses-json`、保存先を明示したい場合は

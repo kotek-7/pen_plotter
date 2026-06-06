@@ -129,7 +129,7 @@
 - preview と experiment ID が紐付く。
 - preview path、G-code、安全性、profile が metadata として残る。
 - `preview-shape-odd` と `plotter-line-quality-bad` を failure tags として記録できる。
-- 人間レビュー UI から response を入力し、summary を保存できる。
+- Qt ベースの人間レビュー UI から response を入力し、summary を保存できる。
 
 ### Experiment 6: preview recommendation loop
 
