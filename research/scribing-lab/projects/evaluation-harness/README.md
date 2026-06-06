@@ -17,6 +17,7 @@
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
+- `human-review-packet`: 実機出力前の目視レビュー向け preview / metrics 束。
 - `ScanMetadata`: 実機スキャン artifact の metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
@@ -65,6 +66,16 @@ python3 -m evaluation_harness offline-review \
 `offline-review` は `offline_review.md` と `offline_review.json` を生成する。
 `too-uniform`、`line-too-mechanical`、`over-jittered`、`plotter-unsafe` などを
 preview / trajectory / G-code safety の前段評価として扱い、次に調整する対象を記録する。
+
+自動評価を通った候補を目視レビュー用に束ねる場合:
+
+```sh
+python3 -m evaluation_harness human-review-packet \
+  --root runs/structure-motion
+```
+
+`human-review-packet` は、代表 seed の preview、主要 metrics、failure tags と、
+input ごとの全 preview path を `human_review_packet.md` / `.json` に保存する。
 
 実機スキャンを既存 experiment に紐付ける場合:
 
