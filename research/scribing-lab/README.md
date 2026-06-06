@@ -45,6 +45,7 @@ motion model、writer adaptation、neural variation の本格実装は、次の�
 - [08_ethics_and_misuse.md](docs/08_ethics_and_misuse.md): 倫理・濫用対策
 - [09_roadmap.md](docs/09_roadmap.md): ロードマップ
 - [10_research_flow.md](docs/10_research_flow.md): 研究フローと CLI の実務ガイド
+- [11_glossary.md](docs/11_glossary.md): 用語集と前提知識
 
 ## 個別研究プロジェクト
 
