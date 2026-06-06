@@ -148,6 +148,9 @@ def test_review_record_suggests_next_actions() -> None:
 
     assert "too-uniform" in item.inferred_failure_tags
     assert item.suggested_next_actions
+    assert item.tag_groups["motion"] == ["too-uniform"]
+    assert item.rule_hits
+    assert item.confidence > 0.0
 
 
 def test_build_and_render_offline_review() -> None:
@@ -168,6 +171,8 @@ def test_build_and_render_offline_review() -> None:
 
     assert review["record_count"] == 1
     assert review["failure_tag_counts"]["too-uniform"] == 1
+    assert review["failure_tag_group_counts"]["motion"] == 1
+    assert review["mean_confidence"] > 0.0
     assert "# Offline Review" in report
     assert "suggested_next_actions" in report
     assert "robustness" in report
@@ -200,6 +205,7 @@ def test_build_offline_review_reports_robustness_ok() -> None:
     assert review["robustness"]["status"] == "ok"
     assert review["robustness"]["failing_record_count"] == 0
     assert review["robustness"]["unsafe_record_count"] == 0
+    assert review["robustness"]["uncertain_record_ids"]
 
 
 def test_build_offline_review_reports_unstable_metric_groups() -> None:

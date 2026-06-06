@@ -9,6 +9,8 @@ from evaluation_harness.human_review import (
 from evaluation_harness.human_review_response import (
     DECISIONS,
     HumanReviewResponse,
+    summarize_human_review_agreement,
+    summarize_human_review_calibration,
     load_human_review_responses,
     render_human_review_response_markdown,
     summarize_human_review_responses,
@@ -92,17 +94,23 @@ def build_human_feedback_loop(
     packet = build_human_review_packet(records)
     template = build_human_review_response_template(packet, reviewer_id=reviewer_id)
     response_summary = None
+    calibration_summary = None
+    agreement_summary = None
     if responses_data is not None:
         responses = load_human_review_responses(responses_data)
         response_summary = summarize_human_review_responses(packet, responses)
+        calibration_summary = summarize_human_review_calibration(packet, responses)
+        agreement_summary = summarize_human_review_agreement(responses)
 
     loop_status = _loop_status(response_summary)
-    next_actions = _next_actions(loop_status, response_summary)
+    next_actions = _next_actions(loop_status, response_summary, calibration_summary, agreement_summary)
     return {
         "loop_status": loop_status,
         "packet": packet,
         "response_template": template,
         "response_summary": response_summary,
+        "calibration_summary": calibration_summary,
+        "agreement_summary": agreement_summary,
         "next_actions": next_actions,
     }
 
@@ -250,6 +258,33 @@ def render_human_feedback_loop_markdown(loop: dict[str, Any]) -> str:
                 "",
             ]
         )
+    if loop.get("calibration_summary") is not None:
+        lines.extend(
+            [
+                "## Calibration Summary",
+                "",
+                f"- reviewed_response_count: `{loop['calibration_summary']['reviewed_response_count']}`",
+                f"- reason_tag_alignment: `{loop['calibration_summary']['reason_tag_alignment']}`",
+                f"- overtriggered_tags: `{loop['calibration_summary']['overtriggered_tags']}`",
+                f"- supported_tags: `{loop['calibration_summary']['supported_tags']}`",
+                f"- uncertain_tags: `{loop['calibration_summary']['uncertain_tags']}`",
+                f"- recommended_adjustments: `{loop['calibration_summary']['recommended_adjustments']}`",
+                "",
+            ]
+        )
+    if loop.get("agreement_summary") is not None:
+        lines.extend(
+            [
+                "## Agreement Summary",
+                "",
+                f"- reviewer_count: `{loop['agreement_summary']['reviewer_count']}`",
+                f"- overlapping_item_count: `{loop['agreement_summary']['overlapping_item_count']}`",
+                f"- mean_cohen_kappa: `{loop['agreement_summary']['mean_cohen_kappa']}`",
+                f"- mean_reason_tag_jaccard: `{loop['agreement_summary']['mean_reason_tag_jaccard']}`",
+                f"- pairwise_kappas: `{loop['agreement_summary']['pairwise_kappas']}`",
+                "",
+            ]
+        )
     lines.extend(["## Next Actions", ""])
     if loop["next_actions"]:
         lines.extend(f"- {item}" for item in loop["next_actions"])
@@ -286,6 +321,8 @@ def _loop_status(response_summary: dict[str, Any] | None) -> str:
 def _next_actions(
     loop_status: str,
     response_summary: dict[str, Any] | None,
+    calibration_summary: dict[str, Any] | None = None,
+    agreement_summary: dict[str, Any] | None = None,
 ) -> list[str]:
     if loop_status == "awaiting_response":
         return [
@@ -312,6 +349,15 @@ def _next_actions(
             actions.append(action)
     if not actions:
         actions.append("reason_tags を踏まえて generator / layout / motion を調整する")
+
+    if calibration_summary is not None:
+        for item in calibration_summary.get("recommended_adjustments", []):
+            if item not in actions:
+                actions.append(item)
+    if agreement_summary is not None and agreement_summary.get("mean_cohen_kappa", 0.0) < 0.4:
+        low_agreement_action = "reviewers の判定基準をすり合わせて low-agreement item を再レビューする"
+        if low_agreement_action not in actions:
+            actions.append(low_agreement_action)
     return actions
 
 

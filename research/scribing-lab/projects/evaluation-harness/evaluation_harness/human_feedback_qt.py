@@ -4,11 +4,16 @@ import json
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QSignalBlocker, Qt, Signal
+from PySide6.QtCore import QEvent, QSignalBlocker, Qt, QTimer, Signal
 from PySide6.QtGui import QFont, QFontDatabase, QPixmap
 from PySide6.QtWidgets import (
     QApplication,
     QButtonGroup,
+    QDialog,
+    QDialogButtonBox,
+    QGraphicsPixmapItem,
+    QGraphicsScene,
+    QGraphicsView,
     QGroupBox,
     QHBoxLayout,
     QLabel,
@@ -20,7 +25,9 @@ from PySide6.QtWidgets import (
     QPlainTextEdit,
     QPushButton,
     QRadioButton,
-    QScrollArea,
+    QSplitter,
+    QSizePolicy,
+    QTabWidget,
     QVBoxLayout,
     QWidget,
 )
@@ -60,12 +67,32 @@ MONO_FONT_CANDIDATES: tuple[str, ...] = (
 )
 
 
-class PreviewLabel(QLabel):
-    resized = Signal()
+class PreviewView(QGraphicsView):
+    zoomRequested = Signal(float)
+    WHEEL_STEP = 1.08
+    MIN_ZOOM = 0.2
+    MAX_ZOOM = 12.0
 
-    def resizeEvent(self, event) -> None:  # type: ignore[override]
-        super().resizeEvent(event)
-        self.resized.emit()
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setRenderHints(self.renderHints())
+        self.setDragMode(QGraphicsView.DragMode.ScrollHandDrag)
+        self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
+        self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorViewCenter)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self.setFrameShape(QGraphicsView.Shape.NoFrame)
+
+    def viewportEvent(self, event) -> bool:  # type: ignore[override]
+        if event.type() == QEvent.Type.Wheel:
+            wheel_event = event  # QWheelEvent
+            pixel_delta = wheel_event.pixelDelta().y()
+            angle_delta = wheel_event.angleDelta().y()
+            delta = pixel_delta if pixel_delta else angle_delta
+            if delta:
+                self.zoomRequested.emit(self.WHEEL_STEP ** (delta / 120.0))
+                return True
+        return super().viewportEvent(event)
 
 
 def _format_mapping(value: Any) -> str:
@@ -119,7 +146,11 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._base_dir = base_dir or Path.cwd()
         self._current_experiment_id = self._first_experiment_id()
         self._preview_pixmap: QPixmap | None = None
+        self._preview_zoom = 1.6
+        self._applied_preview_zoom = 1.0
         self._loading = False
+        self._preview_dragging = False
+        self._preview_last_pan_pos = None
 
         self.setWindowTitle("Human Feedback Loop")
         self.resize(*DEFAULT_WINDOW_SIZE)
@@ -160,9 +191,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         root.setSpacing(10)
 
         root.addWidget(self._build_header())
-        root.addWidget(self._build_guide())
         root.addWidget(self._build_body(), 1)
-        root.addWidget(self._build_summary_box())
 
         self.setCentralWidget(central)
         self.statusBar().showMessage("Select a representative to begin review.")
@@ -201,36 +230,44 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_button.clicked.connect(self._refresh_summary)
         layout.addWidget(self._refresh_button, 0, Qt.AlignVCenter)
 
+        self._guide_button = QPushButton("Review Guide", header)
+        self._guide_button.clicked.connect(self._show_review_guide)
+        layout.addWidget(self._guide_button, 0, Qt.AlignVCenter)
+
         return header
 
-    def _build_guide(self) -> QGroupBox:
-        group = QGroupBox("How to review", self)
-        layout = QHBoxLayout(group)
-        layout.setContentsMargins(12, 12, 12, 12)
-        layout.setSpacing(18)
+    def _show_review_guide(self) -> None:
+        dialog = QDialog(self)
+        dialog.setWindowTitle("Review Guide")
+        dialog.setMinimumSize(920, 660)
 
-        layout.addWidget(self._build_guide_column("Review steps", build_review_instructions()))
-        layout.addWidget(self._build_guide_column("Decision hints", build_decision_help() + [""] + build_common_failure_examples()))
-        return group
+        layout = QVBoxLayout(dialog)
+        layout.setContentsMargins(16, 16, 16, 16)
+        layout.setSpacing(12)
 
-    def _build_guide_column(self, title: str, lines: list[str]) -> QWidget:
-        widget = QWidget(self)
-        layout = QVBoxLayout(widget)
-        layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(6)
-
-        title_label = QLabel(title, widget)
-        title_label.setFont(self._body_font)
-        layout.addWidget(title_label)
-
-        body = QLabel("\n".join(lines), widget)
+        body = QPlainTextEdit(dialog)
+        body.setReadOnly(True)
         body.setFont(self._body_font)
-        body.setWordWrap(True)
-        body.setTextInteractionFlags(Qt.TextSelectableByMouse)
-        body.setStyleSheet("color: #222;")
-        layout.addWidget(body)
-        layout.addStretch(1)
-        return widget
+        body.setPlainText(self._build_review_guide_text())
+        layout.addWidget(body, 1)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.StandardButton.Close, dialog)
+        buttons.rejected.connect(dialog.reject)
+        layout.addWidget(buttons)
+
+        dialog.exec()
+
+    def _build_review_guide_text(self) -> str:
+        lines = [
+            "Review steps",
+            *build_review_instructions(),
+            "",
+            "Decision hints",
+            *build_decision_help(),
+            "",
+            *build_common_failure_examples(),
+        ]
+        return "\n".join(lines)
 
     def _build_body(self) -> QWidget:
         body = QWidget(self)
@@ -271,40 +308,78 @@ class HumanFeedbackQtWindow(QMainWindow):
         layout.setContentsMargins(0, 0, 0, 0)
         layout.setSpacing(10)
 
-        scroll = QScrollArea(panel)
-        scroll.setWidgetResizable(True)
-        scroll.setFrameShape(QScrollArea.Shape.NoFrame)
+        splitter = QSplitter(Qt.Orientation.Horizontal, panel)
+        splitter.setChildrenCollapsible(False)
+        splitter.addWidget(self._build_preview_box())
+        splitter.addWidget(self._build_detail_tabs())
+        splitter.setStretchFactor(0, 4)
+        splitter.setStretchFactor(1, 1)
+        splitter.setHandleWidth(12)
+        splitter.setCollapsible(0, False)
+        splitter.setCollapsible(1, False)
 
-        content = QWidget(scroll)
-        content_layout = QVBoxLayout(content)
-        content_layout.setContentsMargins(0, 0, 0, 0)
-        content_layout.setSpacing(10)
-
-        content_layout.addWidget(self._build_preview_box())
-        content_layout.addWidget(self._build_details_box())
-        content_layout.addWidget(self._build_decision_box())
-        content_layout.addWidget(self._build_reason_tags_box())
-        content_layout.addWidget(self._build_notes_box())
-        content_layout.addStretch(1)
-
-        scroll.setWidget(content)
-        layout.addWidget(scroll, 1)
+        layout.addWidget(splitter, 1)
         return panel
 
     def _build_preview_box(self) -> QGroupBox:
         group = QGroupBox("Preview", self)
         layout = QVBoxLayout(group)
         layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(8)
 
-        self._preview_label = PreviewLabel(group)
-        self._preview_label.setAlignment(Qt.AlignCenter)
-        self._preview_label.setMinimumHeight(360)
-        self._preview_label.setStyleSheet(
-            "QLabel { background: #ffffff; border: 1px solid #bcbcbc; color: #444; }"
-        )
-        self._preview_label.resized.connect(self._update_preview_pixmap)
-        layout.addWidget(self._preview_label)
+        controls = QWidget(group)
+        controls_layout = QHBoxLayout(controls)
+        controls_layout.setContentsMargins(0, 0, 0, 0)
+        controls_layout.setSpacing(6)
+
+        fit_button = QPushButton("Fit", controls)
+        fit_button.clicked.connect(self._fit_preview_to_window)
+        controls_layout.addWidget(fit_button)
+
+        zoom_out_button = QPushButton("Zoom -", controls)
+        zoom_out_button.clicked.connect(lambda: self._set_preview_zoom(self._preview_zoom / 1.2))
+        controls_layout.addWidget(zoom_out_button)
+
+        zoom_in_button = QPushButton("Zoom +", controls)
+        zoom_in_button.clicked.connect(lambda: self._set_preview_zoom(self._preview_zoom * 1.2))
+        controls_layout.addWidget(zoom_in_button)
+
+        zoom_reset_button = QPushButton("1x", controls)
+        zoom_reset_button.clicked.connect(lambda: self._set_preview_zoom(1.0))
+        controls_layout.addWidget(zoom_reset_button)
+
+        controls_layout.addStretch(1)
+        layout.addWidget(controls)
+
+        self._preview_scene = QGraphicsScene(self)
+        self._preview_view = PreviewView(group)
+        self._preview_view.setScene(self._preview_scene)
+        self._preview_view.zoomRequested.connect(self._adjust_preview_zoom)
+        self._preview_view.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self._preview_view.setMinimumHeight(820)
+        self._preview_view.setMinimumWidth(760)
+        layout.addWidget(self._preview_view)
         return group
+
+    def _build_detail_tabs(self) -> QTabWidget:
+        tabs = QTabWidget(self)
+        self._detail_tabs = tabs
+        tabs.setMinimumWidth(360)
+        tabs.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        tabs.addTab(self._build_details_box(), "Details")
+        tabs.addTab(self._build_review_box(), "Review")
+        tabs.addTab(self._build_notes_box(), "Notes")
+        return tabs
+
+    def _build_review_box(self) -> QWidget:
+        widget = QWidget(self)
+        layout = QVBoxLayout(widget)
+        layout.setContentsMargins(0, 0, 0, 0)
+        layout.setSpacing(10)
+        layout.addWidget(self._build_decision_box())
+        layout.addWidget(self._build_reason_tags_box())
+        layout.addStretch(1)
+        return widget
 
     def _build_details_box(self) -> QGroupBox:
         group = QGroupBox("Details", self)
@@ -314,7 +389,6 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._detail_text = QPlainTextEdit(group)
         self._detail_text.setReadOnly(True)
         self._detail_text.setFont(self._mono_font)
-        self._detail_text.setMinimumHeight(220)
         layout.addWidget(self._detail_text)
         return group
 
@@ -359,20 +433,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._notes_text.setFont(self._body_font)
         self._notes_text.setPlaceholderText("Optional note for this review item.")
         self._notes_text.textChanged.connect(self._sync_from_widgets)
-        self._notes_text.setMinimumHeight(150)
         layout.addWidget(self._notes_text)
-        return group
-
-    def _build_summary_box(self) -> QGroupBox:
-        group = QGroupBox("Validation Summary", self)
-        layout = QVBoxLayout(group)
-        layout.setContentsMargins(10, 10, 10, 10)
-
-        self._summary_text = QPlainTextEdit(group)
-        self._summary_text.setReadOnly(True)
-        self._summary_text.setFont(self._mono_font)
-        self._summary_text.setMinimumHeight(180)
-        layout.addWidget(self._summary_text)
         return group
 
     def _first_experiment_id(self) -> str:
@@ -443,25 +504,29 @@ class HumanFeedbackQtWindow(QMainWindow):
     def _set_preview_image(self, path_text: str) -> None:
         self._preview_pixmap = None
         if not path_text:
-            self._preview_label.setPixmap(QPixmap())
-            self._preview_label.setText("preview unavailable")
+            self._preview_scene.clear()
+            self._preview_scene.setSceneRect(0, 0, 0, 0)
             return
 
         path = self._resolve_preview_path(path_text)
         if path is None or not path.exists():
-            self._preview_label.setPixmap(QPixmap())
-            self._preview_label.setText(f"preview unavailable\n{path_text}")
+            self._preview_scene.clear()
+            self._preview_scene.setSceneRect(0, 0, 0, 0)
             return
 
         pixmap = QPixmap(str(path))
         if pixmap.isNull():
-            self._preview_label.setPixmap(QPixmap())
-            self._preview_label.setText(f"failed to load preview\n{path_text}")
+            self._preview_scene.clear()
+            self._preview_scene.setSceneRect(0, 0, 0, 0)
             return
 
         self._preview_pixmap = pixmap
-        self._preview_label.setText("")
-        self._update_preview_pixmap()
+        self._preview_scene.clear()
+        self._preview_pixmap_item = QGraphicsPixmapItem(self._preview_pixmap)
+        self._preview_scene.addItem(self._preview_pixmap_item)
+        self._preview_scene.setSceneRect(self._preview_pixmap_item.boundingRect())
+        self._applied_preview_zoom = 1.0
+        self._fit_preview_to_window()
 
     def _resolve_preview_path(self, path_text: str) -> Path | None:
         path = Path(path_text)
@@ -476,18 +541,38 @@ class HumanFeedbackQtWindow(QMainWindow):
     def _update_preview_pixmap(self) -> None:
         if self._preview_pixmap is None or self._preview_pixmap.isNull():
             return
-        target = self._preview_label.size()
-        if target.width() <= 0 or target.height() <= 0:
-            target_width, target_height = 760, 420
-        else:
-            target_width, target_height = target.width() - 16, target.height() - 16
-        scaled = self._preview_pixmap.scaled(
-            target_width,
-            target_height,
-            Qt.KeepAspectRatio,
-            Qt.SmoothTransformation,
+        if not hasattr(self, "_preview_pixmap_item"):
+            return
+        factor = self._preview_zoom / max(self._applied_preview_zoom, 1e-9)
+        if factor == 1.0:
+            return
+        self._preview_view.scale(factor, factor)
+        self._applied_preview_zoom = self._preview_zoom
+
+    def _adjust_preview_zoom(self, factor: float) -> None:
+        self._set_preview_zoom(self._preview_zoom * factor)
+
+    def _set_preview_zoom(self, zoom: float, *, reset_view: bool = False) -> None:
+        self._preview_zoom = max(PreviewView.MIN_ZOOM, min(PreviewView.MAX_ZOOM, zoom))
+        if reset_view:
+            self._preview_view.resetTransform()
+            self._preview_view.centerOn(self._preview_pixmap_item)
+            self._applied_preview_zoom = 1.0
+        self._update_preview_pixmap()
+
+    def _fit_preview_to_window(self) -> None:
+        if self._preview_pixmap is None or self._preview_pixmap.isNull():
+            return
+        viewport = self._preview_view.viewport().size()
+        if viewport.width() <= 0 or viewport.height() <= 0:
+            return
+        pixmap_width = max(self._preview_pixmap.width(), 1)
+        pixmap_height = max(self._preview_pixmap.height(), 1)
+        fit_zoom = min(
+            (viewport.width() - 16) / pixmap_width,
+            (viewport.height() - 16) / pixmap_height,
         )
-        self._preview_label.setPixmap(scaled)
+        self._set_preview_zoom(max(0.5, fit_zoom), reset_view=True)
 
     def _selected_reason_tags(self) -> list[str]:
         return [
@@ -539,7 +624,16 @@ class HumanFeedbackQtWindow(QMainWindow):
     def _refresh_summary(self) -> None:
         self._capture_current_draft()
         summary = validate_response_drafts(self._packet, self._drafts)
-        self._summary_text.setPlainText(_format_summary_lines(summary))
+        self.statusBar().showMessage(
+            " | ".join(
+                [
+                    f"decisions={summary['decision_counts']}",
+                    f"missing={len(summary['missing_response_ids'])}",
+                    f"duplicates={len(summary['duplicate_response_ids'])}",
+                    f"can_proceed={summary['can_proceed_to_plot']}",
+                ]
+            )
+        )
 
     def _validate_current(self) -> None:
         self._refresh_summary()
@@ -556,7 +650,6 @@ class HumanFeedbackQtWindow(QMainWindow):
     def _export_responses(self) -> None:
         self._capture_current_draft()
         summary = validate_response_drafts(self._packet, self._drafts)
-        self._summary_text.setPlainText(_format_summary_lines(summary))
         if summary["validation_errors"]:
             QMessageBox.warning(
                 self,
@@ -615,4 +708,5 @@ def launch_human_feedback_ui(
         base_dir=base_dir,
     )
     window.show()
+    QTimer.singleShot(0, window._fit_preview_to_window)
     app.exec()

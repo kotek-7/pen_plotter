@@ -11,6 +11,7 @@
 - `ExperimentRegistry`: JSONL の experiment registry。
 - `ArtifactStore`: 実験 ID ごとの成果物保存。
 - `compute_trajectory_metrics`: 最小 trajectory metrics。
+- `preview_metrics`: preview の画像統計と SSIM 近似比較。
 - `render_markdown_report`: 実験レビュー向け report。
 - `FAILURE_TAGS`: 固定 failure taxonomy。
 - `baseline-outline-batch`: 固定評価入力セットの batch runner。
@@ -27,13 +28,26 @@
 - `evaluate-data-driven-writer-prior`: JSONL のオンライン筆記サンプルから推定した prior を評価。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
-- `human-feedback-loop`: packet, response template, validation summary, next actions を 1 つにまとめた人間主観 FB ループ束。
+- `human-feedback-loop`: packet, response template, validation summary, calibration summary, next actions を 1 つにまとめた人間主観 FB ループ束。
+- `human-review-agreement`: reviewer 間の decision / reason tag の一致度集計。
 - `human-feedback-ui`: packet を画面に並べて response を入力・検証・保存する Qt UI。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
 - `validate-human-review`: 目視レビュー response の検証と集計。
 - `plot-ready-packet`: accepted record の G-code / safety / preview 束。
 - `ScanMetadata`: 必要時だけ使う実機監査用 metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
+- `Bradley-Terry`: ABX の paired comparison を順位化する比較モデル。
+
+## 採用した外部手法
+
+- SSIM: [Wang et al., 2004](https://ece.uwaterloo.ca/~z70wang/publications/ssim.pdf)
+  - preview の画像比較に使う。
+- Cohen's kappa: [Cohen, 1960](https://doi.org/10.1177/001316446002000104)
+  - reviewer 間の一致度に使う。
+- Bradley-Terry: [Bradley & Terry, 1952](http://www.jstor.org/stable/2334029)
+  - ABX の paired comparison を順位化する。
+- uncertainty sampling: [survey](https://arxiv.org/abs/2210.10109)
+  - human review の代表選定で不確実な候補を優先する。
 
 ## 実行
 
@@ -49,6 +63,23 @@ python3 -m evaluation_harness smoke --root runs/smoke
 ```sh
 python3 -m evaluation_harness self-check --root runs/self-check
 ```
+
+`goal-audit` は、評価器の終了条件を監査する。
+同じ seed で self-check を 2 回実行して主要サマリの再現性を確認し、
+preview の SSIM 近似、human feedback loop、ABX の順位化が接続されているかを
+1 つの JSON / Markdown にまとめる。
+
+```sh
+python3 -m evaluation_harness goal-audit --root runs/goal-audit
+```
+
+終了条件の最小判定は次の 5 点である。
+
+- fixed input の self-check が再実行可能で、主要サマリが一致する。
+- preview comparison に `ssim_proxy` がある。
+- human feedback loop が response summary, calibration summary, agreement summary を返す。
+- 不確実な候補が human review の代表選定に入る。
+- ABX が `bradley_terry_ranking` を返す。
 
 現行アプリの `font outline + jitter/wobble` を `baseline-outline` として固定し、
 registry / artifact / report に保存する場合:

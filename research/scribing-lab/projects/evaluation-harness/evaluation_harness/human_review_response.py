@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections import defaultdict
 from dataclasses import dataclass, field
+import itertools
 from typing import Any
 
 
@@ -93,6 +95,209 @@ def summarize_human_review_responses(
         "can_proceed_to_plot": can_proceed_to_plot,
         "responses": [response.to_dict() for response in responses],
     }
+
+
+def summarize_human_review_calibration(
+    packet: dict[str, Any],
+    responses: list[HumanReviewResponse],
+) -> dict[str, Any]:
+    representative_by_id = {
+        str(item["experiment_id"]): item
+        for item in packet.get("representatives", [])
+    }
+    tag_decision_counts: dict[str, Counter[str]] = defaultdict(Counter)
+    tag_response_counts: Counter[str] = Counter()
+    aligned_reason_tags = 0
+    reason_tag_total = 0
+
+    for response in responses:
+        item = representative_by_id.get(response.experiment_id)
+        if item is None:
+            continue
+        item_tags = [str(tag) for tag in item.get("failure_tags", [])]
+        if response.decision != "accept":
+            reason_tag_total += len(response.reason_tags)
+            if set(response.reason_tags) & set(item_tags):
+                aligned_reason_tags += 1
+        for tag in item_tags:
+            tag_decision_counts[tag][response.decision] += 1
+            tag_response_counts[tag] += 1
+
+    tag_profiles: list[dict[str, Any]] = []
+    recommended_adjustments: list[str] = []
+    for tag, counts in sorted(tag_decision_counts.items()):
+        total = sum(counts.values())
+        accept_rate = round(counts.get("accept", 0) / total, 4) if total else 0.0
+        negative_rate = round(
+            (counts.get("reject", 0) + counts.get("needs-tuning", 0)) / total,
+            4,
+        ) if total else 0.0
+        if accept_rate >= 0.6:
+            adjustment = f"{tag}: 阈値を厳しくして false positive を減らす"
+        elif negative_rate >= 0.6:
+            adjustment = f"{tag}: 現状の判定は妥当なので維持または強化する"
+        else:
+            adjustment = f"{tag}: 判定が揺れているため追加レビューを集める"
+        tag_profiles.append(
+            {
+                "tag": tag,
+                "decision_counts": dict(sorted(counts.items())),
+                "sample_count": total,
+                "accept_rate": accept_rate,
+                "negative_rate": negative_rate,
+                "adjustment": adjustment,
+            }
+        )
+        if adjustment not in recommended_adjustments:
+            recommended_adjustments.append(adjustment)
+
+    uncertain_tags = [
+        item["tag"]
+        for item in tag_profiles
+        if 0.4 <= item["accept_rate"] <= 0.6 and item["sample_count"] > 0
+    ]
+    overtriggered_tags = [
+        item["tag"]
+        for item in tag_profiles
+        if item["accept_rate"] >= 0.6 and item["sample_count"] > 0
+    ]
+    supported_tags = [
+        item["tag"]
+        for item in tag_profiles
+        if item["negative_rate"] >= 0.6 and item["sample_count"] > 0
+    ]
+    reason_tag_alignment = round(aligned_reason_tags / reason_tag_total, 4) if reason_tag_total else 0.0
+
+    return {
+        "tag_profiles": tag_profiles,
+        "tag_decision_counts": {
+            tag: dict(sorted(counts.items()))
+            for tag, counts in sorted(tag_decision_counts.items())
+        },
+        "tag_response_counts": dict(sorted(tag_response_counts.items())),
+        "overtriggered_tags": overtriggered_tags,
+        "supported_tags": supported_tags,
+        "uncertain_tags": uncertain_tags,
+        "reason_tag_alignment": reason_tag_alignment,
+        "recommended_adjustments": recommended_adjustments,
+        "reviewed_response_count": len(responses),
+    }
+
+
+def cohen_kappa(labels_a: list[str], labels_b: list[str]) -> float:
+    if len(labels_a) != len(labels_b):
+        raise ValueError("labels_a and labels_b must have the same length")
+    if not labels_a:
+        return 0.0
+
+    categories = sorted(set(labels_a) | set(labels_b))
+    if len(categories) <= 1:
+        return 1.0
+
+    observed = sum(a == b for a, b in zip(labels_a, labels_b, strict=True)) / len(labels_a)
+    a_counts = Counter(labels_a)
+    b_counts = Counter(labels_b)
+    expected = sum(
+        (a_counts[category] / len(labels_a)) * (b_counts[category] / len(labels_b))
+        for category in categories
+    )
+    if expected == 1.0:
+        return 1.0
+    return round((observed - expected) / (1.0 - expected), 4)
+
+
+def summarize_human_review_agreement(responses: list[HumanReviewResponse]) -> dict[str, Any]:
+    by_item: dict[str, list[HumanReviewResponse]] = defaultdict(list)
+    for response in responses:
+        by_item[response.experiment_id].append(response)
+
+    pairwise_kappas: list[dict[str, Any]] = []
+    pairwise_jaccard: list[dict[str, Any]] = []
+    overlapping_items = 0
+    for (reviewer_a, responses_a), (reviewer_b, responses_b) in itertools.combinations(
+        _group_responses_by_reviewer(responses).items(),
+        2,
+    ):
+        items_a = {response.experiment_id: response for response in responses_a}
+        items_b = {response.experiment_id: response for response in responses_b}
+        common_ids = sorted(set(items_a) & set(items_b))
+        if not common_ids:
+            continue
+        overlapping_items += len(common_ids)
+        labels_a = [items_a[item_id].decision for item_id in common_ids]
+        labels_b = [items_b[item_id].decision for item_id in common_ids]
+        pairwise_kappas.append(
+            {
+                "reviewer_a": reviewer_a,
+                "reviewer_b": reviewer_b,
+                "item_count": len(common_ids),
+                "cohen_kappa": cohen_kappa(labels_a, labels_b),
+                "agreement_rate": round(
+                    sum(a == b for a, b in zip(labels_a, labels_b, strict=True)) / len(common_ids),
+                    4,
+                ),
+            }
+        )
+        pairwise_jaccard.append(
+            {
+                "reviewer_a": reviewer_a,
+                "reviewer_b": reviewer_b,
+                "item_count": len(common_ids),
+                "mean_reason_tag_jaccard": _mean_reason_tag_jaccard(
+                    [items_a[item_id].reason_tags for item_id in common_ids],
+                    [items_b[item_id].reason_tags for item_id in common_ids],
+                ),
+            }
+        )
+
+    mean_kappa = (
+        round(sum(item["cohen_kappa"] for item in pairwise_kappas) / len(pairwise_kappas), 4)
+        if pairwise_kappas
+        else 0.0
+    )
+    mean_reason_jaccard = (
+        round(
+            sum(item["mean_reason_tag_jaccard"] for item in pairwise_jaccard) / len(pairwise_jaccard),
+            4,
+        )
+        if pairwise_jaccard
+        else 0.0
+    )
+    return {
+        "reviewer_count": len(_group_responses_by_reviewer(responses)),
+        "overlapping_item_count": overlapping_items,
+        "pairwise_kappas": pairwise_kappas,
+        "pairwise_reason_tag_jaccard": pairwise_jaccard,
+        "mean_cohen_kappa": mean_kappa,
+        "mean_reason_tag_jaccard": mean_reason_jaccard,
+    }
+
+
+def _group_responses_by_reviewer(
+    responses: list[HumanReviewResponse],
+) -> dict[str, list[HumanReviewResponse]]:
+    grouped: dict[str, list[HumanReviewResponse]] = defaultdict(list)
+    for response in responses:
+        grouped[response.reviewer_id or "anonymous"].append(response)
+    return grouped
+
+
+def _mean_reason_tag_jaccard(
+    tags_a: list[list[str]],
+    tags_b: list[list[str]],
+) -> float:
+    if not tags_a:
+        return 0.0
+    scores: list[float] = []
+    for left, right in zip(tags_a, tags_b, strict=True):
+        left_set = set(left)
+        right_set = set(right)
+        union = left_set | right_set
+        if not union:
+            scores.append(1.0)
+        else:
+            scores.append(len(left_set & right_set) / len(union))
+    return round(sum(scores) / len(scores), 4)
 
 
 def render_human_review_response_markdown(summary: dict[str, Any]) -> str:

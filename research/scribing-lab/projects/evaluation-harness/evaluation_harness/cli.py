@@ -65,6 +65,7 @@ from evaluation_harness.structure_uniform import (
     run_structure_uniform,
     run_structure_uniform_batch,
 )
+from evaluation_harness.goal_audit import render_goal_audit_markdown, run_goal_audit
 from evaluation_harness.structure_motion import (
     StructureMotionConfig,
     run_structure_motion,
@@ -319,6 +320,15 @@ def build_parser() -> argparse.ArgumentParser:
     self_check.add_argument("--seed", type=int, default=1)
     self_check.add_argument("--output", default="self_check.md")
     self_check.add_argument("--json-output", default="self_check.json")
+
+    goal_audit = sub.add_parser(
+        "goal-audit",
+        help="Run the closeout audit against the layered evaluation loop",
+    )
+    goal_audit.add_argument("--root", default="runs/goal-audit", help="Run output directory")
+    goal_audit.add_argument("--seed", type=int, default=1)
+    goal_audit.add_argument("--output", default="goal_audit.md")
+    goal_audit.add_argument("--json-output", default="goal_audit.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -761,6 +771,20 @@ def main() -> None:
         print(f"status: {result.status}")
         print(f"run_root: {run_root}")
         print(f"registry_record_count: {result.registry_record_count}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "goal-audit":
+        root = Path(args.root)
+        result = run_goal_audit(root, seed=args.seed)
+        markdown_path = Path(result.root) / args.output
+        json_path = Path(result.root) / args.json_output
+        markdown_path.write_text(render_goal_audit_markdown(result), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"status: {result.status}")
+        print(f"root: {result.root}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "attach-scan":

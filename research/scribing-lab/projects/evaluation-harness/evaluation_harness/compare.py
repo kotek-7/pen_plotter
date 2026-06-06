@@ -1,15 +1,17 @@
 from __future__ import annotations
 
-import hashlib
 from collections import Counter
 from collections import defaultdict
 from collections.abc import Iterable
-from pathlib import Path
 from typing import Any
 
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.offline_review import infer_offline_failure_tags, suggested_next_actions
+from evaluation_harness.preview_metrics import (
+    compare_preview_artifacts,
+    summarize_preview_artifact,
+)
 
 
 DEFAULT_COMPARE_METRICS: tuple[str, ...] = (
@@ -183,6 +185,7 @@ def compare_preview_fixed_input_set(
                 "preview_comparable": baseline_preview is not None and candidate_preview is not None,
                 "preview_hash_changed": None,
                 "preview_size_delta": None,
+                "preview_similarity": None,
             }
             if preview_item["preview_comparable"]:
                 group_comparison_count += 1
@@ -192,6 +195,10 @@ def compare_preview_fixed_input_set(
                 )
                 preview_item["preview_size_delta"] = (
                     candidate_preview["size_bytes"] - baseline_preview["size_bytes"]
+                )
+                preview_item["preview_similarity"] = compare_preview_artifacts(
+                    baseline_preview,
+                    candidate_preview,
                 )
                 if preview_item["preview_hash_changed"]:
                     preview_hash_changed_count += 1
@@ -550,6 +557,7 @@ def render_preview_fixed_input_comparison_markdown(comparison: dict[str, Any]) -
                 f"- preview_comparable: `{item['preview_comparable']}`",
                 f"- preview_hash_changed: `{item['preview_hash_changed']}`",
                 f"- preview_size_delta: `{item['preview_size_delta']}`",
+                f"- preview_similarity: `{item['preview_similarity']}`",
                 f"- baseline_preview: `{item['baseline_preview']}`",
                 f"- candidate_preview: `{item['candidate_preview']}`",
                 "",
@@ -734,17 +742,7 @@ def _group_records_by_input_and_seed(
 
 
 def _preview_artifact_summary(path_text: str) -> dict[str, Any] | None:
-    if not path_text:
-        return None
-    path = Path(path_text)
-    if not path.is_file():
-        return None
-    data = path.read_bytes()
-    return {
-        "path": str(path),
-        "size_bytes": len(data),
-        "sha256": hashlib.sha256(data).hexdigest(),
-    }
+    return summarize_preview_artifact(path_text)
 
 
 def _preview_candidate_selection_key(

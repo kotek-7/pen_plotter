@@ -59,6 +59,7 @@ def test_build_human_review_packet_selects_representatives() -> None:
     assert "exp-newline" in ids
     assert "exp-jerk" in ids
     assert packet["robustness"]["status"] == "ok"
+    assert packet["robustness"]["uncertain_record_ids"]
 
 
 def test_render_human_review_packet_markdown_includes_preview_paths() -> None:

@@ -2,7 +2,10 @@ import pytest
 
 from evaluation_harness.human_review_response import (
     HumanReviewResponse,
+    cohen_kappa,
     load_human_review_responses,
+    summarize_human_review_calibration,
+    summarize_human_review_agreement,
     render_human_review_response_markdown,
     summarize_human_review_responses,
 )
@@ -79,6 +82,65 @@ def test_render_human_review_response_markdown() -> None:
     assert "# Human Review Response Summary" in report
     assert "can_proceed_to_plot" in report
     assert "exp-a" in report
+
+
+def test_summarize_human_review_calibration_reports_adjustments() -> None:
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "failure_tags": ["too-uniform", "terminal-too-uniform"],
+            },
+            {
+                "experiment_id": "exp-b",
+                "failure_tags": ["too-uniform"],
+            },
+            {
+                "experiment_id": "exp-c",
+                "failure_tags": ["too-font-like"],
+            },
+        ]
+    }
+    responses = [
+        HumanReviewResponse(experiment_id="exp-a", decision="accept"),
+        HumanReviewResponse(
+            experiment_id="exp-b",
+            decision="reject",
+            reason_tags=["too-uniform"],
+        ),
+        HumanReviewResponse(
+            experiment_id="exp-c",
+            decision="needs-tuning",
+            reason_tags=["too-font-like"],
+        ),
+    ]
+
+    calibration = summarize_human_review_calibration(packet, responses)
+
+    assert calibration["tag_decision_counts"]["too-uniform"]["accept"] == 1
+    assert calibration["tag_decision_counts"]["too-uniform"]["reject"] == 1
+    assert calibration["reason_tag_alignment"] > 0.0
+    assert calibration["recommended_adjustments"]
+
+
+def test_summarize_human_review_agreement_reports_kappa() -> None:
+    responses = [
+        HumanReviewResponse(experiment_id="exp-a", decision="accept", reviewer_id="r1"),
+        HumanReviewResponse(experiment_id="exp-b", decision="reject", reviewer_id="r1", reason_tags=["spacing-too-wide"]),
+        HumanReviewResponse(experiment_id="exp-a", decision="accept", reviewer_id="r2"),
+        HumanReviewResponse(experiment_id="exp-b", decision="reject", reviewer_id="r2", reason_tags=["spacing-too-wide"]),
+    ]
+
+    agreement = summarize_human_review_agreement(responses)
+
+    assert agreement["reviewer_count"] == 2
+    assert agreement["mean_cohen_kappa"] == 1.0
+    assert agreement["mean_reason_tag_jaccard"] == 1.0
+
+
+def test_cohen_kappa_handles_perfect_and_partial_agreement() -> None:
+    assert cohen_kappa(["accept", "reject"], ["accept", "reject"]) == 1.0
+    assert cohen_kappa(["accept", "reject"], ["accept", "accept"]) < 1.0
 
 
 def _packet(experiment_ids: list[str]) -> dict[str, object]:

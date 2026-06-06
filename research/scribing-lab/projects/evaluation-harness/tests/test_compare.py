@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import numpy as np
+from matplotlib import image as mpl_image
+
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.compare import (
     compare_against_baseline,
@@ -161,9 +164,11 @@ def test_compare_preview_fixed_input_set_reports_preview_hash_deltas(tmp_path: P
     assert comparison["preview_hash_changed_count"] == 1
     assert comparison["preview_group_summaries"][0]["preview_comparison_count"] == 1
     assert comparison["preview_comparisons"][0]["preview_hash_changed"] is True
+    assert comparison["preview_comparisons"][0]["preview_similarity"] is None
     report = render_preview_fixed_input_comparison_markdown(comparison)
     assert "# Preview Comparison Report" in report
     assert "preview_hash_changed" in report
+    assert "preview_similarity" in report
 
 
 def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:
@@ -193,6 +198,45 @@ def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path)
 
     assert comparison["preview_ready_count"] == 0
     assert comparison["preview_comparisons"][0]["preview_comparable"] is False
+
+
+def test_compare_preview_fixed_input_set_reports_preview_similarity_for_images(
+    tmp_path: Path,
+) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline = np.ones((8, 8, 4), dtype=float)
+    baseline[2:6, 2:6, :3] = 0.0
+    baseline[..., 3] = 1.0
+    candidate = np.ones((8, 8, 4), dtype=float)
+    candidate[1:5, 1:5, :3] = 0.0
+    candidate[..., 3] = 1.0
+    mpl_image.imsave(baseline_preview, baseline)
+    mpl_image.imsave(candidate_preview, candidate)
+
+    comparison = compare_preview_fixed_input_set(
+        [
+            _record(
+                experiment_id="exp-baseline",
+                input_text="永",
+                seed=1,
+                generator="baseline-outline",
+                artifacts={"preview": str(baseline_preview)},
+            ),
+            _record(
+                experiment_id="exp-candidate",
+                input_text="永",
+                seed=1,
+                generator="structure-motion",
+                artifacts={"preview": str(candidate_preview)},
+            ),
+        ],
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    assert comparison["preview_comparisons"][0]["preview_similarity"] is not None
+    assert "ssim_proxy" in comparison["preview_comparisons"][0]["preview_similarity"]
 
 
 def test_recommend_preview_fixed_input_set_selects_lowest_failure_candidate(tmp_path: Path) -> None:

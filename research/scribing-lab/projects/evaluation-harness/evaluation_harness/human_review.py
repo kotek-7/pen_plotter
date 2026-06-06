@@ -87,6 +87,9 @@ def _select_representative_ids(
 ) -> list[str]:
     selected: list[str] = []
 
+    for experiment_id in review.get("robustness", {}).get("uncertain_record_ids", []):
+        _append_unique(selected, experiment_id)
+
     for item in review["items"]:
         if item["inferred_failure_tags"]:
             _append_unique(selected, item["experiment_id"])

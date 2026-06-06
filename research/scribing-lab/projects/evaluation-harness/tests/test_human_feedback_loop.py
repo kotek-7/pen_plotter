@@ -43,6 +43,37 @@ def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> N
     assert loop["response_summary"]["can_proceed_to_plot"] is False
     assert loop["response_summary"]["decision_counts"] == {"needs-tuning": 1}
     assert any("line spacing" in action for action in loop["next_actions"])
+    assert loop["calibration_summary"] is not None
+    assert loop["calibration_summary"]["reviewed_response_count"] == 1
+    assert loop["agreement_summary"] is not None
+    assert "Calibration Summary" in render_human_feedback_loop_markdown(loop)
+
+
+def test_build_human_feedback_loop_reports_agreement_for_multiple_reviewers() -> None:
+    record = _record("exp-a", generator="structure-motion")
+
+    loop = build_human_feedback_loop(
+        [record],
+        responses_data={
+            "responses": [
+                {
+                    "experiment_id": "exp-a",
+                    "decision": "accept",
+                    "reviewer_id": "r1",
+                },
+                {
+                    "experiment_id": "exp-a",
+                    "decision": "accept",
+                    "reviewer_id": "r2",
+                },
+            ]
+        },
+        reviewer_id="r1",
+    )
+
+    assert loop["agreement_summary"]["reviewer_count"] == 2
+    assert loop["agreement_summary"]["mean_cohen_kappa"] == 1.0
+    assert "Agreement Summary" in render_human_feedback_loop_markdown(loop)
 
 
 def test_render_human_feedback_loop_markdown_includes_sections() -> None:

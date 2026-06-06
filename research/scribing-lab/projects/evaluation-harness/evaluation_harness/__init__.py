@@ -1,4 +1,10 @@
-from evaluation_harness.abx import AbxItem, AbxResponse, summarize_abx_responses
+from evaluation_harness.abx import (
+    AbxItem,
+    AbxResponse,
+    render_abx_summary_markdown,
+    summarize_abx_responses,
+    validate_abx_responses,
+)
 from evaluation_harness.artifacts import ArtifactStore
 from evaluation_harness.baseline_outline import (
     DEFAULT_EVALUATION_INPUTS,
@@ -26,6 +32,17 @@ from evaluation_harness.human_feedback_loop import (
     render_human_feedback_loop_markdown,
     render_human_review_response_template_markdown,
     summarize_human_review_draft_rows,
+)
+from evaluation_harness.human_review_response import (
+    cohen_kappa,
+    summarize_human_review_agreement,
+    summarize_human_review_calibration,
+)
+from evaluation_harness.goal_audit import (
+    GoalAuditCriterion,
+    GoalAuditResult,
+    render_goal_audit_markdown,
+    run_goal_audit,
 )
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
@@ -58,19 +75,23 @@ from evaluation_harness.revision_loop import (
 )
 from evaluation_harness.self_check import HarnessSelfCheckResult, render_self_check_markdown, run_self_check
 from evaluation_harness.writer_profile import build_revision_profile
-from evaluation_harness.taxonomy import FAILURE_TAGS
+from evaluation_harness.taxonomy import FAILURE_TAGS, FAILURE_TAG_GROUPS
 
 __all__ = [
     "ArtifactStore",
     "AbxItem",
     "AbxResponse",
+    "render_abx_summary_markdown",
     "BaselineOutlineConfig",
+    "GoalAuditCriterion",
+    "GoalAuditResult",
     "HarnessSelfCheckResult",
     "DEFAULT_EVALUATION_INPUTS",
     "DEFAULT_STRUCTURE_INPUTS",
     "ExperimentRecord",
     "ExperimentRegistry",
     "FAILURE_TAGS",
+    "FAILURE_TAG_GROUPS",
     "ScanMetadata",
     "StructureMotionConfig",
     "StructureUniformConfig",
@@ -95,6 +116,7 @@ __all__ = [
     "render_preview_revision_plan_markdown",
     "render_human_feedback_loop_markdown",
     "render_human_review_response_template_markdown",
+    "render_goal_audit_markdown",
     "render_reference_basis_markdown",
     "render_self_check_markdown",
     "render_preview_revision_loop_markdown",
@@ -105,8 +127,12 @@ __all__ = [
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "run_preview_revision_loop_fixed_input_set",
+    "run_goal_audit",
     "run_self_check",
     "summarize_human_review_draft_rows",
+    "summarize_human_review_agreement",
+    "summarize_human_review_calibration",
+    "cohen_kappa",
     "evaluate_data_driven_writer_prior_fixed_input_set",
     "evaluate_stable_writer_profile_candidates",
     "propose_stable_writer_profile_candidates",
@@ -115,6 +141,7 @@ __all__ = [
     "run_structure_motion",
     "run_structure_motion_batch",
     "summarize_abx_responses",
+    "validate_abx_responses",
     "summarize_preview_revision_loops",
     "validate_scan_metadata",
 ]
