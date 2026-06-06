@@ -32,10 +32,13 @@ def test_run_structure_motion_registers_motion_metrics(tmp_path: Path) -> None:
     assert record.metrics["draw_speed_cv"] > 0.0
     assert record.metrics["gcode_safety_ok"] == 1
     assert record.metrics["gcode_safety_violation_count"] == 0
+    assert record.metrics["shape_variation_mm"] >= 0.5
+    assert record.metrics["layout_variation_mm"] >= 0.5
     assert record.metrics["writer_profile_speed_mean_mm_s"] == 40.0
     assert "writer_profile" in record.artifacts
     assert "gcode_safety" in record.artifacts
     assert "too-uniform" not in record.failure_tags
+    assert "skeleton-too-rigid" not in record.failure_tags
     assert "plotter-unsafe" not in record.failure_tags
     for path in record.artifacts.values():
         assert Path(path).exists()
@@ -55,6 +58,7 @@ def test_run_structure_motion_supports_fixed_sentence_inputs(tmp_path: Path) -> 
     assert record.metrics["status"] == "ok"
     assert record.metrics["point_count"] > 0
     assert record.metrics["gcode_safety_ok"] == 1
+    assert "line-too-mechanical" not in record.failure_tags
 
 
 def test_run_structure_motion_fits_long_input_to_page(tmp_path: Path) -> None:

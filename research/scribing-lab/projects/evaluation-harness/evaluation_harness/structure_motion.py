@@ -61,6 +61,15 @@ def run_structure_motion(
     cfg = config or StructureMotionConfig()
     profile = writer_profile or resolve_writer_profile(profile_id)
     cfg = apply_writer_profile_to_structure_motion_config(cfg, profile)
+    contextual_shape_variation, contextual_layout_variation = _contextual_variation(
+        input_text,
+        seed=seed,
+    )
+    cfg = replace(
+        cfg,
+        shape_variation=max(cfg.shape_variation, contextual_shape_variation),
+        layout_variation=max(cfg.layout_variation, contextual_layout_variation),
+    )
     registry = ExperimentRegistry(root / "registry.jsonl")
     artifacts = ArtifactStore(root / "artifacts")
 
@@ -117,6 +126,14 @@ def run_structure_motion(
             "shape_variation_mm": round(cfg.shape_variation * cfg.char_size, 4),
             "layout_variation": cfg.layout_variation,
             "layout_variation_mm": round(cfg.layout_variation * cfg.char_size, 4),
+            "contextual_shape_variation": contextual_shape_variation,
+            "contextual_shape_variation_mm": round(
+                contextual_shape_variation * cfg.char_size, 4
+            ),
+            "contextual_layout_variation": contextual_layout_variation,
+            "contextual_layout_variation_mm": round(
+                contextual_layout_variation * cfg.char_size, 4
+            ),
             "gcode_line_count": len(gcode_lines),
             **writer_profile_metrics(profile),
             "gcode_safety_ok": int(safety.ok),
@@ -217,6 +234,24 @@ def infer_structure_motion_failure_tags(
     if not safety_ok:
         tags.append("plotter-unsafe")
     return tags
+
+
+def _contextual_variation(input_text: str, *, seed: int) -> tuple[float, float]:
+    metrics = compute_text_metrics(input_text)
+    visible_char_count = int(metrics.get("visible_char_count", 0))
+    repeated_char_ratio = float(metrics.get("repeated_char_ratio", 0.0))
+    line_count = int(metrics.get("line_count", 0))
+
+    # Text-aware variation. Baseline-neat should not collapse to a rigid template, so we
+    # inject a small floor and then modulate by length, repetition, line structure, and seed.
+    seed_bias = (seed % 5) * 0.003
+    length_bias = min(0.02, max(0, visible_char_count - 1) * 0.0015)
+    repeat_bias = min(0.02, repeated_char_ratio * 0.08)
+    line_bias = min(0.02, max(0, line_count - 1) * 0.008)
+
+    shape_variation = min(0.14, 0.075 + length_bias + repeat_bias + seed_bias)
+    layout_variation = min(0.14, 0.075 + length_bias * 0.6 + line_bias + seed_bias * 0.5)
+    return shape_variation, layout_variation
 
 
 def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:
