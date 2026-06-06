@@ -28,8 +28,10 @@ from evaluation_harness.compare import (
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_stable_writer_profile_evaluation_markdown,
     render_stable_writer_profile_candidates_markdown,
     propose_stable_writer_profile_candidates,
+    evaluate_stable_writer_profile_candidates,
     run_preview_revision_loop_fixed_input_set,
     summarize_preview_revision_loops,
 )
@@ -210,6 +212,20 @@ def build_parser() -> argparse.ArgumentParser:
     stable_profiles.add_argument("--base-profile-id", default="baseline-neat")
     stable_profiles.add_argument("--output", default="stable_writer_profiles.md")
     stable_profiles.add_argument("--json-output", default="stable_writer_profiles.json")
+
+    stable_profile_evaluation = sub.add_parser(
+        "evaluate-stable-writer-profiles",
+        help="Evaluate stable writer profile candidates against the fixed input set",
+    )
+    stable_profile_evaluation.add_argument("--summary-json", required=True)
+    stable_profile_evaluation.add_argument("--root", required=True, help="Run output directory")
+    stable_profile_evaluation.add_argument("--base-profile-id", default="baseline-neat")
+    stable_profile_evaluation.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    stable_profile_evaluation.add_argument("--output", default="stable_writer_profile_evaluation.md")
+    stable_profile_evaluation.add_argument(
+        "--json-output",
+        default="stable_writer_profile_evaluation.json",
+    )
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -516,6 +532,30 @@ def main() -> None:
         )
         print(f"candidate_count: {len(bundle['candidates'])}")
         print(f"base_profile_id: {bundle['base_profile_id']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "evaluate-stable-writer-profiles":
+        summary_path = Path(args.summary_json)
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        root = Path(args.root)
+        packet = evaluate_stable_writer_profile_candidates(
+            root,
+            summary,
+            base_profile_id=args.base_profile_id,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        output_path = summary_path.parent / args.output
+        json_path = summary_path.parent / args.json_output
+        output_path.write_text(
+            render_stable_writer_profile_evaluation_markdown(packet), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"candidate_count: {packet['candidate_count']}")
+        print(f"selected_profile_count: {packet['selected_profile_count']}")
+        print(f"selected_profile_ids: {packet['selected_profile_ids']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

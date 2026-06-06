@@ -37,8 +37,10 @@ from evaluation_harness.structure_motion import (
     run_structure_motion_batch,
 )
 from evaluation_harness.revision_loop import (
+    evaluate_stable_writer_profile_candidates,
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_stable_writer_profile_evaluation_markdown,
     render_stable_writer_profile_candidates_markdown,
     propose_stable_writer_profile_candidates,
     run_preview_revision_loop_fixed_input_set,
@@ -78,10 +80,12 @@ __all__ = [
     "render_preview_revision_plan_markdown",
     "render_preview_revision_loop_markdown",
     "render_preview_revision_loop_summary_markdown",
+    "render_stable_writer_profile_evaluation_markdown",
     "render_stable_writer_profile_candidates_markdown",
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "run_preview_revision_loop_fixed_input_set",
+    "evaluate_stable_writer_profile_candidates",
     "propose_stable_writer_profile_candidates",
     "run_structure_uniform",
     "run_structure_uniform_batch",

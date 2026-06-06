@@ -23,6 +23,7 @@
 - `apply-preview-revision-fixed-inputs`: preview 改版案を適用して再生成する 1 ラウンド実行。
 - `summarize-preview-revision-loops`: 複数ラウンドの設計原理と失敗傾向の要約。
 - `propose-stable-writer-profiles`: 要約から安定候補 profile 群を生成。
+- `evaluate-stable-writer-profiles`: 安定候補 profile 群を固定入力セットで評価し、採択候補を選定。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -104,6 +105,10 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `propose-stable-writer-profiles` は、安定して効く design principle から
 derived writer profile 候補を作る。
+
+`evaluate-stable-writer-profiles` は、候補 profile を固定評価入力セットへ流し、
+baseline と比較して新しい failure tag が出ない候補だけを採択する。
+評価結果は `selected_profile_ids` と `selection_summary` に保存される。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

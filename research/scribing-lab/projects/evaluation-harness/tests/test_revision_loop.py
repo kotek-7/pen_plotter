@@ -3,8 +3,10 @@ from pathlib import Path
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.revision_loop import (
+    evaluate_stable_writer_profile_candidates,
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_stable_writer_profile_evaluation_markdown,
     render_stable_writer_profile_candidates_markdown,
     propose_stable_writer_profile_candidates,
     run_preview_revision_loop_fixed_input_set,
@@ -177,12 +179,95 @@ def test_propose_stable_writer_profile_candidates_builds_bundle() -> None:
     assert "candidate_count" not in report
 
 
+def test_evaluate_stable_writer_profile_candidates_selects_stable_profile(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "runs"
+    summary = {
+        "packet_count": 2,
+        "stable_design_principles": [
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+        ],
+        "recurring_design_principles": [
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+            "layout: 長文が機械的なら baseline_drift_mm を増やす",
+        ],
+        "design_principle_counts": {
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる": 2,
+            "layout: 長文が機械的なら baseline_drift_mm を増やす": 2,
+        },
+    }
+
+    def fake_run_structure_motion(
+        *,
+        root: Path,
+        experiment_id: str,
+        input_text: str,
+        seed: int,
+        writer_profile,
+        **_: object,
+    ) -> ExperimentRecord:
+        params = writer_profile.params
+        is_baseline = writer_profile.profile_id == "baseline-neat"
+        failure_tags = ["too-uniform"] if is_baseline else []
+        if params.baseline_drift_mm > 0:
+            failure_tags.append("line-too-mechanical")
+        metrics = {
+            "duration_ms": 1000,
+            "velocity_peak_count": 0 if is_baseline else 3,
+            "draw_speed_cv": 0.01 if is_baseline else 0.2,
+            "baseline_drift_mm": params.baseline_drift_mm,
+            "gcode_safety_ok": 1,
+            "gcode_safety_violation_count": 0,
+        }
+        return _record(
+            experiment_id=experiment_id,
+            input_text=input_text,
+            seed=seed,
+            generator="structure-motion",
+            profile_id=writer_profile.profile_id,
+            metrics=metrics,
+            failure_tags=failure_tags,
+            artifacts={
+                "preview": str(root / f"{experiment_id}.png"),
+                "report": str(root / f"{experiment_id}.md"),
+            },
+        )
+
+    monkeypatch.setattr(
+        "evaluation_harness.revision_loop.run_structure_motion",
+        fake_run_structure_motion,
+    )
+
+    packet = evaluate_stable_writer_profile_candidates(
+        root,
+        summary,
+        expected_input_texts=("永",),
+        expected_seeds=(1, 2),
+    )
+
+    assert packet["candidate_count"] == 2
+    assert packet["selected_profile_count"] == 1
+    assert packet["selected_profile_ids"] == [packet["selected_candidates"][0]["profile"]["profile_id"]]
+    assert packet["selection_summary"]["selection_status"] == "partial"
+    assert packet["selection_summary"]["selected_candidate_count"] == 1
+    assert packet["candidate_evaluations"][0]["selected"] is True
+    assert packet["candidate_evaluations"][0]["evaluation"]["resolved_failure_tag_count"] == 2
+    assert packet["candidate_evaluations"][1]["selected"] is False
+    assert packet["candidate_evaluations"][1]["evaluation"]["new_failure_tag_count"] > 0
+    report = render_stable_writer_profile_evaluation_markdown(packet)
+    assert "# Stable Writer Profile Evaluation" in report
+    assert "selected_profile_ids" in report
+
+
 def _record(
     *,
     experiment_id: str,
     input_text: str,
     seed: int,
     generator: str,
+    profile_id: str = "baseline-neat",
     artifacts: dict[str, str] | None = None,
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
@@ -195,7 +280,7 @@ def _record(
         experiment_id=experiment_id,
         hypothesis="test",
         input_text=input_text,
-        profile_id="baseline-neat",
+        profile_id=profile_id,
         seed=seed,
         generator=generator,
         exporter="xdraw-gcode",

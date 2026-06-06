@@ -299,6 +299,34 @@ def test_propose_stable_writer_profiles_parser_accepts_summary_path() -> None:
     assert args.json_output == "stable.json"
 
 
+def test_evaluate_stable_writer_profiles_parser_accepts_summary_and_root() -> None:
+    args = build_parser().parse_args(
+        [
+            "evaluate-stable-writer-profiles",
+            "--summary-json",
+            "runs/test/summary.json",
+            "--root",
+            "runs/test",
+            "--base-profile-id",
+            "baseline-neat",
+            "--seeds",
+            "1,2",
+            "--output",
+            "stable_eval.md",
+            "--json-output",
+            "stable_eval.json",
+        ]
+    )
+
+    assert args.command == "evaluate-stable-writer-profiles"
+    assert args.summary_json == "runs/test/summary.json"
+    assert args.root == "runs/test"
+    assert args.base_profile_id == "baseline-neat"
+    assert args.seeds == "1,2"
+    assert args.output == "stable_eval.md"
+    assert args.json_output == "stable_eval.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -847,6 +875,102 @@ def test_propose_stable_writer_profiles_command_writes_reports(
     assert "### recurring" in markdown
     assert '"candidate_count": 2' not in json_text
     assert '"base_profile_id": "baseline-neat"' in json_text
+
+
+def test_evaluate_stable_writer_profiles_command_writes_reports(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    summary_path = root / "summary.json"
+    summary_path.write_text(
+        """
+{
+  "packet_count": 2,
+  "stable_design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+  ],
+  "recurring_design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+    "layout: 長文が機械的なら baseline_drift_mm を増やす"
+  ],
+  "design_principle_counts": {
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる": 2,
+    "layout: 長文が機械的なら baseline_drift_mm を増やす": 2
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "evaluation_harness.cli.evaluate_stable_writer_profile_candidates",
+        lambda *_args, **_kwargs: {
+            "base_profile_id": "baseline-neat",
+            "expected_input_texts": ["永"],
+            "expected_seeds": [1, 2],
+            "baseline_record_count": 2,
+            "candidate_count": 2,
+            "selected_profile_ids": ["baseline-neat-stable-1234"],
+            "selected_profile_count": 1,
+            "candidate_evaluations": [
+                {
+                    "candidate_type": "stable",
+                    "profile": {"profile_id": "baseline-neat-stable-1234"},
+                    "selected": True,
+                    "support_count": 2,
+                    "support_ratio": 1.0,
+                    "selection_reason": "selected",
+                    "applied_changes": [],
+                    "evaluation": {"comparison_count": 2},
+                }
+            ],
+            "selected_candidates": [
+                {"candidate_type": "stable", "profile": {"profile_id": "baseline-neat-stable-1234"}}
+            ],
+            "selection_summary": {
+                "candidate_count": 2,
+                "selected_candidate_count": 1,
+                "rejected_candidate_count": 1,
+                "selected_coverage_ratio": 0.5,
+                "selection_status": "ready",
+                "selected_candidate_types": ["stable"],
+                "selected_candidate_profile_ids": ["baseline-neat-stable-1234"],
+            },
+        },
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "evaluate-stable-writer-profiles",
+            "--summary-json",
+            str(summary_path),
+            "--root",
+            str(root),
+            "--base-profile-id",
+            "baseline-neat",
+            "--seeds",
+            "1,2",
+            "--output",
+            "stable_eval.md",
+            "--json-output",
+            "stable_eval.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "stable_eval.md").read_text(encoding="utf-8")
+    json_text = (root / "stable_eval.json").read_text(encoding="utf-8")
+
+    assert "Stable Writer Profile Evaluation" in markdown
+    assert "selected_profile_ids" in markdown
+    assert '"selected_profile_count": 1' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

@@ -200,6 +200,16 @@ revision loop の比較結果から、再現可能な設計原理を抽出して
 - stable / recurring の候補を区別して出力できる。
 - 候補 profile が実験ログと接続できる。
 
+### Experiment 13: stable writer profile evaluation
+
+生成した候補 profile を固定入力セットで実際に評価し、baseline との差分から採択候補を確定する。
+
+評価:
+
+- 候補 profile を registry に接続したまま再現実行できる。
+- baseline と比較して、新しい failure tag が出ない候補だけを採択できる。
+- selected profile ids と selection summary を保存できる。
+
 ## 成果物
 
 - metrics spec。

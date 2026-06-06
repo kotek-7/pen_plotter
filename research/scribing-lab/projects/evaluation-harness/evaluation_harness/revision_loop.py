@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation_harness.compare import preview_iteration_fixed_input_set
+from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.structure_motion import run_structure_motion
@@ -322,6 +323,152 @@ def render_stable_writer_profile_candidates_markdown(bundle: dict[str, Any]) -> 
     return "\n".join(lines) + "\n"
 
 
+def evaluate_stable_writer_profile_candidates(
+    root: Path,
+    summary: dict[str, Any],
+    *,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    base_profile_id: str = "baseline-neat",
+) -> dict[str, Any]:
+    bundle = propose_stable_writer_profile_candidates(
+        summary,
+        base_profile_id=base_profile_id,
+    )
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    base_profile = resolve_writer_profile(base_profile_id)
+    baseline_records: list[ExperimentRecord] = []
+    for input_index, input_text in enumerate(expected_input_texts, start=1):
+        for seed in expected_seeds:
+            baseline_records.append(
+                _run_or_load_structure_motion(
+                    root=root,
+                    registry=registry,
+                    experiment_id=_stable_profile_experiment_id(
+                        "baseline",
+                        base_profile.profile_id,
+                        input_index,
+                        seed,
+                    ),
+                    input_text=input_text,
+                    seed=seed,
+                    writer_profile=base_profile,
+                )
+            )
+
+    baseline_by_key = _records_by_input_and_seed(baseline_records)
+    candidate_evaluations: list[dict[str, Any]] = []
+    selected_profile_ids: list[str] = []
+
+    for candidate in bundle["candidates"]:
+        profile = _profile_from_dict(candidate["profile"])
+        records: list[ExperimentRecord] = []
+        for input_index, input_text in enumerate(expected_input_texts, start=1):
+            for seed in expected_seeds:
+                records.append(
+                    _run_or_load_structure_motion(
+                        root=root,
+                        registry=registry,
+                        experiment_id=_stable_profile_experiment_id(
+                            candidate["candidate_type"],
+                            profile.profile_id,
+                            input_index,
+                            seed,
+                        ),
+                        input_text=input_text,
+                        seed=seed,
+                        writer_profile=profile,
+                    )
+                )
+
+        comparison = _compare_against_profile_baseline(records, baseline_by_key)
+        selected, selection_reason = _is_selected_stable_candidate(candidate, comparison)
+        if selected:
+            selected_profile_ids.append(profile.profile_id)
+        candidate_evaluations.append(
+            {
+                **candidate,
+                "profile": profile.to_dict(),
+                "evaluation": comparison,
+                "selected": selected,
+                "selection_reason": selection_reason,
+            }
+        )
+
+    selected_candidates = [item for item in candidate_evaluations if item["selected"]]
+    return {
+        "base_profile_id": base_profile_id,
+        "expected_input_texts": list(expected_input_texts),
+        "expected_seeds": list(expected_seeds),
+        "candidate_bundle": bundle,
+        "baseline_record_count": len(baseline_records),
+        "candidate_count": len(candidate_evaluations),
+        "selected_profile_ids": selected_profile_ids,
+        "selected_profile_count": len(selected_profile_ids),
+        "candidate_evaluations": candidate_evaluations,
+        "selected_candidates": selected_candidates,
+        "selection_summary": {
+            "candidate_count": len(candidate_evaluations),
+            "selected_candidate_count": len(selected_candidates),
+            "rejected_candidate_count": len(candidate_evaluations) - len(selected_candidates),
+            "selected_coverage_ratio": round(
+                len(selected_candidates) / len(candidate_evaluations), 4
+            ) if candidate_evaluations else 0.0,
+            "selection_status": (
+                "needs-more-evidence"
+                if not selected_candidates
+                else "ready"
+                if len(selected_candidates) == len(candidate_evaluations)
+                else "partial"
+            ),
+            "selected_candidate_types": [
+                item["candidate_type"] for item in selected_candidates
+            ],
+            "selected_candidate_profile_ids": [
+                item["profile"]["profile_id"] for item in selected_candidates
+            ],
+        },
+    }
+
+
+def render_stable_writer_profile_evaluation_markdown(packet: dict[str, Any]) -> str:
+    lines = [
+        "# Stable Writer Profile Evaluation",
+        "",
+        f"- base_profile_id: `{packet['base_profile_id']}`",
+        f"- expected_input_texts: `{packet['expected_input_texts']}`",
+        f"- expected_seeds: `{packet['expected_seeds']}`",
+        f"- baseline_record_count: `{packet['baseline_record_count']}`",
+        f"- candidate_count: `{packet['candidate_count']}`",
+        f"- selected_profile_ids: `{packet['selected_profile_ids']}`",
+        f"- selection_summary: `{packet['selection_summary']}`",
+        "",
+        "## Candidate Evaluations",
+        "",
+    ]
+    if not packet["candidate_evaluations"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    for item in packet["candidate_evaluations"]:
+        evaluation = item["evaluation"]
+        lines.extend(
+            [
+                f"### {item['candidate_type']}",
+                "",
+                f"- profile_id: `{item['profile']['profile_id']}`",
+                f"- selected: `{item['selected']}`",
+                f"- support_count: `{item['support_count']}`",
+                f"- support_ratio: `{item['support_ratio']}`",
+                f"- selection_reason: `{item['selection_reason']}`",
+                f"- applied_changes: `{item['applied_changes']}`",
+                f"- evaluation: `{evaluation}`",
+                "",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
 def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
     lines = [
         "# Preview Revision Loop",
@@ -527,6 +674,133 @@ def _bump_counts(counts: dict[str, int], items: list[str]) -> None:
         if not item:
             continue
         counts[item] = counts.get(item, 0) + 1
+
+
+def _records_by_input_and_seed(records: list[ExperimentRecord]) -> dict[tuple[str, int], ExperimentRecord]:
+    return {(record.input_text, record.seed): record for record in records}
+
+
+def _compare_against_profile_baseline(
+    candidate_records: list[ExperimentRecord],
+    baseline_by_key: dict[tuple[str, int], ExperimentRecord],
+) -> dict[str, Any]:
+    metric_names = (
+        "duration_ms",
+        "velocity_peak_count",
+        "draw_speed_cv",
+        "mean_abs_jerk_mm_s3",
+        "stroke_start_spacing_cv",
+        "baseline_drift_mm",
+        "shape_variation_mm",
+        "layout_variation_mm",
+        "repeated_char_ratio",
+        "gcode_safety_ok",
+        "gcode_safety_violation_count",
+    )
+    comparisons: list[dict[str, Any]] = []
+    selected_count = 0
+    resolved_failure_tag_count = 0
+    new_failure_tag_count = 0
+    safety_violation_count = 0
+    metric_delta_sums: dict[str, float] = {}
+    metric_delta_counts: dict[str, int] = {}
+    for record in candidate_records:
+        baseline = baseline_by_key[(record.input_text, record.seed)]
+        resolved = sorted(set(baseline.failure_tags) - set(record.failure_tags))
+        new = sorted(set(record.failure_tags) - set(baseline.failure_tags))
+        if int(record.metrics.get("gcode_safety_violation_count", 0)) == 0:
+            selected_count += 1
+        resolved_failure_tag_count += len(resolved)
+        new_failure_tag_count += len(new)
+        safety_violation_count += int(record.metrics.get("gcode_safety_violation_count", 0))
+        deltas = _metric_deltas(baseline, record, metric_names)
+        for name, delta in deltas.items():
+            metric_delta_sums[name] = metric_delta_sums.get(name, 0.0) + delta
+            metric_delta_counts[name] = metric_delta_counts.get(name, 0) + 1
+        comparisons.append(
+            {
+                "input_text": record.input_text,
+                "seed": record.seed,
+                "metric_deltas": deltas,
+                "resolved_failure_tags": resolved,
+                "new_failure_tags": new,
+            }
+        )
+
+    return {
+        "comparison_count": len(comparisons),
+        "selected_count": selected_count,
+        "resolved_failure_tag_count": resolved_failure_tag_count,
+        "new_failure_tag_count": new_failure_tag_count,
+        "safety_violation_count": safety_violation_count,
+        "metric_delta_means": {
+            name: round(metric_delta_sums[name] / metric_delta_counts[name], 4)
+            for name in sorted(metric_delta_sums)
+            if metric_delta_counts.get(name, 0)
+        },
+        "comparisons": comparisons,
+    }
+
+
+def _is_selected_stable_candidate(
+    candidate: dict[str, Any],
+    evaluation: dict[str, Any],
+) -> tuple[bool, str]:
+    if int(evaluation["safety_violation_count"]) > 0:
+        return False, "safety violation count is non-zero"
+    if int(evaluation["new_failure_tag_count"]) > 0:
+        return False, "new failure tags remain"
+    if int(evaluation["resolved_failure_tag_count"]) == 0:
+        return False, "no baseline failure tags were resolved"
+    if float(candidate.get("support_ratio", 0.0)) < 0.5:
+        return False, "support ratio is below the acceptance threshold"
+    return True, "selected"
+
+
+def _run_or_load_structure_motion(
+    *,
+    root: Path,
+    registry: ExperimentRegistry,
+    experiment_id: str,
+    input_text: str,
+    seed: int,
+    writer_profile: Any,
+) -> ExperimentRecord:
+    try:
+        return registry.get(experiment_id)
+    except KeyError:
+        return run_structure_motion(
+            root=root,
+            experiment_id=experiment_id,
+            input_text=input_text,
+            seed=seed,
+            writer_profile=writer_profile,
+        )
+
+
+def _profile_from_dict(data: dict[str, Any]):
+    from writer_profile.models import WriterProfile, WriterProfileParameters
+
+    params = WriterProfileParameters(**data["params"])
+    return WriterProfile(
+        profile_id=str(data["profile_id"]),
+        version=int(data["version"]),
+        source=str(data["source"]),
+        allowed_use=str(data["allowed_use"]),
+        params=params,
+        parent_profile=data.get("parent_profile"),
+        created_from_experiment=data.get("created_from_experiment"),
+        notes=str(data.get("notes", "")),
+    )
+
+
+def _stable_profile_experiment_id(
+    candidate_type: str,
+    profile_id: str,
+    input_index: int,
+    seed: int,
+) -> str:
+    return f"exp-stable-{candidate_type[:4]}-{profile_id}-{input_index:02d}-s{seed:03d}"
 
 
 def _build_stable_writer_profile_candidate(
