@@ -105,6 +105,7 @@ def build_offline_review(records: list[ExperimentRecord]) -> dict[str, Any]:
         "generator_counts": dict(Counter(item.generator for item in items)),
         "failure_tag_counts": dict(sorted(tag_counts.items())),
         "suggested_action_counts": dict(sorted(action_counts.items())),
+        "robustness": _build_robustness_summary(records, items),
         "items": [item.to_dict() for item in items],
     }
 
@@ -117,6 +118,7 @@ def render_offline_review_markdown(review: dict[str, Any]) -> str:
         f"- generator_counts: `{review['generator_counts']}`",
         f"- failure_tag_counts: `{review['failure_tag_counts']}`",
         f"- suggested_action_counts: `{review['suggested_action_counts']}`",
+        f"- robustness: `{review['robustness']}`",
         "",
         "## Records",
         "",
@@ -212,6 +214,72 @@ def _review_evidence(record: ExperimentRecord) -> dict[str, float | int | str]:
         "gcode_safety_violation_count",
     )
     return {key: record.metrics[key] for key in keys if key in record.metrics}
+
+
+def _build_robustness_summary(
+    records: list[ExperimentRecord],
+    items: list[OfflineReviewItem],
+) -> dict[str, Any]:
+    unsafe_records = [
+        record.experiment_id
+        for record in records
+        if _is_plotter_unsafe(record.metrics)
+    ]
+    failing_items = [
+        item.experiment_id
+        for item in items
+        if item.inferred_failure_tags
+    ]
+    repeated_inputs = sorted(
+        {
+            record.input_text
+            for record in records
+            if float(record.metrics.get("repeated_char_ratio", 0.0)) > 0.0
+        }
+    )
+    return {
+        "input_count": len({record.input_text for record in records}),
+        "seed_count": len({record.seed for record in records}),
+        "failing_record_count": len(failing_items),
+        "unsafe_record_count": len(unsafe_records),
+        "repeated_input_count": len(repeated_inputs),
+        "unstable_metric_groups": _unstable_metric_groups(records),
+        "status": "ok" if not failing_items and not unsafe_records else "needs-review",
+    }
+
+
+def _unstable_metric_groups(records: list[ExperimentRecord]) -> list[dict[str, Any]]:
+    groups: dict[tuple[str, str], list[ExperimentRecord]] = {}
+    for record in records:
+        groups.setdefault((record.generator, record.input_text), []).append(record)
+
+    unstable: list[dict[str, Any]] = []
+    for (generator, input_text), group in sorted(groups.items()):
+        if len({record.seed for record in group}) < 3:
+            continue
+        for metric_name, threshold in (
+            ("draw_speed_cv", 0.35),
+            ("mean_abs_jerk_mm_s3", 30000.0),
+            ("baseline_drift_mm", 4.0),
+        ):
+            values = [
+                float(record.metrics[metric_name])
+                for record in group
+                if isinstance(record.metrics.get(metric_name), (int, float))
+            ]
+            if len(values) < 3:
+                continue
+            value_range = max(values) - min(values)
+            if value_range > threshold:
+                unstable.append(
+                    {
+                        "generator": generator,
+                        "input_text": input_text,
+                        "metric": metric_name,
+                        "range": round(value_range, 4),
+                    }
+                )
+    return unstable
 
 
 def _record_sort_key(record: ExperimentRecord) -> tuple[str, int, str, str]:

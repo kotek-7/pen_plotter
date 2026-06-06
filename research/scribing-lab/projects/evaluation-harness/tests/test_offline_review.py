@@ -137,12 +137,74 @@ def test_build_and_render_offline_review() -> None:
     assert review["failure_tag_counts"]["too-uniform"] == 1
     assert "# Offline Review" in report
     assert "suggested_next_actions" in report
+    assert "robustness" in report
+
+
+def test_build_offline_review_reports_robustness_ok() -> None:
+    records = [
+        _record(
+            experiment_id=f"exp-{seed}",
+            seed=seed,
+            input_text="あいうえお",
+            generator="structure-motion",
+            metrics={
+                "point_count": 20,
+                "velocity_peak_count": 4,
+                "draw_speed_cv": 0.2,
+                "mean_abs_jerk_mm_s3": 10000.0 + seed,
+                "visible_char_count": 5,
+                "layout_variation_mm": 0.96,
+                "shape_variation_mm": 0.64,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        )
+        for seed in (1, 2, 3)
+    ]
+
+    review = build_offline_review(records)
+
+    assert review["robustness"]["status"] == "ok"
+    assert review["robustness"]["failing_record_count"] == 0
+    assert review["robustness"]["unsafe_record_count"] == 0
+
+
+def test_build_offline_review_reports_unstable_metric_groups() -> None:
+    records = [
+        _record(
+            experiment_id=f"exp-{seed}",
+            seed=seed,
+            input_text="永",
+            generator="structure-motion",
+            metrics={
+                "point_count": 20,
+                "velocity_peak_count": 4,
+                "draw_speed_cv": draw_speed_cv,
+                "shape_variation_mm": 0.64,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        )
+        for seed, draw_speed_cv in ((1, 0.2), (2, 0.25), (3, 0.7))
+    ]
+
+    review = build_offline_review(records)
+
+    assert review["robustness"]["unstable_metric_groups"] == [
+        {
+            "generator": "structure-motion",
+            "input_text": "永",
+            "metric": "draw_speed_cv",
+            "range": 0.5,
+        }
+    ]
 
 
 def _record(
     *,
     experiment_id: str = "exp-001",
     input_text: str = "永",
+    seed: int = 1,
     generator: str = "structure-uniform",
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
@@ -152,7 +214,7 @@ def _record(
         hypothesis="test",
         input_text=input_text,
         profile_id="baseline-neat",
-        seed=1,
+        seed=seed,
         generator=generator,
         exporter="xdraw-gcode",
         metrics=metrics or {},
