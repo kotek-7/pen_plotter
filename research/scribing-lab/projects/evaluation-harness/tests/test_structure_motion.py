@@ -35,6 +35,22 @@ def test_run_structure_motion_registers_motion_metrics(tmp_path: Path) -> None:
         assert Path(path).exists()
 
 
+def test_run_structure_motion_supports_fixed_sentence_inputs(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-sentence",
+        input_text="今日はよい天気です。",
+        seed=1,
+    )
+
+    assert record.generator == "structure-motion"
+    assert record.metrics["status"] == "ok"
+    assert record.metrics["point_count"] > 0
+    assert record.metrics["gcode_safety_ok"] == 1
+
+
 def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     root = tmp_path / "runs"
 

@@ -66,3 +66,7 @@ class LaidOutStroke:
     literal: str
     stroke_type: str
     order: int
+    char_index: int = 0
+    line_index: int = 0
+    line_char_index: int = 0
+    repeat_index: int = 0

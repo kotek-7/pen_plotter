@@ -13,6 +13,10 @@ class SkeletonStroke:
     terminal: str = "none"
     literal: str = ""
     stroke_type: str = "none"
+    char_index: int = 0
+    line_index: int = 0
+    line_char_index: int = 0
+    repeat_index: int = 0
 
 
 @dataclass(frozen=True)

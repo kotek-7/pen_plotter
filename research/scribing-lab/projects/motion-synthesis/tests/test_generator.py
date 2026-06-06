@@ -49,6 +49,42 @@ def test_synthesize_motion_applies_terminal_pressure() -> None:
     assert tome_down[-1] > tome_down[1]
 
 
+def test_synthesize_motion_uses_stroke_context() -> None:
+    baseline = synthesize_motion(
+        [
+            SkeletonStroke(
+                points=((0.0, 0.0), (10.0, 0.0)),
+                terminal="tome",
+                literal="永",
+                char_index=0,
+                line_index=0,
+                line_char_index=0,
+                repeat_index=0,
+            )
+        ],
+        seed=1,
+        config=MotionConfig(tremor_mm=0.0),
+    )
+    contextual = synthesize_motion(
+        [
+            SkeletonStroke(
+                points=((0.0, 0.0), (10.0, 0.0)),
+                terminal="tome",
+                literal="永",
+                char_index=5,
+                line_index=3,
+                line_char_index=2,
+                repeat_index=2,
+            )
+        ],
+        seed=1,
+        config=MotionConfig(tremor_mm=0.0),
+    )
+
+    assert contextual[-1].t > baseline[-1].t
+    assert contextual[-2].pressure > baseline[-2].pressure
+
+
 def test_synthesize_motion_is_stable_for_same_first_stroke() -> None:
     first_only = synthesize_motion(
         [SkeletonStroke(points=((0.0, 0.0), (10.0, 0.0)), terminal="tome", literal="永")],

@@ -86,6 +86,10 @@ def run_structure_motion(
             terminal=stroke.terminal,
             literal=stroke.literal,
             stroke_type=stroke.stroke_type,
+            char_index=stroke.char_index,
+            line_index=stroke.line_index,
+            line_char_index=stroke.line_char_index,
+            repeat_index=stroke.repeat_index,
         )
         for stroke in laid_out
     ]

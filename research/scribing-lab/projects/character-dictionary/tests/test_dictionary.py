@@ -3,7 +3,6 @@ import pytest
 from character_dictionary import (
     BUILTIN_CHARACTERS,
     BUILTIN_CHARACTER_ORDER,
-    DictionaryLookupError,
     LayoutConfig,
     DICTIONARY_ID,
     SCHEMA_VERSION,
@@ -84,6 +83,13 @@ def test_layout_text_layout_variation_changes_character_positions() -> None:
     ]
 
 
+def test_layout_text_line_variation_changes_second_line() -> None:
+    default_strokes = layout_text("あ\nあ", LayoutConfig())
+    varied_strokes = layout_text("あ\nあ", LayoutConfig(layout_variation=0.12, variation_seed=7))
+
+    assert default_strokes[3].points != varied_strokes[3].points
+
+
 def test_layout_text_slant_changes_x_offsets() -> None:
     default_strokes = layout_text("永", LayoutConfig())
     slanted_strokes = layout_text("永", LayoutConfig(slant_deg=10.0))
@@ -106,9 +112,12 @@ def test_layout_text_baseline_drift_moves_lower_lines() -> None:
     assert drifted_second_line_y < default_second_line_y
 
 
-def test_layout_text_rejects_unknown_character() -> None:
-    with pytest.raises(DictionaryLookupError):
-        layout_text("未")
+def test_layout_text_falls_back_for_unknown_character() -> None:
+    strokes = layout_text("今", LayoutConfig())
+
+    assert strokes
+    assert all(stroke.literal == "今" for stroke in strokes)
+    assert all(stroke.terminal == "none" for stroke in strokes)
 
 
 def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:

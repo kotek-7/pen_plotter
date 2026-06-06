@@ -5,8 +5,29 @@ import math
 import random
 from typing import Any
 
+import numpy as np
+import numpy.typing as npt
+from matplotlib import font_manager
+from matplotlib.font_manager import FontProperties
+from matplotlib.path import Path as MplPath
+from matplotlib.textpath import TextPath
+
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
+
+Stroke = npt.NDArray[np.float64]
+PT_TO_MM = 25.4 / 72.0
+
+DEFAULT_FONT_CANDIDATES = (
+    "Noto Sans CJK JP",
+    "Noto Serif CJK JP",
+    "IPAexGothic",
+    "IPAGothic",
+    "Yu Gothic",
+    "Meiryo",
+    "TakaoGothic",
+    "DejaVu Sans",
+)
 
 
 class DictionaryLookupError(KeyError):
@@ -49,55 +70,102 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
     baseline_top = cfg.paper_height - cfg.margin_top
     y_top = baseline_top
     line_index = 0
+    line_char_index = 0
+    line_offsets = _line_offsets(cfg, line_index)
     strokes: list[LaidOutStroke] = []
+    visible_counts: dict[str, int] = {}
 
     char_index = 0
     for char in text:
         if char == "\n":
             x = cfg.margin_left
             line_index += 1
+            line_char_index = 0
             y_top = baseline_top - line_index * (
                 cfg.char_size * cfg.line_height + cfg.baseline_drift_mm
             )
+            line_offsets = _line_offsets(cfg, line_index)
             continue
         if char.isspace():
-            x += cfg.char_size * 0.5
+            x += cfg.char_size * (0.48 + 0.04 * cfg.layout_variation)
+            line_char_index += 1
             continue
 
+        repeat_index = visible_counts.get(char, 0)
+        visible_counts[char] = repeat_index + 1
         layout_offset_x, layout_offset_y, advance_offset = _layout_offsets(
             char,
             char_index=char_index,
             config=cfg,
         )
-        template = get_template(char)
-        for stroke in template.strokes:
-            skeleton_points = _vary_skeleton_points(
-                char,
-                char_index=char_index,
-                stroke=stroke,
-                config=cfg,
-            )
+        line_offset_x, line_offset_y, spacing_scale = line_offsets
+        line_wave = math.sin((line_char_index + 1) * 0.7 + line_index * 0.45)
+        template = _TEMPLATES.get(char)
+        if template is None:
+            stroke_entries = [
+                (glyph_stroke, "none", "outline", index + 1)
+                for index, glyph_stroke in enumerate(_fallback_glyph_strokes(char))
+            ]
+        else:
+            stroke_entries = [
+                (stroke.skeleton_points, stroke.terminal, stroke.stroke_type, stroke.order)
+                for stroke in template.strokes
+            ]
+
+        for base_points, terminal, stroke_type, order in stroke_entries:
+            if template is None:
+                skeleton_points = base_points
+            else:
+                skeleton_points = _vary_skeleton_points(
+                    char,
+                    char_index=char_index,
+                    stroke=StrokeTemplate(
+                        stroke_id=order,
+                        order=order,
+                        stroke_type=stroke_type,
+                        skeleton_points=base_points,
+                        terminal=terminal,
+                    ),
+                    config=cfg,
+                )
             points = tuple(
                 (
                     x
                     + layout_offset_x
+                    + line_offset_x * line_char_index
+                    + line_wave * cfg.char_size * 0.02
                     + px * cfg.char_size
                     + _slant_offset(py, cfg),
-                    y_top + layout_offset_y - py * cfg.char_size,
+                    y_top
+                    + layout_offset_y
+                    + line_offset_y * line_char_index
+                    + line_wave * cfg.char_size * 0.03
+                    + repeat_index * cfg.layout_variation * cfg.char_size * 0.04
+                    - py * cfg.char_size,
                 )
                 for px, py in skeleton_points
             )
             strokes.append(
                 LaidOutStroke(
                     points=points,
-                    terminal=stroke.terminal,
+                    terminal=terminal,
                     literal=char,
-                    stroke_type=stroke.stroke_type,
-                    order=stroke.order,
+                    stroke_type=stroke_type,
+                    order=order,
+                    char_index=char_index,
+                    line_index=line_index,
+                    line_char_index=line_char_index,
+                    repeat_index=repeat_index,
                 )
             )
-        x += cfg.char_size + cfg.char_spacing + advance_offset
+        spacing_adjustment = cfg.char_spacing + advance_offset
+        spacing_adjustment *= 1.0 + spacing_scale
+        spacing_adjustment += min(repeat_index, 3) * cfg.layout_variation * cfg.char_size * 0.02
+        if char in "、。，．,.!?！？":
+            spacing_adjustment *= 0.72
+        x += cfg.char_size + spacing_adjustment
         char_index += 1
+        line_char_index += 1
     return strokes
 
 
@@ -174,6 +242,59 @@ def _layout_offsets(
     offset_y = rng.uniform(-0.40, 0.40) * strength * config.char_size
     advance_offset = rng.uniform(-0.45, 0.45) * strength * config.char_size
     return (offset_x, offset_y, advance_offset)
+
+
+def _line_offsets(config: LayoutConfig, line_index: int) -> tuple[float, float, float]:
+    strength = max(float(config.layout_variation), 0.0)
+    if strength == 0.0:
+        return (0.0, 0.0, 0.0)
+
+    rng = random.Random(f"{config.variation_seed}:{line_index}:line")
+    offset_x = rng.uniform(-0.06, 0.06) * strength * config.char_size
+    offset_y = rng.uniform(-0.05, 0.05) * strength * config.char_size
+    spacing_scale = rng.uniform(-0.12, 0.12) * strength
+    return (offset_x, offset_y, spacing_scale)
+
+
+def _fallback_glyph_strokes(char: str) -> list[Stroke]:
+    font = _find_font(None, None)
+    char_path = TextPath((0, 0), char, size=1.0, prop=font)
+    return [stroke * PT_TO_MM for stroke in _flatten_text_path(char_path)]
+
+
+def _find_font(name: str | None, path: str | None) -> FontProperties:
+    if path is not None:
+        return FontProperties(fname=path)
+    if name:
+        return FontProperties(family=name)
+
+    available = {font.name for font in font_manager.fontManager.ttflist}
+    for candidate in DEFAULT_FONT_CANDIDATES:
+        if candidate in available:
+            return FontProperties(family=candidate)
+    return FontProperties(family="DejaVu Sans")
+
+
+def _flatten_text_path(path: TextPath) -> list[Stroke]:
+    strokes: list[Stroke] = []
+    current: list[tuple[float, float]] = []
+
+    for vertices, code in path.iter_segments(curves=False, simplify=False):
+        if code == MplPath.MOVETO:
+            if len(current) >= 2:
+                strokes.append(np.array(current, dtype=float))
+            current = [(float(vertices[0]), float(vertices[1]))]
+        elif code == MplPath.LINETO:
+            current.append((float(vertices[0]), float(vertices[1])))
+        elif code == MplPath.CLOSEPOLY:
+            if len(current) >= 2:
+                current.append(current[0])
+                strokes.append(np.array(current, dtype=float))
+            current = []
+
+    if len(current) >= 2:
+        strokes.append(np.array(current, dtype=float))
+    return strokes
 
 
 def _clamp_unit(value: float) -> float:
