@@ -157,6 +157,31 @@ def test_compare_preview_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.json_output == "preview.json"
 
 
+def test_recommend_preview_fixed_inputs_parser_accepts_seeds() -> None:
+    args = build_parser().parse_args(
+        [
+            "recommend-preview-fixed-inputs",
+            "--root",
+            "runs/test",
+            "--baseline-generator",
+            "baseline-outline",
+            "--seeds",
+            "1,2",
+            "--output",
+            "recommend.md",
+            "--json-output",
+            "recommend.json",
+        ]
+    )
+
+    assert args.command == "recommend-preview-fixed-inputs"
+    assert args.root == "runs/test"
+    assert args.baseline_generator == "baseline-outline"
+    assert args.seeds == "1,2"
+    assert args.output == "recommend.md"
+    assert args.json_output == "recommend.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -303,6 +328,79 @@ def test_compare_preview_fixed_inputs_command_writes_reports(tmp_path: Path, mon
     assert "Preview Comparison Report" in markdown
     assert "preview_hash_changed_count" in markdown
     assert '"preview_hash_changed_count": 10' in json_text
+
+
+def test_recommend_preview_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    good_preview = root / "good.png"
+    bad_preview = root / "bad.png"
+    baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+    baseline_preview.write_bytes(b"baseline")
+    good_preview.write_bytes(b"good")
+    bad_preview.write_bytes(b"bad")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-good",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={
+                "velocity_peak_count": 3,
+                "draw_speed_cv": 0.2,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(good_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-bad",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={"velocity_peak_count": 0, "draw_speed_cv": 0.01},
+            artifacts={"preview": str(bad_preview)},
+        )
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "recommend-preview-fixed-inputs",
+            "--root",
+            str(root),
+            "--seeds",
+            "1",
+            "--output",
+            "recommend.md",
+            "--json-output",
+            "recommend.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "recommend.md").read_text(encoding="utf-8")
+    json_text = (root / "recommend.json").read_text(encoding="utf-8")
+
+    assert "Preview Recommendation Report" in markdown
+    assert "selected_candidate_count" in markdown
+    assert '"selected_candidate_count": 1' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

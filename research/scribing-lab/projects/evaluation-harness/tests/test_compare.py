@@ -5,9 +5,11 @@ from evaluation_harness.compare import (
     compare_against_baseline,
     compare_fixed_input_set,
     compare_preview_fixed_input_set,
+    recommend_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
+    render_preview_recommendation_markdown,
 )
 from evaluation_harness.models import ExperimentRecord
 
@@ -187,6 +189,102 @@ def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path)
 
     assert comparison["preview_ready_count"] == 0
     assert comparison["preview_comparisons"][0]["preview_comparable"] is False
+
+
+def test_recommend_preview_fixed_input_set_selects_lowest_failure_candidate(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    good_preview = tmp_path / "good.png"
+    bad_preview = tmp_path / "bad.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    good_preview.write_bytes(b"good-preview")
+    bad_preview.write_bytes(b"bad-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-good",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={
+                "velocity_peak_count": 3,
+                "draw_speed_cv": 0.2,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(good_preview)},
+        ),
+        _record(
+            experiment_id="exp-bad",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={"velocity_peak_count": 0, "draw_speed_cv": 0.01},
+            artifacts={"preview": str(bad_preview)},
+        ),
+    ]
+
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    selected = recommendation["recommendations"][0]["selected_candidate"]
+    assert selected["experiment_id"] == "exp-good"
+    assert recommendation["selected_candidate_count"] == 1
+    assert recommendation["selected_coverage_ratio"] == 1.0
+    assert recommendation["recommended_action_counts"][
+        "preview を基準に次の profile 比較を行う"
+    ] == 1
+    assert "exp-good" in render_preview_recommendation_markdown(recommendation)
+
+
+def test_recommend_preview_fixed_input_set_reports_action_from_tags(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    candidate_preview.write_bytes(b"candidate-preview")
+
+    recommendation = recommend_preview_fixed_input_set(
+        [
+            _record(
+                experiment_id="exp-baseline",
+                input_text="永",
+                seed=1,
+                generator="baseline-outline",
+                artifacts={"preview": str(baseline_preview)},
+            ),
+            _record(
+                experiment_id="exp-candidate",
+                input_text="永",
+                seed=1,
+                generator="structure-motion",
+                metrics={
+                    "point_count": 10,
+                    "velocity_peak_count": 0,
+                    "draw_speed_cv": 0.01,
+                    "shape_variation_mm": 0.6,
+                    "layout_variation_mm": 0.6,
+                },
+                artifacts={"preview": str(candidate_preview)},
+            ),
+        ],
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    selected = recommendation["recommendations"][0]["selected_candidate"]
+    assert selected["inferred_failure_tags"] == ["too-uniform"]
+    assert selected["suggested_next_actions"] == [
+        "motion-synthesis の speed profile / timing jitter を上げる"
+    ]
 
 
 def _record(

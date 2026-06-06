@@ -15,9 +15,11 @@ from evaluation_harness.compare import (
     compare_against_baseline,
     compare_fixed_input_set,
     compare_preview_fixed_input_set,
+    recommend_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
+    render_preview_recommendation_markdown,
 )
 from evaluation_harness.human_review import (
     build_human_review_packet,
@@ -118,6 +120,20 @@ def build_parser() -> argparse.ArgumentParser:
     preview_compare.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     preview_compare.add_argument("--output", default="preview_input_comparison.md")
     preview_compare.add_argument("--json-output", default="preview_input_comparison.json")
+
+    preview_recommend = sub.add_parser(
+        "recommend-preview-fixed-inputs",
+        help="Select preview candidates and propose the next change set",
+    )
+    preview_recommend.add_argument(
+        "--root",
+        default="runs/baseline-outline",
+        help="Run output directory",
+    )
+    preview_recommend.add_argument("--baseline-generator", default="baseline-outline")
+    preview_recommend.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_recommend.add_argument("--output", default="preview_recommendation.md")
+    preview_recommend.add_argument("--json-output", default="preview_recommendation.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -300,6 +316,28 @@ def main() -> None:
         print(f"expected_group_count: {comparison['expected_group_count']}")
         print(f"preview_ready_count: {comparison['preview_ready_count']}")
         print(f"preview_coverage_ratio: {comparison['preview_coverage_ratio']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "recommend-preview-fixed-inputs":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        recommendation = recommend_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(
+            render_preview_recommendation_markdown(recommendation), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(recommendation, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"expected_group_count: {recommendation['expected_group_count']}")
+        print(f"selected_candidate_count: {recommendation['selected_candidate_count']}")
+        print(f"selected_coverage_ratio: {recommendation['selected_coverage_ratio']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

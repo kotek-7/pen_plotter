@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+from collections import Counter
 from collections import defaultdict
 from collections.abc import Iterable
 from pathlib import Path
@@ -8,6 +9,7 @@ from typing import Any
 
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
+from evaluation_harness.offline_review import infer_offline_failure_tags, suggested_next_actions
 
 
 DEFAULT_COMPARE_METRICS: tuple[str, ...] = (
@@ -224,6 +226,104 @@ def compare_preview_fixed_input_set(
     }
 
 
+def recommend_preview_fixed_input_set(
+    records: Iterable[ExperimentRecord],
+    *,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    baseline_generator: str = "baseline-outline",
+    metrics: tuple[str, ...] = DEFAULT_COMPARE_METRICS,
+) -> dict[str, Any]:
+    comparison = compare_preview_fixed_input_set(
+        records,
+        expected_input_texts=expected_input_texts,
+        expected_seeds=expected_seeds,
+        baseline_generator=baseline_generator,
+        metrics=metrics,
+    )
+    record_list = list(records)
+    grouped = _group_records_by_input_and_seed(record_list)
+    expected_groups = [
+        (input_text, seed) for input_text in expected_input_texts for seed in expected_seeds
+    ]
+
+    recommendations: list[dict[str, Any]] = []
+    selected_candidate_count = 0
+    recommended_action_counts: Counter[str] = Counter()
+    focus_area_counts: Counter[str] = Counter()
+
+    for input_text, seed in expected_groups:
+        group = grouped.get((input_text, seed), [])
+        baseline = next((record for record in group if record.generator == baseline_generator), None)
+        candidate_records = [record for record in group if record.generator != baseline_generator]
+        baseline_preview = _preview_artifact_summary(baseline.artifacts.get("preview", "")) if baseline else None
+        candidate_items: list[dict[str, Any]] = []
+        for candidate in candidate_records:
+            preview_summary = _preview_artifact_summary(candidate.artifacts.get("preview", ""))
+            inferred_tags = infer_offline_failure_tags(candidate)
+            candidate_actions = suggested_next_actions(inferred_tags)
+            preview_hash_changed = (
+                None
+                if baseline_preview is None or preview_summary is None
+                else baseline_preview["sha256"] != preview_summary["sha256"]
+            )
+            candidate_items.append(
+                {
+                    "experiment_id": candidate.experiment_id,
+                    "profile_id": candidate.profile_id,
+                    "generator": candidate.generator,
+                    "preview": preview_summary,
+                    "preview_comparable": baseline_preview is not None and preview_summary is not None,
+                    "preview_hash_changed": preview_hash_changed,
+                    "inferred_failure_tags": inferred_tags,
+                    "suggested_next_actions": candidate_actions,
+                    "selection_key": _preview_candidate_selection_key(
+                        preview_summary=preview_summary,
+                        inferred_failure_tags=inferred_tags,
+                        preview_hash_changed=bool(preview_hash_changed),
+                        experiment_id=candidate.experiment_id,
+                    ),
+                }
+            )
+
+        selected = None
+        comparable_candidates = [item for item in candidate_items if item["preview_comparable"]]
+        if comparable_candidates:
+            selected = min(comparable_candidates, key=lambda item: item["selection_key"])
+            selected_candidate_count += 1
+            if selected["suggested_next_actions"]:
+                for action in selected["suggested_next_actions"]:
+                    recommended_action_counts[action] += 1
+            else:
+                recommended_action_counts["preview を基準に次の profile 比較を行う"] += 1
+            focus_area_counts[_focus_area_from_tags(selected["inferred_failure_tags"])] += 1
+
+        recommendations.append(
+            {
+                "input_text": input_text,
+                "seed": seed,
+                "baseline_experiment_id": baseline.experiment_id if baseline else "",
+                "selected_candidate": selected,
+                "candidate_count": len(candidate_records),
+                "preview_candidate_count": len(comparable_candidates),
+                "selection_status": "selected" if selected else "no-preview-candidate",
+                "candidate_items": candidate_items,
+            }
+        )
+
+    expected_group_count = comparison["expected_group_count"]
+    return {
+        **comparison,
+        "selected_candidate_count": selected_candidate_count,
+        "selected_coverage_ratio": round(selected_candidate_count / expected_group_count, 4)
+        if expected_group_count
+        else 0.0,
+        "recommended_action_counts": dict(sorted(recommended_action_counts.items())),
+        "focus_area_counts": dict(sorted(focus_area_counts.items())),
+        "recommendations": recommendations,
+    }
+
+
 def render_comparison_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Baseline Comparison Report",
@@ -356,6 +456,53 @@ def render_preview_fixed_input_comparison_markdown(comparison: dict[str, Any]) -
     return "\n".join(lines) + "\n"
 
 
+def render_preview_recommendation_markdown(comparison: dict[str, Any]) -> str:
+    lines = [
+        "# Preview Recommendation Report",
+        "",
+        f"- baseline_generator: `{comparison['baseline_generator']}`",
+        f"- expected_group_count: `{comparison['expected_group_count']}`",
+        f"- selected_candidate_count: `{comparison['selected_candidate_count']}`",
+        f"- selected_coverage_ratio: `{comparison['selected_coverage_ratio']}`",
+        f"- focus_area_counts: `{comparison['focus_area_counts']}`",
+        f"- recommended_action_counts: `{comparison['recommended_action_counts']}`",
+        "",
+        "## Recommendations",
+        "",
+    ]
+    if not comparison["recommendations"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    for item in comparison["recommendations"]:
+        lines.extend(
+            [
+                f"### input={item['input_text']} seed={item['seed']}",
+                "",
+                f"- baseline_experiment_id: `{item['baseline_experiment_id']}`",
+                f"- selection_status: `{item['selection_status']}`",
+                f"- candidate_count: `{item['candidate_count']}`",
+                f"- preview_candidate_count: `{item['preview_candidate_count']}`",
+            ]
+        )
+        selected = item["selected_candidate"]
+        if selected is None:
+            lines.append("- selected_candidate: `none`")
+        else:
+            lines.extend(
+                [
+                    f"- selected_candidate: `{selected['experiment_id']}`",
+                    f"- selected_profile_id: `{selected['profile_id']}`",
+                    f"- selected_preview_hash_changed: `{selected['preview_hash_changed']}`",
+                    f"- selected_failure_tags: `{selected['inferred_failure_tags']}`",
+                    f"- selected_next_actions: `{selected['suggested_next_actions']}`",
+                    f"- focus_area: `{_focus_area_from_tags(selected['inferred_failure_tags'])}`",
+                ]
+            )
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def _metric_deltas(
     baseline: ExperimentRecord,
     candidate: ExperimentRecord,
@@ -393,3 +540,37 @@ def _preview_artifact_summary(path_text: str) -> dict[str, Any] | None:
         "size_bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
+
+
+def _preview_candidate_selection_key(
+    *,
+    preview_summary: dict[str, Any] | None,
+    inferred_failure_tags: list[str],
+    preview_hash_changed: bool,
+    experiment_id: str,
+) -> tuple[int, int, int, str]:
+    return (
+        0 if preview_summary is not None else 1,
+        len(inferred_failure_tags),
+        0 if preview_hash_changed else 1,
+        experiment_id,
+    )
+
+
+def _focus_area_from_tags(tags: list[str]) -> str:
+    priority = (
+        ("plotter-unsafe", "safety"),
+        ("too-font-like", "dictionary"),
+        ("skeleton-too-rigid", "dictionary"),
+        ("too-uniform", "motion"),
+        ("over-jittered", "motion"),
+        ("line-too-mechanical", "layout"),
+        ("spacing-unnatural", "layout"),
+        ("terminal-too-uniform", "terminal"),
+        ("repeated-char-too-identical", "dictionary"),
+    )
+    tag_set = set(tags)
+    for tag, area in priority:
+        if tag in tag_set:
+            return area
+    return "preview"

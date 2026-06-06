@@ -17,6 +17,7 @@
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
 - `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
+- `recommend-preview-fixed-inputs`: preview 候補の選定と次の改版案。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -78,6 +79,9 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `compare-preview-fixed-inputs` は、baseline と candidate の `preview` artifact の
 存在、サイズ、SHA-256 を比較し、preview が更新されたかを記録する。
+
+`recommend-preview-fixed-inputs` は、preview がある候補の中から各 input / seed ごとに
+最小 failure tag の候補を選び、次に直すべき profile / layout / motion の提案を出す。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

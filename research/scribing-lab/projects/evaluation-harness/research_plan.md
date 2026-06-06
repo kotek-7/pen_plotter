@@ -130,6 +130,16 @@
 - preview path、G-code、安全性、profile が metadata として残る。
 - `preview-shape-odd` と `plotter-line-quality-bad` を failure tags として記録できる。
 
+### Experiment 6: preview recommendation loop
+
+preview 差分と failure tag から、各 input / seed で次に採る候補と改版案を選ぶ。
+
+評価:
+
+- 各 group に selected candidate が 1 つ決まる。
+- selected candidate から next action が自動生成される。
+- selected candidate の profile / layout / motion のどこを直すかが説明できる。
+
 ## 成果物
 
 - metrics spec。
