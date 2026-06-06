@@ -41,7 +41,7 @@ def test_render_plot_ready_packet_markdown_includes_checklist() -> None:
 
     assert "# Plot Ready Packet" in report
     assert "Do not auto-send" in report
-    assert "scan_registration_experiment_id" in report
+    assert "followup_audit_target" in report
 
 
 def _record(

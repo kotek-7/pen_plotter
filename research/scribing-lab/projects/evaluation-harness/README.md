@@ -17,10 +17,11 @@
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
-- `human-review-packet`: 実機出力前の目視レビュー向け preview / metrics 束。
+- `human-review-packet`: 生成 preview / metrics の目視レビュー束。
+- `preview-review-packet`: preview を主軸にしたレビュー束の別名。
 - `validate-human-review`: 目視レビュー response の検証と集計。
 - `plot-ready-packet`: accepted record の G-code / safety / preview 束。
-- `ScanMetadata`: 実機スキャン artifact の metadata schema。
+- `ScanMetadata`: 必要時だけ使う実機監査用 metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
 ## 実行
@@ -66,7 +67,7 @@ python3 -m evaluation_harness compare-fixed-inputs \
   --seeds 1,2,3
 ```
 
-実機出力の前に、registry 内の metrics / failure tags から次の調整候補を出す場合:
+生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 
 ```sh
 python3 -m evaluation_harness offline-review \
@@ -77,15 +78,16 @@ python3 -m evaluation_harness offline-review \
 `too-uniform`、`line-too-mechanical`、`over-jittered`、`plotter-unsafe` などを
 preview / trajectory / G-code safety の前段評価として扱い、次に調整する対象を記録する。
 
-自動評価を通った候補を目視レビュー用に束ねる場合:
+自動評価を通った候補を生成 preview ベースで目視レビュー用に束ねる場合:
 
 ```sh
 python3 -m evaluation_harness human-review-packet \
   --root runs/structure-motion
 ```
 
-`human-review-packet` は、代表 seed の preview、主要 metrics、failure tags と、
-input ごとの全 preview path を `human_review_packet.md` / `.json` に保存する。
+`human-review-packet` と `preview-review-packet` は、代表 seed の preview、主要 metrics、
+failure tags と、input ごとの全 preview path を `human_review_packet.md` / `.json`
+または `preview_review_packet.md` / `.json` に保存する。
 
 目視レビュー結果を packet と照合して集計する場合:
 
@@ -109,9 +111,9 @@ python3 -m evaluation_harness plot-ready-packet \
 
 `plot-ready-packet` は G-code を自動送信しない。`gcode_safety_ok` と
 `gcode_safety` artifact を再確認し、xDraw A4 のホーミング、`G92 X0 Y297 Z0`、
-Z 軸ペン制御、scan 登録先 experiment ID を checklist として保存する。
+Z 軸ペン制御を checklist として保存する。scan は必要時のみ追加する監査手段とする。
 
-実機スキャンを既存 experiment に紐付ける場合:
+必要時だけ実機スキャンを既存 experiment に紐付ける場合:
 
 ```sh
 python3 -m evaluation_harness attach-scan \
@@ -123,7 +125,7 @@ python3 -m evaluation_harness attach-scan \
 
 `attach-scan` は、対象 experiment の `gcode_safety_ok` が `1` で、`gcode_safety`
 artifact が存在する場合だけ登録する。実機送信前に `gcode_safety.json` の
-`ok: true` と `violations: []` を確認する。
+`ok: true` と `violations: []` を確認する。通常の比較ループは preview を主軸に回す。
 
 生成物は `runs/` に保存される。`runs/` は実験出力なので git 管理しない。
 

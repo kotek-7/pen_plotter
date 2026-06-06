@@ -3,6 +3,7 @@
 ## 目的
 
 生成結果の改善を、感覚だけでなく再現可能な評価で判断する。字形、軌跡、運動、writer style、人間判定を分けて測る。
+主評価は G-code から生成した preview に置き、実機スキャンは必要時の監査に回す。
 
 このプロジェクトは最初に着手する。評価 harness は単なる後処理ではなく、研究ループを成立させる実行基盤である。
 
@@ -14,7 +15,7 @@
 
 1. 自動指標は主観評価の完全代替にはならないが、退行検知には有効である。
 2. DTW だけでは spacing や速度自然性を捉えきれない。
-3. 実機出力のスキャン画像評価が最終判断に必要である。
+3. 生成 preview の評価だけでも大半の比較ループは回せる。
 4. 評価結果と成果物を同じ ID で参照できれば、次実験の提案精度が上がる。
 5. 評価基盤なしで生成モデルを改善すると、比較不能な成果物が増える。
 
@@ -29,8 +30,8 @@
 - trajectory metrics。
 - velocity metrics。
 - spacing metrics。
+- preview metrics。
 - baseline-outline runner。
-- scan artifact schema。
 - repeated character metrics。
 - ABX 評価設計。
 - baseline 比較。
@@ -119,15 +120,15 @@
 
 同一 profile と異 profile の区別を評価する。
 
-### Experiment 5: scan artifact loop
+### Experiment 5: preview-centric review loop
 
-実機出力のスキャン画像と metadata を artifact store に登録する。
+生成 preview を主評価として人間レビューへ回し、必要時のみ実機監査を追加する。
 
 評価:
 
-- preview と scan が同じ experiment ID に紐付く。
-- pen、paper、plotter、scan 条件が metadata として残る。
-- `scan-mismatch` と `plotter-line-quality-bad` を failure tags として記録できる。
+- preview と experiment ID が紐付く。
+- preview path、G-code、安全性、profile が metadata として残る。
+- `preview-shape-odd` と `plotter-line-quality-bad` を failure tags として記録できる。
 
 ## 成果物
 
@@ -149,14 +150,14 @@
 - spacing variance。
 - baseline drift。
 - repeated character similarity。
-- scan mismatch summary。
+- preview mismatch summary。
 - ABX 正答率。
 
 ## リスク
 
 - 自動指標に過適合する。
 - 評価者数が少ないと結論が不安定。
-- スキャン環境差が結果に混ざる。
+- スキャン環境差が結果に混ざる。必要時のみ使うため影響は限定する。
 - 評価結果なしに次実験を進める。
 - failure tags が増えすぎて比較不能になる。
 - baseline が固定されず、新方式との差分を説明できなくなる。

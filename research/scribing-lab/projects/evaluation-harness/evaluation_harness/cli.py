@@ -119,6 +119,14 @@ def build_parser() -> argparse.ArgumentParser:
     human_review.add_argument("--output", default="human_review_packet.md")
     human_review.add_argument("--json-output", default="human_review_packet.json")
 
+    preview_review = sub.add_parser(
+        "preview-review-packet",
+        help="Create a preview-centric packet for generated G-code review",
+    )
+    preview_review.add_argument("--root", required=True, help="Run output directory")
+    preview_review.add_argument("--output", default="preview_review_packet.md")
+    preview_review.add_argument("--json-output", default="preview_review_packet.json")
+
     validate_human = sub.add_parser(
         "validate-human-review",
         help="Validate and summarize human review responses against a review packet",
@@ -271,6 +279,21 @@ def main() -> None:
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "human-review-packet":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        packet = build_human_review_packet(registry.load_all())
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"record_count: {packet['record_count']}")
+        print(f"representative_count: {packet['representative_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "preview-review-packet":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")
         packet = build_human_review_packet(registry.load_all())

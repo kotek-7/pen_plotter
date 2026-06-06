@@ -44,6 +44,25 @@ def test_human_review_packet_parser_accepts_output_paths() -> None:
     assert args.json_output == "packet.json"
 
 
+def test_preview_review_packet_parser_accepts_output_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "preview-review-packet",
+            "--root",
+            "runs/test",
+            "--output",
+            "preview.md",
+            "--json-output",
+            "preview.json",
+        ]
+    )
+
+    assert args.command == "preview-review-packet"
+    assert args.root == "runs/test"
+    assert args.output == "preview.md"
+    assert args.json_output == "preview.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -198,6 +217,44 @@ def test_compare_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch
     assert "Fixed Input Comparison Report" in markdown
     assert "coverage_ratio" in markdown
     assert '"coverage_ratio": 1.0' in json_text
+
+
+def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-a",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+        )
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "preview-review-packet",
+            "--root",
+            str(root),
+            "--output",
+            "preview.md",
+            "--json-output",
+            "preview.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "preview.md").read_text(encoding="utf-8")
+    json_text = (root / "preview.json").read_text(encoding="utf-8")
+
+    assert "Human Review Packet" in markdown
+    assert "representative_count" in markdown
+    assert '"representative_count": 1' in json_text
 
 
 def _record(

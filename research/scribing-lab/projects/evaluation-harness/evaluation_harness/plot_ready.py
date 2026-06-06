@@ -68,7 +68,7 @@ def render_plot_ready_packet_markdown(packet: dict[str, Any]) -> str:
                 f"- preview: `{item['preview']}`",
                 f"- safety_ok: `{item['safety_ok']}`",
                 f"- safety_violation_count: `{item['safety_violation_count']}`",
-                f"- scan_registration_experiment_id: `{item['experiment_id']}`",
+                f"- followup_audit_target: `{item['experiment_id']}`",
                 "",
             ]
         )
@@ -104,5 +104,5 @@ def _preplot_checklist() -> list[str]:
         "Confirm paper coordinates are set with G92 X0 Y297 Z0.",
         "Confirm pen control uses Z axis, not M3/M5.",
         "Confirm gcode_safety has ok=true and violations=[] for each target.",
-        "Use the experiment_id as the scan registration target after plotting.",
+        "Use the experiment_id as the follow-up audit target after plotting if a scan is needed.",
     ]
