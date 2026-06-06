@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 
 from evaluation_harness.baseline_outline import (
@@ -53,6 +54,35 @@ def test_run_baseline_outline_registers_artifacts(tmp_path: Path) -> None:
     assert loaded.failure_tags == record.failure_tags
 
 
+def test_run_baseline_outline_is_seed_reproducible(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    config = BaselineOutlineConfig(jitter=0.0, wobble=0.0, optimize=False, vary_speed=False)
+
+    first = run_baseline_outline(
+        root=root,
+        experiment_id="exp-baseline-a",
+        input_text="永",
+        seed=7,
+        config=config,
+    )
+    second = run_baseline_outline(
+        root=root,
+        experiment_id="exp-baseline-b",
+        input_text="永",
+        seed=7,
+        config=config,
+    )
+
+    assert first.metrics == second.metrics
+    assert _read_json(first.artifacts["trajectory"]) == _read_json(second.artifacts["trajectory"])
+    assert _read_json(first.artifacts["strokes"]) == _read_json(second.artifacts["strokes"])
+    assert _read_text(first.artifacts["gcode"]) == _read_text(second.artifacts["gcode"])
+    assert _read_json(first.artifacts["render_config"]) == _read_json(
+        second.artifacts["render_config"]
+    )
+    assert _read_bytes(first.artifacts["preview"]) == _read_bytes(second.artifacts["preview"])
+
+
 def test_run_baseline_outline_batch_writes_summary(tmp_path: Path) -> None:
     root = tmp_path / "runs"
 
@@ -79,3 +109,15 @@ def test_infer_baseline_failure_tags_marks_repeated_text() -> None:
     assert "too-font-like" in tags
     assert "too-uniform" in tags
     assert "repeated-char-too-identical" in tags
+
+
+def _read_json(path: str) -> object:
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _read_text(path: str) -> str:
+    return Path(path).read_text(encoding="utf-8")
+
+
+def _read_bytes(path: str) -> bytes:
+    return Path(path).read_bytes()
