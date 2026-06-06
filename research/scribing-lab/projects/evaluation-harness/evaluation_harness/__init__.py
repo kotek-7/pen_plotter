@@ -48,6 +48,7 @@ from evaluation_harness.revision_loop import (
     run_preview_revision_loop_fixed_input_set,
     summarize_preview_revision_loops,
 )
+from evaluation_harness.self_check import HarnessSelfCheckResult, render_self_check_markdown, run_self_check
 from evaluation_harness.writer_profile import build_revision_profile
 from evaluation_harness.taxonomy import FAILURE_TAGS
 
@@ -56,6 +57,7 @@ __all__ = [
     "AbxItem",
     "AbxResponse",
     "BaselineOutlineConfig",
+    "HarnessSelfCheckResult",
     "DEFAULT_EVALUATION_INPUTS",
     "DEFAULT_STRUCTURE_INPUTS",
     "ExperimentRecord",
@@ -80,6 +82,7 @@ __all__ = [
     "render_preview_iteration_markdown",
     "render_preview_recommendation_markdown",
     "render_preview_revision_plan_markdown",
+    "render_self_check_markdown",
     "render_preview_revision_loop_markdown",
     "render_preview_revision_loop_summary_markdown",
     "render_data_driven_writer_prior_evaluation_markdown",
@@ -88,6 +91,7 @@ __all__ = [
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "run_preview_revision_loop_fixed_input_set",
+    "run_self_check",
     "evaluate_data_driven_writer_prior_fixed_input_set",
     "evaluate_stable_writer_profile_candidates",
     "propose_stable_writer_profile_candidates",

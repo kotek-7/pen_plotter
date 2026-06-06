@@ -37,6 +37,7 @@ from evaluation_harness.revision_loop import (
     run_preview_revision_loop_fixed_input_set,
     summarize_preview_revision_loops,
 )
+from evaluation_harness.self_check import render_self_check_markdown, run_self_check
 from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
@@ -284,6 +285,15 @@ def build_parser() -> argparse.ArgumentParser:
     plot_ready.add_argument("--human-summary-json", required=True)
     plot_ready.add_argument("--output", default="plot_ready_packet.md")
     plot_ready.add_argument("--json-output", default="plot_ready_packet.json")
+
+    self_check = sub.add_parser(
+        "self-check",
+        help="Run the evaluation-harness self-check against fixed fixtures",
+    )
+    self_check.add_argument("--root", default="runs/self-check", help="Run output directory")
+    self_check.add_argument("--seed", type=int, default=1)
+    self_check.add_argument("--output", default="self_check.md")
+    self_check.add_argument("--json-output", default="self_check.json")
 
     scan = sub.add_parser("attach-scan", help="Attach plotted scan artifact to an experiment")
     scan.add_argument("--root", required=True, help="Run output directory")
@@ -673,6 +683,20 @@ def main() -> None:
         )
         print(f"plot_ready_count: {packet['plot_ready_count']}")
         print(f"safety_ok_count: {packet['safety_ok_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "self-check":
+        root = Path(args.root)
+        result = run_self_check(root, seed=args.seed)
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_self_check_markdown(result), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"status: {result.status}")
+        print(f"registry_record_count: {result.registry_record_count}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "attach-scan":

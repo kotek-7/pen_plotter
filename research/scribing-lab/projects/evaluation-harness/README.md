@@ -41,6 +41,12 @@
 python3 -m evaluation_harness smoke --root runs/smoke
 ```
 
+`self-check` は、固定入力セットに対する baseline / candidate 比較、review、plot-ready までの経路をまとめて検証する。
+
+```sh
+python3 -m evaluation_harness self-check --root runs/self-check
+```
+
 現行アプリの `font outline + jitter/wobble` を `baseline-outline` として固定し、
 registry / artifact / report に保存する場合:
 
