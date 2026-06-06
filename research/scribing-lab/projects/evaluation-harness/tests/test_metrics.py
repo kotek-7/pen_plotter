@@ -62,11 +62,16 @@ def test_compute_trajectory_metrics_reports_spacing_and_baseline() -> None:
 
     assert metrics["stroke_start_spacing_cv"] > 0.0
     assert metrics["baseline_drift_mm"] == 2.0
+    assert metrics["ink_bbox_width_mm"] == 26.0
+    assert metrics["ink_bbox_height_mm"] == 2.0
+    assert metrics["ink_bbox_area_mm2"] == 52.0
+    assert metrics["mean_stroke_start_gap_mm"] == 12.5
 
 
 def test_compute_text_metrics_counts_repeated_visible_chars() -> None:
     metrics = compute_text_metrics("春の川をゆっくり歩く。")
 
     assert metrics["visible_char_count"] == 11
+    assert metrics["line_count"] == 1
     assert metrics["repeated_char_count"] == 1
     assert metrics["repeated_char_ratio"] > 0.0

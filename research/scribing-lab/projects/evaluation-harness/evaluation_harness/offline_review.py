@@ -41,6 +41,9 @@ NEXT_ACTIONS: dict[str, str] = {
     "too-font-like": "outline baseline ではなく structure 系候補を比較対象にする",
     "spacing-unnatural": "layout spacing のランダム化幅と行内整列を調整する",
     "repeated-char-too-identical": "同一文字の stroke template variant を増やす",
+    "too-small": "layout size と preview scale を大きくして可読域を確保する",
+    "spacing-too-wide": "character advance と line spacing を詰める",
+    "glyph-orientation-odd": "stroke direction と component orientation を確認する",
 }
 
 
@@ -74,6 +77,15 @@ def infer_offline_failure_tags(record: ExperimentRecord) -> list[str]:
 
     if _looks_repeated_too_identical(metrics):
         tags.add("repeated-char-too-identical")
+
+    if _looks_too_small(metrics):
+        tags.add("too-small")
+
+    if _looks_spacing_too_wide(metrics):
+        tags.add("spacing-too-wide")
+
+    if _looks_glyph_orientation_odd(metrics):
+        tags.add("glyph-orientation-odd")
 
     return sorted(tags)
 
@@ -197,6 +209,50 @@ def _looks_repeated_too_identical(metrics: dict[str, float | int | str]) -> bool
         and float(metrics.get("stroke_start_spacing_cv", 0.0)) < 0.03
         and float(metrics.get("baseline_drift_mm", 0.0)) < 0.5
     )
+
+
+def _looks_too_small(metrics: dict[str, float | int | str]) -> bool:
+    visible_chars = int(metrics.get("visible_char_count", 0))
+    if visible_chars <= 0:
+        return False
+    if "ink_bbox_width_mm" not in metrics or "ink_bbox_height_mm" not in metrics:
+        return False
+    line_count = max(int(metrics.get("line_count", 1)), 1)
+    bbox_width = float(metrics.get("ink_bbox_width_mm", 0.0))
+    bbox_height = float(metrics.get("ink_bbox_height_mm", 0.0))
+    if bbox_width <= 0.0 or bbox_height <= 0.0:
+        return False
+    mean_char_advance = bbox_width / max(visible_chars, 1)
+    mean_line_height = bbox_height / line_count
+    return mean_char_advance < 4.5 or mean_line_height < 7.5 or bbox_height < 8.5
+
+
+def _looks_spacing_too_wide(metrics: dict[str, float | int | str]) -> bool:
+    visible_chars = int(metrics.get("visible_char_count", 0))
+    if visible_chars < 2:
+        return False
+    if "ink_bbox_width_mm" not in metrics:
+        return False
+    bbox_width = float(metrics.get("ink_bbox_width_mm", 0.0))
+    if bbox_width <= 0.0:
+        return False
+    mean_char_advance = bbox_width / max(visible_chars, 1)
+    mean_stroke_gap = float(metrics.get("mean_stroke_start_gap_mm", 0.0))
+    return mean_char_advance > 13.5 or mean_stroke_gap > 14.0
+
+
+def _looks_glyph_orientation_odd(metrics: dict[str, float | int | str]) -> bool:
+    visible_chars = int(metrics.get("visible_char_count", 0))
+    if visible_chars > 3:
+        return False
+    if "ink_bbox_width_mm" not in metrics or "ink_bbox_height_mm" not in metrics:
+        return False
+    bbox_width = float(metrics.get("ink_bbox_width_mm", 0.0))
+    bbox_height = float(metrics.get("ink_bbox_height_mm", 0.0))
+    if bbox_width <= 0.0 or bbox_height <= 0.0:
+        return False
+    aspect_ratio = float(metrics.get("ink_bbox_aspect_ratio", bbox_width / bbox_height))
+    return aspect_ratio < 0.32
 
 
 def _review_evidence(record: ExperimentRecord) -> dict[str, float | int | str]:

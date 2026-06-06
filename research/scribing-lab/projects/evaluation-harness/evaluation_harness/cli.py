@@ -688,14 +688,16 @@ def main() -> None:
     elif args.command == "self-check":
         root = Path(args.root)
         result = run_self_check(root, seed=args.seed)
-        markdown_path = root / args.output
-        json_path = root / args.json_output
+        run_root = Path(result.run_root)
+        markdown_path = run_root / args.output
+        json_path = run_root / args.json_output
         markdown_path.write_text(render_self_check_markdown(result), encoding="utf-8")
         json_path.write_text(
             json.dumps(result.to_dict(), ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         print(f"status: {result.status}")
+        print(f"run_root: {run_root}")
         print(f"registry_record_count: {result.registry_record_count}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")

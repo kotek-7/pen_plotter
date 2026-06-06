@@ -23,6 +23,7 @@ from evaluation_harness.compare import (
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
+from evaluation_harness.reference_basis import build_reference_basis, render_reference_basis_markdown
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact, validate_scan_metadata
 from evaluation_harness.structure_uniform import (
@@ -67,6 +68,7 @@ __all__ = [
     "StructureMotionConfig",
     "StructureUniformConfig",
     "build_revision_profile",
+    "build_reference_basis",
     "attach_scan_artifact",
     "compare_against_baseline",
     "compare_fixed_input_set",
@@ -82,6 +84,7 @@ __all__ = [
     "render_preview_iteration_markdown",
     "render_preview_recommendation_markdown",
     "render_preview_revision_plan_markdown",
+    "render_reference_basis_markdown",
     "render_self_check_markdown",
     "render_preview_revision_loop_markdown",
     "render_preview_revision_loop_summary_markdown",

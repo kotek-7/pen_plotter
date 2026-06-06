@@ -4,20 +4,29 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
-from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS, run_baseline_outline, BaselineOutlineConfig
+from evaluation_harness.baseline_outline import (
+    BaselineOutlineConfig,
+    DEFAULT_EVALUATION_INPUTS,
+    run_baseline_outline,
+)
 from evaluation_harness.compare import compare_fixed_input_set, compare_preview_fixed_input_set
 from evaluation_harness.human_review import build_human_review_packet
-from evaluation_harness.human_review_response import HumanReviewResponse, summarize_human_review_responses
+from evaluation_harness.human_review_response import (
+    HumanReviewResponse,
+    summarize_human_review_responses,
+)
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.offline_review import build_offline_review
 from evaluation_harness.plot_ready import build_plot_ready_packet
 from evaluation_harness.registry import ExperimentRegistry
+from evaluation_harness.reference_basis import build_reference_basis, render_reference_basis_markdown
 from evaluation_harness.structure_motion import StructureMotionConfig, run_structure_motion
 
 
 @dataclass(frozen=True)
 class HarnessSelfCheckResult:
     status: str
+    run_root: str
     seed: int
     inputs: tuple[str, ...]
     baseline_record_count: int
@@ -31,6 +40,7 @@ class HarnessSelfCheckResult:
     human_review_packet: dict[str, Any]
     human_review_summary: dict[str, Any]
     plot_ready_packet: dict[str, Any]
+    reference_basis: dict[str, Any]
     references: tuple[str, ...]
 
     def to_dict(self) -> dict[str, Any]:
@@ -46,10 +56,11 @@ REFERENCE_SOURCES: tuple[str, ...] = (
 def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
+    run_root = _allocate_run_root(root, seed)
 
     baseline_records = [
         run_baseline_outline(
-            root=root,
+            root=run_root,
             experiment_id=f"selfcheck-baseline-i{index:02d}-s{seed:03d}",
             input_text=input_text,
             seed=seed,
@@ -59,7 +70,7 @@ def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
     ]
     candidate_records = [
         run_structure_motion(
-            root=root,
+            root=run_root,
             experiment_id=f"selfcheck-candidate-i{index:02d}-s{seed:03d}",
             input_text=input_text,
             seed=seed,
@@ -68,7 +79,7 @@ def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
         for index, input_text in enumerate(DEFAULT_EVALUATION_INPUTS, start=1)
     ]
 
-    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry = ExperimentRegistry(run_root / "registry.jsonl")
     loaded_records = registry.load_all()
 
     baseline_checks = _build_baseline_checks(baseline_records)
@@ -90,11 +101,13 @@ def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
         _accept_all_representatives(human_review_packet),
     )
     plot_ready_packet = build_plot_ready_packet(candidate_records, human_review_summary)
+    reference_basis = build_reference_basis()
 
     status = "ok" if _all_checks_pass(baseline_checks, candidate_checks, comparison, preview_comparison, offline_review, human_review_summary, plot_ready_packet, loaded_records, baseline_records, candidate_records) else "needs-review"
 
     return HarnessSelfCheckResult(
         status=status,
+        run_root=str(run_root),
         seed=seed,
         inputs=DEFAULT_EVALUATION_INPUTS,
         baseline_record_count=len(baseline_records),
@@ -124,6 +137,7 @@ def run_self_check(root: Path, *, seed: int = 1) -> HarnessSelfCheckResult:
         human_review_packet=human_review_packet,
         human_review_summary=human_review_summary,
         plot_ready_packet=plot_ready_packet,
+        reference_basis=reference_basis,
         references=REFERENCE_SOURCES,
     )
 
@@ -133,6 +147,7 @@ def render_self_check_markdown(result: HarnessSelfCheckResult) -> str:
         "# Evaluation Harness Self Check",
         "",
         f"- status: `{result.status}`",
+        f"- run_root: `{result.run_root}`",
         f"- seed: `{result.seed}`",
         f"- inputs: `{list(result.inputs)}`",
         f"- baseline_record_count: `{result.baseline_record_count}`",
@@ -175,6 +190,8 @@ def render_self_check_markdown(result: HarnessSelfCheckResult) -> str:
             "",
             f"- plot_ready_count: `{result.plot_ready_packet['plot_ready_count']}`",
             f"- safety_ok_count: `{result.plot_ready_packet['safety_ok_count']}`",
+            "",
+            render_reference_basis_markdown(result.reference_basis),
             "",
             "## References",
             "",
@@ -251,3 +268,18 @@ def _all_checks_pass(
         and plot_ready_packet["plot_ready_count"] == human_review_summary["representative_count"]
         and len(loaded_records) == len(baseline_records) + len(candidate_records)
     )
+
+
+def _allocate_run_root(root: Path, seed: int) -> Path:
+    base = root / f"seed-{seed:03d}"
+    if not base.exists():
+        base.mkdir(parents=True, exist_ok=True)
+        return base
+
+    index = 2
+    while True:
+        candidate = root / f"seed-{seed:03d}-{index:02d}"
+        if not candidate.exists():
+            candidate.mkdir(parents=True, exist_ok=True)
+            return candidate
+        index += 1

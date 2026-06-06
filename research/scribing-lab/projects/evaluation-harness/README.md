@@ -42,6 +42,7 @@ python3 -m evaluation_harness smoke --root runs/smoke
 ```
 
 `self-check` は、固定入力セットに対する baseline / candidate 比較、review、plot-ready までの経路をまとめて検証する。
+`Reference Basis` には KanjiVG、IAM-OnDB、DeepWriting、DeepWriteSYN、sigma-lognormal、CASHG を含め、構造・spacing・運動・style 分離の観点を固定している。
 
 ```sh
 python3 -m evaluation_harness self-check --root runs/self-check

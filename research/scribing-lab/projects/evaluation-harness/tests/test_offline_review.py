@@ -102,6 +102,39 @@ def test_infer_offline_failure_tags_detects_over_jittered() -> None:
     assert "over-jittered" in infer_offline_failure_tags(record)
 
 
+def test_infer_offline_failure_tags_detects_small_layout() -> None:
+    record = _record(
+        metrics={
+            "point_count": 12,
+            "velocity_peak_count": 2,
+            "draw_speed_cv": 0.2,
+            "visible_char_count": 5,
+            "line_count": 1,
+            "ink_bbox_width_mm": 18.0,
+            "ink_bbox_height_mm": 6.0,
+        }
+    )
+
+    assert "too-small" in infer_offline_failure_tags(record)
+
+
+def test_infer_offline_failure_tags_detects_wide_spacing() -> None:
+    record = _record(
+        metrics={
+            "point_count": 12,
+            "velocity_peak_count": 2,
+            "draw_speed_cv": 0.2,
+            "visible_char_count": 5,
+            "line_count": 1,
+            "ink_bbox_width_mm": 75.0,
+            "ink_bbox_height_mm": 10.0,
+            "mean_stroke_start_gap_mm": 18.0,
+        }
+    )
+
+    assert "spacing-too-wide" in infer_offline_failure_tags(record)
+
+
 def test_review_record_suggests_next_actions() -> None:
     item = review_record(
         _record(

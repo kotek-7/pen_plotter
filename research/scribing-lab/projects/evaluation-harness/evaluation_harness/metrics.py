@@ -16,6 +16,14 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
             "duration_ms": 0,
             "draw_distance_mm": 0.0,
             "penup_distance_mm": 0.0,
+            "ink_bbox_x_min_mm": 0.0,
+            "ink_bbox_x_max_mm": 0.0,
+            "ink_bbox_y_min_mm": 0.0,
+            "ink_bbox_y_max_mm": 0.0,
+            "ink_bbox_width_mm": 0.0,
+            "ink_bbox_height_mm": 0.0,
+            "ink_bbox_area_mm2": 0.0,
+            "ink_bbox_aspect_ratio": 0.0,
             "velocity_peak_count": 0,
             "mean_draw_speed_mm_s": 0.0,
             "max_draw_speed_mm_s": 0.0,
@@ -23,6 +31,7 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
             "mean_abs_acceleration_mm_s2": 0.0,
             "mean_abs_jerk_mm_s3": 0.0,
             "stroke_start_spacing_cv": 0.0,
+            "mean_stroke_start_gap_mm": 0.0,
             "baseline_drift_mm": 0.0,
             "status": "empty",
         }
@@ -57,12 +66,34 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
         was_down = is_down
 
     duration = int(float(ordered[-1].get("t", 0.0)) - float(ordered[0].get("t", 0.0)))
+    x_values = [float(point.get("x", point.get("x_mm", 0.0))) for point in ordered]
+    y_values = [float(point.get("y", point.get("y_mm", 0.0))) for point in ordered]
+    x_min = min(x_values)
+    x_max = max(x_values)
+    y_min = min(y_values)
+    y_max = max(y_values)
+    sorted_starts = sorted(stroke_starts, key=lambda p: p[0])
+    stroke_start_gaps = [
+        curr[0] - prev[0]
+        for prev, curr in zip(sorted_starts, sorted_starts[1:], strict=False)
+        if curr[0] > prev[0]
+    ]
     return {
         "point_count": len(ordered),
         "stroke_count": stroke_count,
         "duration_ms": max(duration, 0),
         "draw_distance_mm": round(draw_distance, 4),
         "penup_distance_mm": round(penup_distance, 4),
+        "ink_bbox_x_min_mm": round(x_min, 4),
+        "ink_bbox_x_max_mm": round(x_max, 4),
+        "ink_bbox_y_min_mm": round(y_min, 4),
+        "ink_bbox_y_max_mm": round(y_max, 4),
+        "ink_bbox_width_mm": round(x_max - x_min, 4),
+        "ink_bbox_height_mm": round(y_max - y_min, 4),
+        "ink_bbox_area_mm2": round((x_max - x_min) * (y_max - y_min), 4),
+        "ink_bbox_aspect_ratio": round((x_max - x_min) / (y_max - y_min), 4)
+        if (y_max - y_min) > 0
+        else 0.0,
         "velocity_peak_count": _count_local_peaks(speeds),
         "mean_draw_speed_mm_s": round(sum(speeds) / len(speeds), 4) if speeds else 0.0,
         "max_draw_speed_mm_s": round(max(speeds), 4) if speeds else 0.0,
@@ -70,6 +101,9 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
         "mean_abs_acceleration_mm_s2": _mean_abs_derivative(speeds, speed_times_s),
         "mean_abs_jerk_mm_s3": _mean_abs_second_derivative(speeds, speed_times_s),
         "stroke_start_spacing_cv": _stroke_start_spacing_cv(stroke_starts),
+        "mean_stroke_start_gap_mm": round(sum(stroke_start_gaps) / len(stroke_start_gaps), 4)
+        if stroke_start_gaps
+        else 0.0,
         "baseline_drift_mm": _baseline_drift(stroke_starts),
         "status": "ok",
     }
@@ -78,9 +112,11 @@ def compute_trajectory_metrics(points: Sequence[Point]) -> dict[str, float | int
 def compute_text_metrics(text: str) -> dict[str, float | int]:
     visible = [char for char in text if not char.isspace()]
     repeated_count = len(visible) - len(set(visible))
+    line_count = len(text.splitlines()) if text else 0
     return {
         "char_count": len(text),
         "visible_char_count": len(visible),
+        "line_count": line_count,
         "repeated_char_count": repeated_count,
         "repeated_char_ratio": round(repeated_count / len(visible), 4) if visible else 0.0,
     }

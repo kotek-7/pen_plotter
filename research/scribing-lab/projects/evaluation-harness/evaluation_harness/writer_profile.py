@@ -28,7 +28,7 @@ def _ensure_paths() -> None:
 
 _ensure_paths()
 
-from writer_profile import WriterProfile, get_profile  # noqa: E402
+from writer_profile import WriterProfile, WriterProfileParameters, get_profile  # noqa: E402
 
 BASELINE_PROFILE_ID = "baseline-neat"
 BASELINE_PROFILE = get_profile(BASELINE_PROFILE_ID)

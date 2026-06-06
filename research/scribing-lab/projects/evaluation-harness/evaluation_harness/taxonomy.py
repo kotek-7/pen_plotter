@@ -10,10 +10,13 @@ FAILURE_TAGS: frozenset[str] = frozenset(
         "plotter-unsafe",
         "profile-inconsistent",
         "too-font-like",
+        "too-small",
         "skeleton-too-rigid",
         "line-too-mechanical",
         "paragraph-spacing-unnatural",
+        "spacing-too-wide",
         "repeated-char-too-identical",
+        "glyph-orientation-odd",
         "scan-mismatch",
         "plotter-line-quality-bad",
     }

@@ -18,6 +18,9 @@ def test_self_check_runs_end_to_end(tmp_path: Path) -> None:
     assert result.plot_ready_packet["plot_ready_count"] == result.human_review_packet[
         "representative_count"
     ]
+    assert result.reference_basis["source_count"] >= 5
+    assert result.reference_basis["axis_count"] >= 5
+    assert any(source["name"] == "KanjiVG" for source in result.reference_basis["sources"])
     assert "too-font-like" in result.comparison["resolved_failure_tags"]
     assert "terminal-too-uniform" in result.comparison["resolved_failure_tags"]
     assert all(result.baseline_checks.values())
@@ -25,6 +28,7 @@ def test_self_check_runs_end_to_end(tmp_path: Path) -> None:
 
     report = render_self_check_markdown(result)
     assert "# Evaluation Harness Self Check" in report
+    assert "Reference Basis" in report
     assert "references" in report.lower()
 
 
