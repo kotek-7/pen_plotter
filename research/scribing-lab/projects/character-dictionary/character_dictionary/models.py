@@ -49,8 +49,8 @@ class LayoutConfig:
     paper_height: float = 297.0
     margin_left: float = 12.0
     margin_top: float = 16.0
-    char_size: float = 8.0
-    char_spacing: float = 2.0
+    char_size: float = 9.0
+    char_spacing: float = 1.0
     line_height: float = 1.45
     slant_deg: float = 0.0
     baseline_drift_mm: float = 0.0
