@@ -253,6 +253,75 @@ def render_preview_revision_loop_summary_markdown(summary: dict[str, Any]) -> st
     return "\n".join(lines) + "\n"
 
 
+def propose_stable_writer_profile_candidates(
+    summary: dict[str, Any],
+    *,
+    base_profile_id: str = "baseline-neat",
+) -> dict[str, Any]:
+    base_profile = resolve_writer_profile(base_profile_id)
+    candidates: list[dict[str, Any]] = []
+    for candidate_type, principle_names, min_count in (
+        ("stable", summary.get("stable_design_principles", []), int(summary.get("packet_count", 0))),
+        ("recurring", summary.get("recurring_design_principles", []), 2),
+    ):
+        candidate = _build_stable_writer_profile_candidate(
+            base_profile,
+            candidate_type=candidate_type,
+            principles=list(principle_names),
+            support_counts=summary.get("design_principle_counts", {}),
+            packet_count=int(summary.get("packet_count", 0)),
+            min_count=min_count,
+        )
+        if candidate is not None:
+            candidates.append(candidate)
+
+    return {
+        "base_profile_id": base_profile_id,
+        "packet_count": int(summary.get("packet_count", 0)),
+        "stable_design_principles": list(summary.get("stable_design_principles", [])),
+        "recurring_design_principles": list(summary.get("recurring_design_principles", [])),
+        "candidates": candidates,
+    }
+
+
+def render_stable_writer_profile_candidates_markdown(bundle: dict[str, Any]) -> str:
+    lines = [
+        "# Stable Writer Profile Candidates",
+        "",
+        f"- base_profile_id: `{bundle['base_profile_id']}`",
+        f"- packet_count: `{bundle['packet_count']}`",
+        f"- stable_design_principles: `{bundle['stable_design_principles']}`",
+        f"- recurring_design_principles: `{bundle['recurring_design_principles']}`",
+        "",
+        "## Candidates",
+        "",
+    ]
+    if not bundle["candidates"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    for item in bundle["candidates"]:
+        profile = item["profile"]
+        lines.extend(
+            [
+                f"### {item['candidate_type']}",
+                "",
+                f"- profile_id: `{profile['profile_id']}`",
+                f"- parent_profile: `{profile['parent_profile']}`",
+                f"- version: `{profile['version']}`",
+                f"- support_count: `{item['support_count']}`",
+                f"- support_ratio: `{item['support_ratio']}`",
+                f"- principles: `{item['principles']}`",
+                f"- applied_changes: `{item['applied_changes']}`",
+                f"- unapplied_changes: `{item['unapplied_changes']}`",
+                f"- notes: `{profile['notes']}`",
+                f"- params: `{profile['params']}`",
+                "",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
 def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
     lines = [
         "# Preview Revision Loop",
@@ -458,3 +527,119 @@ def _bump_counts(counts: dict[str, int], items: list[str]) -> None:
         if not item:
             continue
         counts[item] = counts.get(item, 0) + 1
+
+
+def _build_stable_writer_profile_candidate(
+    base_profile: Any,
+    *,
+    candidate_type: str,
+    principles: list[str],
+    support_counts: dict[str, int],
+    packet_count: int,
+    min_count: int,
+) -> dict[str, Any] | None:
+    if not principles:
+        return None
+
+    changes: list[dict[str, Any]] = []
+    support_count = 0
+    for principle in principles:
+        change = _change_from_principle(principle)
+        if change is None:
+            continue
+        if int(support_counts.get(principle, 0)) < min_count:
+            continue
+        changes.append(change)
+        support_count = max(support_count, int(support_counts.get(principle, 0)))
+
+    if not changes:
+        return None
+
+    revision = build_revision_profile(
+        base_profile,
+        changes,
+        revision_profile_id=_stable_candidate_profile_id(base_profile.profile_id, candidate_type, principles),
+        created_from_experiment=f"preview-revision-summary:{packet_count}",
+    )
+    profile = revision["profile"]
+    return {
+        "candidate_type": candidate_type,
+        "principles": principles,
+        "support_count": support_count,
+        "support_ratio": round(support_count / packet_count, 4) if packet_count else 0.0,
+        "applied_changes": list(revision["applied_changes"]),
+        "unapplied_changes": list(revision["unapplied_changes"]),
+        "profile": profile.to_dict(),
+    }
+
+
+def _change_from_principle(principle: str) -> dict[str, Any] | None:
+    mapping = {
+        "motion: 等速感が強いときは timing_jitter_cv を先に上げる": {
+            "target": "motion",
+            "parameter": "timing_jitter_cv",
+            "direction": "increase",
+            "amount_hint": 0.03,
+            "reason": "等速感を減らし、速度ピークを作る",
+        },
+        "layout: 長文が機械的なら baseline_drift_mm を増やす": {
+            "target": "layout",
+            "parameter": "baseline_drift_mm",
+            "direction": "increase",
+            "amount_hint": 0.4,
+            "reason": "行方向の機械的整列を崩す",
+        },
+        "layout: 字間が不自然なら spacing_mean_mm を調整する": {
+            "target": "layout",
+            "parameter": "spacing_mean_mm",
+            "direction": "increase",
+            "amount_hint": 0.15,
+            "reason": "字間をわずかに広げる",
+        },
+        "dictionary: 骨格が硬いなら shape_variation を増やす": {
+            "target": "dictionary",
+            "parameter": "shape_variation",
+            "direction": "increase",
+            "amount_hint": 0.02,
+            "reason": "字形の剛直さを和らげる",
+        },
+        "profile: 終端差が弱いなら terminal_gains の対比を強める": {
+            "target": "profile",
+            "parameter": "terminal_gains",
+            "direction": "increase-contrast",
+            "amount_hint": 0.1,
+            "reason": "払い、はね、とめの終端差を強める",
+        },
+        "profile: 字形がフォント寄りなら slant_deg をずらす": {
+            "target": "profile",
+            "parameter": "slant_deg",
+            "direction": "adjust",
+            "amount_hint": 2.0,
+            "reason": "字体から離して筆者寄りに寄せる",
+        },
+        "safety: 安全性違反は見た目評価の前に修正する": {
+            "target": "safety",
+            "parameter": "gcode_safety",
+            "direction": "fix",
+            "amount_hint": None,
+            "reason": "安全性違反を解消してから再比較する",
+        },
+    }
+    return mapping.get(principle)
+
+
+def _stable_candidate_profile_id(
+    base_profile_id: str,
+    candidate_type: str,
+    principles: list[str],
+) -> str:
+    payload = json.dumps(
+        {
+            "base_profile_id": base_profile_id,
+            "candidate_type": candidate_type,
+            "principles": principles,
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+    ).encode("utf-8")
+    return f"{base_profile_id}-{candidate_type}-{hashlib.sha256(payload).hexdigest()[:8]}"

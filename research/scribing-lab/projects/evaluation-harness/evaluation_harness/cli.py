@@ -28,6 +28,8 @@ from evaluation_harness.compare import (
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_stable_writer_profile_candidates_markdown,
+    propose_stable_writer_profile_candidates,
     run_preview_revision_loop_fixed_input_set,
     summarize_preview_revision_loops,
 )
@@ -199,6 +201,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_loop_summary.add_argument("--output", default="preview_revision_loop_summary.md")
     preview_loop_summary.add_argument("--json-output", default="preview_revision_loop_summary.json")
+
+    stable_profiles = sub.add_parser(
+        "propose-stable-writer-profiles",
+        help="Build stable writer profile candidates from a revision loop summary",
+    )
+    stable_profiles.add_argument("--summary-json", required=True)
+    stable_profiles.add_argument("--base-profile-id", default="baseline-neat")
+    stable_profiles.add_argument("--output", default="stable_writer_profiles.md")
+    stable_profiles.add_argument("--json-output", default="stable_writer_profiles.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -485,6 +496,26 @@ def main() -> None:
         )
         print(f"packet_count: {summary['packet_count']}")
         print(f"stable_design_principles: {summary['stable_design_principles']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "propose-stable-writer-profiles":
+        summary_path = Path(args.summary_json)
+        summary = json.loads(summary_path.read_text(encoding="utf-8"))
+        bundle = propose_stable_writer_profile_candidates(
+            summary,
+            base_profile_id=args.base_profile_id,
+        )
+        output_path = summary_path.parent / args.output
+        json_path = summary_path.parent / args.json_output
+        output_path.write_text(
+            render_stable_writer_profile_candidates_markdown(bundle), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(bundle, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"candidate_count: {len(bundle['candidates'])}")
+        print(f"base_profile_id: {bundle['base_profile_id']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

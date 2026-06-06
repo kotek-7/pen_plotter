@@ -277,6 +277,28 @@ def test_summarize_preview_revision_loops_parser_accepts_packets() -> None:
     assert args.json_output == "summary.json"
 
 
+def test_propose_stable_writer_profiles_parser_accepts_summary_path() -> None:
+    args = build_parser().parse_args(
+        [
+            "propose-stable-writer-profiles",
+            "--summary-json",
+            "runs/test/summary.json",
+            "--base-profile-id",
+            "baseline-neat",
+            "--output",
+            "stable.md",
+            "--json-output",
+            "stable.json",
+        ]
+    )
+
+    assert args.command == "propose-stable-writer-profiles"
+    assert args.summary_json == "runs/test/summary.json"
+    assert args.base_profile_id == "baseline-neat"
+    assert args.output == "stable.md"
+    assert args.json_output == "stable.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -768,6 +790,63 @@ def test_summarize_preview_revision_loops_command_writes_reports(
     assert "Preview Revision Loop Summary" in markdown
     assert "stable_design_principles" in markdown
     assert '"packet_count": 2' in json_text
+
+
+def test_propose_stable_writer_profiles_command_writes_reports(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    summary_path = root / "summary.json"
+    summary_path.write_text(
+        """
+{
+  "packet_count": 2,
+  "stable_design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+  ],
+  "recurring_design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+    "layout: 長文が機械的なら baseline_drift_mm を増やす"
+  ],
+  "design_principle_counts": {
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる": 2,
+    "layout: 長文が機械的なら baseline_drift_mm を増やす": 2
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "propose-stable-writer-profiles",
+            "--summary-json",
+            str(summary_path),
+            "--base-profile-id",
+            "baseline-neat",
+            "--output",
+            "stable.md",
+            "--json-output",
+            "stable.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "stable.md").read_text(encoding="utf-8")
+    json_text = (root / "stable.json").read_text(encoding="utf-8")
+
+    assert "Stable Writer Profile Candidates" in markdown
+    assert "### stable" in markdown
+    assert "### recurring" in markdown
+    assert '"candidate_count": 2' not in json_text
+    assert '"base_profile_id": "baseline-neat"' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

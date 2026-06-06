@@ -5,6 +5,8 @@ from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_stable_writer_profile_candidates_markdown,
+    propose_stable_writer_profile_candidates,
     run_preview_revision_loop_fixed_input_set,
     summarize_preview_revision_loops,
 )
@@ -145,6 +147,34 @@ def test_summarize_preview_revision_loops_collects_stable_principles() -> None:
     report = render_preview_revision_loop_summary_markdown(summary)
     assert "# Preview Revision Loop Summary" in report
     assert "stable_design_principles" in report
+
+
+def test_propose_stable_writer_profile_candidates_builds_bundle() -> None:
+    summary = {
+        "packet_count": 2,
+        "stable_design_principles": [
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+        ],
+        "recurring_design_principles": [
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+            "layout: 長文が機械的なら baseline_drift_mm を増やす",
+        ],
+        "design_principle_counts": {
+            "motion: 等速感が強いときは timing_jitter_cv を先に上げる": 2,
+            "layout: 長文が機械的なら baseline_drift_mm を増やす": 2,
+        },
+    }
+
+    bundle = propose_stable_writer_profile_candidates(summary, base_profile_id="baseline-neat")
+
+    assert bundle["base_profile_id"] == "baseline-neat"
+    assert len(bundle["candidates"]) == 2
+    assert bundle["candidates"][0]["candidate_type"] == "stable"
+    assert bundle["candidates"][0]["profile"]["parent_profile"] == "baseline-neat"
+    assert bundle["candidates"][0]["applied_changes"][0]["parameter"] == "timing_jitter_cv"
+    report = render_stable_writer_profile_candidates_markdown(bundle)
+    assert "# Stable Writer Profile Candidates" in report
+    assert "candidate_count" not in report
 
 
 def _record(

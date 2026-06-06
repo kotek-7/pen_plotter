@@ -22,6 +22,7 @@
 - `preview-iteration-fixed-inputs`: preview 比較から改版提案までの 1 ラウンド集約。
 - `apply-preview-revision-fixed-inputs`: preview 改版案を適用して再生成する 1 ラウンド実行。
 - `summarize-preview-revision-loops`: 複数ラウンドの設計原理と失敗傾向の要約。
+- `propose-stable-writer-profiles`: 要約から安定候補 profile 群を生成。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -100,6 +101,9 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `summarize-preview-revision-loops` は、複数の revision loop packet をまとめて、
 安定して繰り返し出る design principle と failure tag を抽出する。
+
+`propose-stable-writer-profiles` は、安定して効く design principle から
+derived writer profile 候補を作る。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

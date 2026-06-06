@@ -190,6 +190,16 @@ revision loop の比較結果から、再現可能な設計原理を抽出して
 - recurring failure tags と metric 名が複数ラウンドで集約できる。
 - 安定版 writer profile 群の候補を説明できる。
 
+### Experiment 12: stable writer profile candidates
+
+安定して繰り返し効く design principle から、derived writer profile 候補を生成する。
+
+評価:
+
+- summary から profile candidate bundle を作れる。
+- stable / recurring の候補を区別して出力できる。
+- 候補 profile が実験ログと接続できる。
+
 ## 成果物
 
 - metrics spec。
