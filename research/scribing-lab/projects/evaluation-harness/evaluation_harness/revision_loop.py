@@ -113,8 +113,144 @@ def run_preview_revision_loop_fixed_input_set(
         "rerun_count": len(rerun_records),
         "design_principles": _extract_design_principles(applications),
         "comparison_summary": _summarize_comparisons(applications),
+        "selected_candidate_delta": (
+            after_iteration["selected_candidate_count"] - before_iteration["selected_candidate_count"]
+        ),
+        "coverage_delta": round(
+            after_iteration["selected_coverage_ratio"] - before_iteration["selected_coverage_ratio"],
+            4,
+        ),
         "after_iteration": after_iteration,
     }
+
+
+def summarize_preview_revision_loops(packets: list[dict[str, Any]]) -> dict[str, Any]:
+    packet_count = len(packets)
+    principle_counts: dict[str, int] = {}
+    resolved_tag_counts: dict[str, int] = {}
+    new_tag_counts: dict[str, int] = {}
+    metric_name_counts: dict[str, int] = {}
+    before_status_counts: dict[str, int] = {}
+    after_status_counts: dict[str, int] = {}
+    rerun_counts: list[int] = []
+    coverage_deltas: list[float] = []
+    selected_candidate_deltas: list[int] = []
+
+    for packet in packets:
+        rerun_counts.append(int(packet.get("rerun_count", 0)))
+        coverage_deltas.append(float(packet.get("coverage_delta", 0.0)))
+        selected_candidate_deltas.append(int(packet.get("selected_candidate_delta", 0)))
+        _bump_counts(principle_counts, packet.get("design_principles", []))
+        _bump_counts(before_status_counts, [packet.get("before_iteration", {}).get("iteration_status", "")])
+        _bump_counts(after_status_counts, [packet.get("after_iteration", {}).get("iteration_status", "")])
+
+        summary = packet.get("comparison_summary", {})
+        _bump_counts(resolved_tag_counts, summary.get("resolved_failure_tags", []))
+        _bump_counts(new_tag_counts, summary.get("new_failure_tags", []))
+        for name in summary.get("metric_names", []):
+            metric_name_counts[name] = metric_name_counts.get(name, 0) + 1
+
+    stable_design_principles = sorted(
+        principle for principle, count in principle_counts.items() if packet_count and count == packet_count
+    )
+    recurring_design_principles = sorted(
+        principle for principle, count in principle_counts.items() if count >= 2
+    )
+
+    return {
+        "packet_count": packet_count,
+        "rerun_count_total": sum(rerun_counts),
+        "rerun_count_mean": round(sum(rerun_counts) / packet_count, 4) if packet_count else 0.0,
+        "coverage_delta_mean": round(sum(coverage_deltas) / packet_count, 4) if packet_count else 0.0,
+        "selected_candidate_delta_mean": round(
+            sum(selected_candidate_deltas) / packet_count, 4
+        ) if packet_count else 0.0,
+        "design_principle_counts": dict(sorted(principle_counts.items())),
+        "stable_design_principles": stable_design_principles,
+        "recurring_design_principles": recurring_design_principles,
+        "resolved_failure_tag_counts": dict(sorted(resolved_tag_counts.items())),
+        "new_failure_tag_counts": dict(sorted(new_tag_counts.items())),
+        "comparison_metric_names": sorted(metric_name_counts),
+        "comparison_metric_name_counts": dict(sorted(metric_name_counts.items())),
+        "before_iteration_status_counts": dict(sorted(before_status_counts.items())),
+        "after_iteration_status_counts": dict(sorted(after_status_counts.items())),
+        "packets": [
+            {
+                "baseline_generator": packet.get("baseline_generator", ""),
+                "expected_input_texts": list(packet.get("expected_input_texts", [])),
+                "expected_seeds": list(packet.get("expected_seeds", [])),
+                "rerun_count": packet.get("rerun_count", 0),
+                "coverage_delta": packet.get("coverage_delta", 0.0),
+                "selected_candidate_delta": packet.get("selected_candidate_delta", 0),
+                "design_principles": list(packet.get("design_principles", [])),
+                "comparison_summary": packet.get("comparison_summary", {}),
+            }
+            for packet in packets
+        ],
+    }
+
+
+def render_preview_revision_loop_summary_markdown(summary: dict[str, Any]) -> str:
+    lines = [
+        "# Preview Revision Loop Summary",
+        "",
+        f"- packet_count: `{summary['packet_count']}`",
+        f"- rerun_count_total: `{summary['rerun_count_total']}`",
+        f"- rerun_count_mean: `{summary['rerun_count_mean']}`",
+        f"- coverage_delta_mean: `{summary['coverage_delta_mean']}`",
+        f"- selected_candidate_delta_mean: `{summary['selected_candidate_delta_mean']}`",
+        f"- stable_design_principles: `{summary['stable_design_principles']}`",
+        f"- recurring_design_principles: `{summary['recurring_design_principles']}`",
+        "",
+        "## Design Principles",
+        "",
+    ]
+    if not summary["design_principle_counts"]:
+        lines.append("- none")
+    else:
+        for principle, count in summary["design_principle_counts"].items():
+            lines.append(f"- `{principle}`: `{count}`")
+
+    lines.extend(["", "## Comparison Metrics", ""])
+    if not summary["comparison_metric_name_counts"]:
+        lines.append("- none")
+    else:
+        for name, count in summary["comparison_metric_name_counts"].items():
+            lines.append(f"- `{name}`: `{count}`")
+
+    lines.extend(["", "## Failure Tags", ""])
+    if not summary["resolved_failure_tag_counts"] and not summary["new_failure_tag_counts"]:
+        lines.append("- none")
+    else:
+        if summary["resolved_failure_tag_counts"]:
+            lines.append("### Resolved")
+            for tag, count in summary["resolved_failure_tag_counts"].items():
+                lines.append(f"- `{tag}`: `{count}`")
+        if summary["new_failure_tag_counts"]:
+            lines.append("### New")
+            for tag, count in summary["new_failure_tag_counts"].items():
+                lines.append(f"- `{tag}`: `{count}`")
+
+    lines.extend(["", "## Packets", ""])
+    if not summary["packets"]:
+        lines.append("- none")
+    else:
+        for packet in summary["packets"]:
+            lines.extend(
+                [
+                    f"### {packet['baseline_generator']}",
+                    "",
+                    f"- expected_input_texts: `{packet['expected_input_texts']}`",
+                    f"- expected_seeds: `{packet['expected_seeds']}`",
+                    f"- rerun_count: `{packet['rerun_count']}`",
+                    f"- coverage_delta: `{packet['coverage_delta']}`",
+                    f"- selected_candidate_delta: `{packet['selected_candidate_delta']}`",
+                    f"- design_principles: `{packet['design_principles']}`",
+                    f"- comparison_summary: `{packet['comparison_summary']}`",
+                    "",
+                ]
+            )
+    return "\n".join(lines) + "\n"
 
 
 def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
@@ -315,3 +451,10 @@ def _revision_experiment_id(
     while f"{base}-{index}" in existing:
         index += 1
     return f"{base}-{index}"
+
+
+def _bump_counts(counts: dict[str, int], items: list[str]) -> None:
+    for item in items:
+        if not item:
+            continue
+        counts[item] = counts.get(item, 0) + 1

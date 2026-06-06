@@ -4,7 +4,9 @@ from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
+    render_preview_revision_loop_summary_markdown,
     run_preview_revision_loop_fixed_input_set,
+    summarize_preview_revision_loops,
 )
 from evaluation_harness.writer_profile import build_revision_profile, resolve_writer_profile
 
@@ -89,6 +91,60 @@ def test_run_preview_revision_loop_fixed_input_set_reruns_selected_candidate(
     assert "# Preview Revision Loop" in report
     assert "rerun_count" in report
     assert "design_principles" in report
+
+
+def test_summarize_preview_revision_loops_collects_stable_principles() -> None:
+    packets = [
+        {
+            "baseline_generator": "baseline-outline",
+            "expected_input_texts": ["永"],
+            "expected_seeds": [1],
+            "rerun_count": 1,
+            "coverage_delta": 0.0,
+            "selected_candidate_delta": 0,
+            "design_principles": [
+                "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+            ],
+            "comparison_summary": {
+                "comparison_count": 1,
+                "metric_names": ["draw_speed_cv"],
+                "resolved_failure_tags": ["too-uniform"],
+                "new_failure_tags": [],
+            },
+        },
+        {
+            "baseline_generator": "baseline-outline",
+            "expected_input_texts": ["永"],
+            "expected_seeds": [2],
+            "rerun_count": 2,
+            "coverage_delta": 0.1,
+            "selected_candidate_delta": 1,
+            "design_principles": [
+                "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+                "layout: 長文が機械的なら baseline_drift_mm を増やす",
+            ],
+            "comparison_summary": {
+                "comparison_count": 2,
+                "metric_names": ["draw_speed_cv", "baseline_drift_mm"],
+                "resolved_failure_tags": ["too-uniform", "line-too-mechanical"],
+                "new_failure_tags": [],
+            },
+        },
+    ]
+
+    summary = summarize_preview_revision_loops(packets)
+
+    assert summary["packet_count"] == 2
+    assert summary["rerun_count_total"] == 3
+    assert summary["stable_design_principles"] == [
+        "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+    ]
+    assert summary["recurring_design_principles"] == [
+        "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+    ]
+    report = render_preview_revision_loop_summary_markdown(summary)
+    assert "# Preview Revision Loop Summary" in report
+    assert "stable_design_principles" in report
 
 
 def _record(

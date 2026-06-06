@@ -27,7 +27,9 @@ from evaluation_harness.compare import (
 )
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
+    render_preview_revision_loop_summary_markdown,
     run_preview_revision_loop_fixed_input_set,
+    summarize_preview_revision_loops,
 )
 from evaluation_harness.human_review import (
     build_human_review_packet,
@@ -184,6 +186,19 @@ def build_parser() -> argparse.ArgumentParser:
     preview_apply.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     preview_apply.add_argument("--output", default="preview_revision_loop.md")
     preview_apply.add_argument("--json-output", default="preview_revision_loop.json")
+
+    preview_loop_summary = sub.add_parser(
+        "summarize-preview-revision-loops",
+        help="Summarize multiple preview revision loop packets",
+    )
+    preview_loop_summary.add_argument(
+        "--packet-json",
+        nargs="+",
+        required=True,
+        help="One or more preview revision loop JSON packets",
+    )
+    preview_loop_summary.add_argument("--output", default="preview_revision_loop_summary.md")
+    preview_loop_summary.add_argument("--json-output", default="preview_revision_loop_summary.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -451,6 +466,26 @@ def main() -> None:
         print(f"before_iteration_status: {loop['before_iteration']['iteration_status']}")
         print(f"after_iteration_status: {loop['after_iteration']['iteration_status']}")
         print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "summarize-preview-revision-loops":
+        packet_paths = [Path(path) for path in args.packet_json]
+        packets = [
+            json.loads(path.read_text(encoding="utf-8"))
+            for path in packet_paths
+        ]
+        summary = summarize_preview_revision_loops(packets)
+        output_path = packet_paths[0].parent / args.output
+        json_path = packet_paths[0].parent / args.json_output
+        output_path.write_text(
+            render_preview_revision_loop_summary_markdown(summary), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"packet_count: {summary['packet_count']}")
+        print(f"stable_design_principles: {summary['stable_design_principles']}")
+        print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":
         root = Path(args.root)

@@ -38,7 +38,9 @@ from evaluation_harness.structure_motion import (
 )
 from evaluation_harness.revision_loop import (
     render_preview_revision_loop_markdown,
+    render_preview_revision_loop_summary_markdown,
     run_preview_revision_loop_fixed_input_set,
+    summarize_preview_revision_loops,
 )
 from evaluation_harness.writer_profile import build_revision_profile
 from evaluation_harness.taxonomy import FAILURE_TAGS
@@ -73,6 +75,7 @@ __all__ = [
     "render_preview_recommendation_markdown",
     "render_preview_revision_plan_markdown",
     "render_preview_revision_loop_markdown",
+    "render_preview_revision_loop_summary_markdown",
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "run_preview_revision_loop_fixed_input_set",
@@ -81,5 +84,6 @@ __all__ = [
     "run_structure_motion",
     "run_structure_motion_batch",
     "summarize_abx_responses",
+    "summarize_preview_revision_loops",
     "validate_scan_metadata",
 ]

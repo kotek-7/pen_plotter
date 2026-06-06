@@ -257,6 +257,26 @@ def test_apply_preview_revision_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.json_output == "loop.json"
 
 
+def test_summarize_preview_revision_loops_parser_accepts_packets() -> None:
+    args = build_parser().parse_args(
+        [
+            "summarize-preview-revision-loops",
+            "--packet-json",
+            "runs/test/loop-a.json",
+            "runs/test/loop-b.json",
+            "--output",
+            "summary.md",
+            "--json-output",
+            "summary.json",
+        ]
+    )
+
+    assert args.command == "summarize-preview-revision-loops"
+    assert args.packet_json == ["runs/test/loop-a.json", "runs/test/loop-b.json"]
+    assert args.output == "summary.md"
+    assert args.json_output == "summary.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -666,6 +686,88 @@ def test_apply_preview_revision_fixed_inputs_command_writes_reports(
     assert "Preview Revision Loop" in markdown
     assert "rerun_count" in markdown
     assert '"rerun_count": 1' in json_text
+
+
+def test_summarize_preview_revision_loops_command_writes_reports(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    packet_a = root / "loop-a.json"
+    packet_b = root / "loop-b.json"
+    packet_a.write_text(
+        """
+{
+  "baseline_generator": "baseline-outline",
+  "expected_input_texts": ["永"],
+  "expected_seeds": [1],
+  "rerun_count": 1,
+  "coverage_delta": 0.0,
+  "selected_candidate_delta": 0,
+  "design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+  ],
+  "comparison_summary": {
+    "comparison_count": 1,
+    "metric_names": ["draw_speed_cv"],
+    "resolved_failure_tags": ["too-uniform"],
+    "new_failure_tags": []
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    packet_b.write_text(
+        """
+{
+  "baseline_generator": "baseline-outline",
+  "expected_input_texts": ["永"],
+  "expected_seeds": [2],
+  "rerun_count": 2,
+  "coverage_delta": 0.1,
+  "selected_candidate_delta": 1,
+  "design_principles": [
+    "motion: 等速感が強いときは timing_jitter_cv を先に上げる",
+    "layout: 長文が機械的なら baseline_drift_mm を増やす"
+  ],
+  "comparison_summary": {
+    "comparison_count": 2,
+    "metric_names": ["draw_speed_cv", "baseline_drift_mm"],
+    "resolved_failure_tags": ["too-uniform", "line-too-mechanical"],
+    "new_failure_tags": []
+  }
+}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "summarize-preview-revision-loops",
+            "--packet-json",
+            str(packet_a),
+            str(packet_b),
+            "--output",
+            "summary.md",
+            "--json-output",
+            "summary.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "summary.md").read_text(encoding="utf-8")
+    json_text = (root / "summary.json").read_text(encoding="utf-8")
+
+    assert "Preview Revision Loop Summary" in markdown
+    assert "stable_design_principles" in markdown
+    assert '"packet_count": 2' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

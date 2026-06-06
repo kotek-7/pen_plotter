@@ -180,6 +180,16 @@ revision loop の比較結果から、再現可能な設計原理を抽出して
 - design principles が change target ごとに出力される。
 - ループ結果から安定版候補を説明できる。
 
+### Experiment 11: revision stability summary
+
+複数ラウンドの revision loop packet をまとめ、何度回しても効く設計原理を抽出する。
+
+評価:
+
+- stable design principles を抽出できる。
+- recurring failure tags と metric 名が複数ラウンドで集約できる。
+- 安定版 writer profile 群の候補を説明できる。
+
 ## 成果物
 
 - metrics spec。

@@ -21,6 +21,7 @@
 - `propose-preview-fixed-inputs`: preview 選定候補からの改版提案。
 - `preview-iteration-fixed-inputs`: preview 比較から改版提案までの 1 ラウンド集約。
 - `apply-preview-revision-fixed-inputs`: preview 改版案を適用して再生成する 1 ラウンド実行。
+- `summarize-preview-revision-loops`: 複数ラウンドの設計原理と失敗傾向の要約。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -96,6 +97,9 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 反映し、同じ input / seed で再生成した結果を registry に追加する。
 このループでは、before / after の比較に加えて、`design_principles` と
 `comparison_summary` を記録し、どの変更が効いたかを後から追えるようにする。
+
+`summarize-preview-revision-loops` は、複数の revision loop packet をまとめて、
+安定して繰り返し出る design principle と failure tag を抽出する。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 
