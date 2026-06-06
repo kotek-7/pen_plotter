@@ -50,6 +50,18 @@ def _dedupe_character_order(chars: tuple[str, ...]) -> tuple[str, ...]:
 
 
 CORE_BUILTIN_CHARACTER_ORDER = ("永", "あ", "い", "う", "え", "お")
+HIRAGANA_OUTLINE_CHARACTER_ORDER = tuple(
+    "あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめも"
+    "やゆよらりるれろわゐゑをん"
+    "がぎぐげござじずぜぞだぢづでどばびぶべぼぱぴぷぺぽ"
+    "ぁぃぅぇぉゃゅょっゎゔ"
+)
+KATAKANA_OUTLINE_CHARACTER_ORDER = tuple(
+    "アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモ"
+    "ヤユヨラリルレロワヰヱヲン"
+    "ガギグゲゴザジズゼゾダヂヅデドバビブベボパピプペポ"
+    "ァィゥェォャュョッヮヴ"
+)
 EXTENDED_FONT_OUTLINE_CHARACTER_ORDER = (
     "今",
     "日",
@@ -102,6 +114,8 @@ EXTENDED_FONT_OUTLINE_CHARACTER_ORDER = (
 EXTENDED_PUNCTUATION_ORDER = ("、", "。", "，", "．", "！", "？", "「", "」", "・", "ー")
 BUILTIN_CHARACTER_ORDER = _dedupe_character_order(
     CORE_BUILTIN_CHARACTER_ORDER
+    + HIRAGANA_OUTLINE_CHARACTER_ORDER
+    + KATAKANA_OUTLINE_CHARACTER_ORDER
     + EXTENDED_FONT_OUTLINE_CHARACTER_ORDER
     + EXTENDED_PUNCTUATION_ORDER
 )

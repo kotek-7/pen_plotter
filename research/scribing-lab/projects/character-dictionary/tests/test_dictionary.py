@@ -169,6 +169,7 @@ def test_layout_text_falls_back_for_unknown_character() -> None:
 def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"永", "あ", "い", "う", "え", "お"} <= BUILTIN_CHARACTERS
     assert {"今", "日", "本", "天", "気", "春", "川", "歩", "、", "。"} <= BUILTIN_CHARACTERS
+    assert {"が", "っ", "ア", "レ", "ビ", "ュ"} <= BUILTIN_CHARACTERS
 
 
 def test_builtin_character_order_is_stable() -> None:
