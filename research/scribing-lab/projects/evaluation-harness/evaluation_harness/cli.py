@@ -20,6 +20,7 @@ from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact
 from evaluation_harness.structure_uniform import (
     DEFAULT_STRUCTURE_INPUTS,
+    EXTENDED_STRUCTURE_INPUTS,
     StructureUniformConfig,
     run_structure_uniform,
     run_structure_uniform_batch,
@@ -104,6 +105,7 @@ def build_parser() -> argparse.ArgumentParser:
     structure_batch.add_argument("--root", default="runs/structure-uniform")
     structure_batch.add_argument("--seeds", default="1,2,3")
     structure_batch.add_argument("--profile-id", default="baseline-neat")
+    structure_batch.add_argument("--input-set", choices=("basic", "extended"), default="basic")
 
     motion = sub.add_parser(
         "structure-motion",
@@ -126,6 +128,7 @@ def build_parser() -> argparse.ArgumentParser:
     motion_batch.add_argument("--profile-id", default="baseline-neat")
     motion_batch.add_argument("--shape-variation", type=float, default=0.0)
     motion_batch.add_argument("--layout-variation", type=float, default=0.0)
+    motion_batch.add_argument("--input-set", choices=("basic", "extended"), default="basic")
     return parser
 
 
@@ -220,7 +223,7 @@ def main() -> None:
     elif args.command == "structure-uniform-batch":
         records = run_structure_uniform_batch(
             root=Path(args.root),
-            input_texts=DEFAULT_STRUCTURE_INPUTS,
+            input_texts=_structure_inputs(args.input_set),
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
             config=StructureUniformConfig(),
@@ -246,7 +249,7 @@ def main() -> None:
     elif args.command == "structure-motion-batch":
         records = run_structure_motion_batch(
             root=Path(args.root),
-            input_texts=DEFAULT_STRUCTURE_INPUTS,
+            input_texts=_structure_inputs(args.input_set),
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
             config=StructureMotionConfig(
@@ -298,6 +301,14 @@ def _parse_seeds(raw: str) -> list[int]:
     if any(seed < 0 for seed in seeds):
         raise ValueError("seeds must be non-negative")
     return seeds
+
+
+def _structure_inputs(input_set: str) -> tuple[str, ...]:
+    if input_set == "basic":
+        return DEFAULT_STRUCTURE_INPUTS
+    if input_set == "extended":
+        return EXTENDED_STRUCTURE_INPUTS
+    raise ValueError(f"unknown input set: {input_set}")
 
 
 if __name__ == "__main__":

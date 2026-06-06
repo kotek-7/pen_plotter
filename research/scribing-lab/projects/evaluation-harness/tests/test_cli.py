@@ -30,9 +30,12 @@ def test_structure_motion_parser_accepts_shape_variation() -> None:
             "0.08",
             "--layout-variation",
             "0.12",
+            "--input-set",
+            "extended",
         ]
     )
 
     assert args.command == "structure-motion-batch"
     assert args.shape_variation == 0.08
     assert args.layout_variation == 0.12
+    assert args.input_set == "extended"

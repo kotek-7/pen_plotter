@@ -20,6 +20,15 @@ from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
 
 DEFAULT_STRUCTURE_INPUTS: tuple[str, ...] = ("永", "あいうえお")
+EXTENDED_STRUCTURE_INPUTS: tuple[str, ...] = (
+    "永",
+    "あいうえお",
+    "あああ",
+    "いいい",
+    "永あい",
+    "あおえい",
+    "あい\nうえ",
+)
 
 
 @dataclass(frozen=True)

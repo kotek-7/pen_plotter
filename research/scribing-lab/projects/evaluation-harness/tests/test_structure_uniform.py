@@ -3,7 +3,12 @@ from pathlib import Path
 from evaluation_harness.baseline_outline import BaselineOutlineConfig, run_baseline_outline
 from evaluation_harness.compare import compare_against_baseline
 from evaluation_harness.registry import ExperimentRegistry
-from evaluation_harness.structure_uniform import run_structure_uniform, run_structure_uniform_batch
+from evaluation_harness.structure_uniform import (
+    DEFAULT_STRUCTURE_INPUTS,
+    EXTENDED_STRUCTURE_INPUTS,
+    run_structure_uniform,
+    run_structure_uniform_batch,
+)
 
 
 def test_run_structure_uniform_registers_artifacts(tmp_path: Path) -> None:
@@ -57,3 +62,9 @@ def test_structure_uniform_can_be_compared_with_baseline(tmp_path: Path) -> None
 
     assert comparison["comparison_count"] == 1
     assert comparison["comparisons"][0]["candidate_generator"] == "structure-uniform"
+
+
+def test_extended_structure_inputs_cover_basic_and_stress_cases() -> None:
+    assert set(DEFAULT_STRUCTURE_INPUTS) <= set(EXTENDED_STRUCTURE_INPUTS)
+    assert "あああ" in EXTENDED_STRUCTURE_INPUTS
+    assert "あい\nうえ" in EXTENDED_STRUCTURE_INPUTS
