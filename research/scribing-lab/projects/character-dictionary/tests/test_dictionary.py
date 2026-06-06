@@ -60,6 +60,24 @@ def test_layout_text_shape_variation_changes_points() -> None:
     ]
 
 
+def test_layout_text_layout_variation_is_seeded() -> None:
+    config = LayoutConfig(layout_variation=0.12, variation_seed=7)
+
+    first = layout_text("あいうえお", config)
+    second = layout_text("あいうえお", config)
+
+    assert [stroke.points for stroke in first] == [stroke.points for stroke in second]
+
+
+def test_layout_text_layout_variation_changes_character_positions() -> None:
+    default_strokes = layout_text("あいうえお", LayoutConfig())
+    varied_strokes = layout_text("あいうえお", LayoutConfig(layout_variation=0.12, variation_seed=7))
+
+    assert [stroke.points for stroke in default_strokes] != [
+        stroke.points for stroke in varied_strokes
+    ]
+
+
 def test_layout_text_rejects_unknown_character() -> None:
     with pytest.raises(DictionaryLookupError):
         layout_text("未")

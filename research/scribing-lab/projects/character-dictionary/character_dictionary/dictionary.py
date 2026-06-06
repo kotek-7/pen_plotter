@@ -37,6 +37,11 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
             x += cfg.char_size * 0.5
             continue
 
+        layout_offset_x, layout_offset_y, advance_offset = _layout_offsets(
+            char,
+            char_index=char_index,
+            config=cfg,
+        )
         template = get_template(char)
         for stroke in template.strokes:
             skeleton_points = _vary_skeleton_points(
@@ -46,7 +51,10 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
                 config=cfg,
             )
             points = tuple(
-                (x + px * cfg.char_size, y_top - py * cfg.char_size)
+                (
+                    x + layout_offset_x + px * cfg.char_size,
+                    y_top + layout_offset_y - py * cfg.char_size,
+                )
                 for px, py in skeleton_points
             )
             strokes.append(
@@ -58,7 +66,7 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
                     order=stroke.order,
                 )
             )
-        x += cfg.char_size + cfg.char_spacing
+        x += cfg.char_size + cfg.char_spacing + advance_offset
         char_index += 1
     return strokes
 
@@ -119,6 +127,23 @@ def _vary_skeleton_points(
             )
         )
     return tuple(varied)
+
+
+def _layout_offsets(
+    literal: str,
+    *,
+    char_index: int,
+    config: LayoutConfig,
+) -> tuple[float, float, float]:
+    strength = max(float(config.layout_variation), 0.0)
+    if strength == 0.0:
+        return (0.0, 0.0, 0.0)
+
+    rng = random.Random(f"{config.variation_seed}:{literal}:{char_index}:layout")
+    offset_x = rng.uniform(-0.35, 0.35) * strength * config.char_size
+    offset_y = rng.uniform(-0.40, 0.40) * strength * config.char_size
+    advance_offset = rng.uniform(-0.45, 0.45) * strength * config.char_size
+    return (offset_x, offset_y, advance_offset)
 
 
 def _clamp_unit(value: float) -> float:

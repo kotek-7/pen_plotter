@@ -53,6 +53,7 @@ class LayoutConfig:
     char_spacing: float = 2.0
     line_height: float = 1.45
     shape_variation: float = 0.0
+    layout_variation: float = 0.0
     variation_seed: int = 0
 
 
