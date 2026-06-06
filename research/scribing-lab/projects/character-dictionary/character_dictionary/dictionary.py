@@ -110,6 +110,22 @@ EXTENDED_FONT_OUTLINE_CHARACTER_ORDER = (
     "候",
     "人",
     "一",
+    "冗",
+    "分",
+    "十",
+    "取",
+    "含",
+    "品",
+    "器",
+    "度",
+    "整",
+    "書",
+    "比",
+    "然",
+    "章",
+    "自",
+    "較",
+    "間",
 )
 EXTENDED_PUNCTUATION_ORDER = ("、", "。", "，", "．", "！", "？", "「", "」", "・", "ー")
 BUILTIN_CHARACTER_ORDER = _dedupe_character_order(
