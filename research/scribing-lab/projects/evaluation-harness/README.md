@@ -18,6 +18,7 @@
 - `compare`: baseline との差分比較レポート。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 実機出力前の目視レビュー向け preview / metrics 束。
+- `validate-human-review`: 目視レビュー response の検証と集計。
 - `ScanMetadata`: 実機スキャン artifact の metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 
@@ -76,6 +77,18 @@ python3 -m evaluation_harness human-review-packet \
 
 `human-review-packet` は、代表 seed の preview、主要 metrics、failure tags と、
 input ごとの全 preview path を `human_review_packet.md` / `.json` に保存する。
+
+目視レビュー結果を packet と照合して集計する場合:
+
+```sh
+python3 -m evaluation_harness validate-human-review \
+  --packet-json runs/structure-motion/human_review_packet.json \
+  --responses-json runs/structure-motion/human_review_responses.json
+```
+
+response は `accept`、`reject`、`needs-tuning` のいずれかを記録する。
+`validate-human-review` は代表 record との対応、未回答、未知 ID、重複を検証し、
+`can_proceed_to_plot` を summary に保存する。
 
 実機スキャンを既存 experiment に紐付ける場合:
 
