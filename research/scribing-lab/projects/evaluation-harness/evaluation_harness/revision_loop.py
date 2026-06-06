@@ -10,6 +10,7 @@ from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.structure_motion import run_structure_motion
+from evaluation_harness.structure_uniform import DEFAULT_STRUCTURE_INPUTS
 from evaluation_harness.writer_profile import build_revision_profile, resolve_writer_profile
 from writer_profile import estimate_writer_profile_from_jsonl
 
@@ -474,7 +475,7 @@ def evaluate_data_driven_writer_prior_fixed_input_set(
     root: Path,
     *,
     samples_jsonl: str | Path,
-    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_input_texts: tuple[str, ...] = DEFAULT_STRUCTURE_INPUTS,
     expected_seeds: tuple[int, ...] = (1, 2, 3),
     base_profile_id: str = "baseline-neat",
 ) -> dict[str, Any]:
