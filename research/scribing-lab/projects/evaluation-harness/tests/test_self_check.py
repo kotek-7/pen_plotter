@@ -1,5 +1,6 @@
 from pathlib import Path
 
+from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.cli import build_parser
 from evaluation_harness.self_check import render_self_check_markdown, run_self_check
 
@@ -8,9 +9,9 @@ def test_self_check_runs_end_to_end(tmp_path: Path) -> None:
     result = run_self_check(tmp_path / "runs", seed=1)
 
     assert result.status == "ok"
-    assert result.baseline_record_count == 5
-    assert result.candidate_record_count == 5
-    assert result.registry_record_count == 10
+    assert result.baseline_record_count == len(DEFAULT_EVALUATION_INPUTS)
+    assert result.candidate_record_count == len(DEFAULT_EVALUATION_INPUTS)
+    assert result.registry_record_count == len(DEFAULT_EVALUATION_INPUTS) * 2
     assert result.comparison["coverage_ratio"] == 1.0
     assert result.preview_comparison["preview_coverage_ratio"] == 1.0
     assert result.offline_review["robustness"]["status"] == "ok"

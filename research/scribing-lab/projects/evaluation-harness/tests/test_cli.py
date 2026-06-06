@@ -578,7 +578,7 @@ def test_compare_preview_fixed_inputs_command_writes_reports(tmp_path: Path, mon
 
     assert "Preview Comparison Report" in markdown
     assert "preview_hash_changed_count" in markdown
-    assert '"preview_hash_changed_count": 10' in json_text
+    assert f'"preview_hash_changed_count": {len(DEFAULT_EVALUATION_INPUTS) * 2}' in json_text
 
 
 def test_recommend_preview_fixed_inputs_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

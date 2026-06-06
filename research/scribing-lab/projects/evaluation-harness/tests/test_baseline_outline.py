@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from evaluation_harness.baseline_outline import (
+    DEFAULT_EVALUATION_INPUTS,
     BaselineOutlineConfig,
     infer_baseline_failure_tags,
     run_baseline_outline,
@@ -98,6 +99,12 @@ def test_run_baseline_outline_batch_writes_summary(tmp_path: Path) -> None:
     assert (root / "summary.md").exists()
     assert (root / "review_packet.md").exists()
     assert len(ExperimentRegistry(root / "registry.jsonl").load_all()) == 4
+
+
+def test_default_evaluation_inputs_cover_multiple_character_families() -> None:
+    corpus = {char for text in DEFAULT_EVALUATION_INPUTS for char in text if not char.isspace()}
+
+    assert {"あ", "ア", "0", "A", "a", "!", "?", "「", "」"} <= corpus
 
 
 def test_infer_baseline_failure_tags_marks_repeated_text() -> None:

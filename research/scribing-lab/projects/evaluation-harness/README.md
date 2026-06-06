@@ -14,7 +14,7 @@
 - `preview_metrics`: preview の画像統計と SSIM 近似比較。
 - `render_markdown_report`: 実験レビュー向け report。
 - `FAILURE_TAGS`: 固定 failure taxonomy。
-- `baseline-outline-batch`: 固定評価入力セットの batch runner。
+- `baseline-outline-batch`: 拡張固定評価入力セットの batch runner。
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
 - `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
@@ -37,6 +37,8 @@
 - `ScanMetadata`: 必要時だけ使う実機監査用 metadata schema。
 - `AbxItem` / `AbxResponse`: 小規模 ABX 評価の最小 schema。
 - `Bradley-Terry`: ABX の paired comparison を順位化する比較モデル。
+
+固定評価入力セットは、かな・漢字・数字・Latin・記号を含む拡張コーパスを使う。
 
 ## 採用した外部手法
 
@@ -92,7 +94,7 @@ python3 -m evaluation_harness baseline-outline \
   --seed 1
 ```
 
-固定評価入力セット 5 件を複数 seed で一括登録する場合:
+拡張固定評価入力セットを複数 seed で一括登録する場合:
 
 ```sh
 python3 -m evaluation_harness baseline-outline-batch \

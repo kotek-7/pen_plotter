@@ -15,6 +15,7 @@ from evaluation_harness.baseline_outline import (
     _use_headless_matplotlib,
     strokes_to_trajectory,
 )
+from evaluation_harness.evaluation_inputs import REVIEW_EVALUATION_INPUTS
 from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -29,20 +30,7 @@ from evaluation_harness.writer_profile import (
 
 DEFAULT_STRUCTURE_INPUTS: tuple[str, ...] = ("永", "あいうえお")
 EVALUATION_STRUCTURE_INPUTS: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS
-REVIEW_STRUCTURE_INPUTS: tuple[str, ...] = (
-    "永",
-    "あいうえお",
-    "今日はよい天気です。",
-    "春の川をゆっくり歩く。",
-    "本日はありがとうございました。",
-    "文字列の品質を評価するために、少し長めの文章を用意します。",
-    "同じ文字が続くときのばらつきと、字間の自然さを確認する。",
-    "評価器の人間レビューでは、候補ごとの差が読み取れることが重要です。",
-    "一行だけでなく、複数の文や改行を含むケースも確認する。\nここでは行間と整列も見る。",
-    "この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。",
-    "ああああいいううええおおお",
-    "長文の比較に十分な余白と字数を持たせるため、ここでは少しだけ冗長に書いています。",
-)
+REVIEW_STRUCTURE_INPUTS: tuple[str, ...] = REVIEW_EVALUATION_INPUTS
 EXTENDED_STRUCTURE_INPUTS: tuple[str, ...] = (
     "永",
     "あいうえお",

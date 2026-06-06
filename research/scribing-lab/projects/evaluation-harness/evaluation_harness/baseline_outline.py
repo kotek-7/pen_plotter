@@ -8,18 +8,11 @@ from typing import Any
 import numpy as np
 
 from evaluation_harness.artifacts import ArtifactStore
+from evaluation_harness.evaluation_inputs import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.report import render_markdown_report
-
-DEFAULT_EVALUATION_INPUTS: tuple[str, ...] = (
-    "永",
-    "あいうえお",
-    "今日はよい天気です。",
-    "春の川をゆっくり歩く。",
-    "本日はありがとうございました。",
-)
 
 
 @dataclass(frozen=True)

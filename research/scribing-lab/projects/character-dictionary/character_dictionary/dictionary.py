@@ -127,13 +127,46 @@ EXTENDED_FONT_OUTLINE_CHARACTER_ORDER = (
     "較",
     "間",
 )
-EXTENDED_PUNCTUATION_ORDER = ("、", "。", "，", "．", "！", "？", "「", "」", "・", "ー")
+EXTENDED_PUNCTUATION_ORDER = (
+    "、",
+    "。",
+    "，",
+    "．",
+    "！",
+    "？",
+    "「",
+    "」",
+    "『",
+    "』",
+    "・",
+    "ー",
+    "!",
+    "?",
+    ",",
+    ".",
+    ":",
+    ";",
+    "-",
+    "/",
+    "(",
+    ")",
+    "[",
+    "]",
+    "{",
+    "}",
+)
+ASCII_DIGIT_CHARACTER_ORDER = tuple("0123456789")
+ASCII_UPPERCASE_CHARACTER_ORDER = tuple("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
+ASCII_LOWERCASE_CHARACTER_ORDER = tuple("abcdefghijklmnopqrstuvwxyz")
 BUILTIN_CHARACTER_ORDER = _dedupe_character_order(
     CORE_BUILTIN_CHARACTER_ORDER
     + HIRAGANA_OUTLINE_CHARACTER_ORDER
     + KATAKANA_OUTLINE_CHARACTER_ORDER
     + EXTENDED_FONT_OUTLINE_CHARACTER_ORDER
     + EXTENDED_PUNCTUATION_ORDER
+    + ASCII_DIGIT_CHARACTER_ORDER
+    + ASCII_UPPERCASE_CHARACTER_ORDER
+    + ASCII_LOWERCASE_CHARACTER_ORDER
 )
 BUILTIN_CHARACTERS = frozenset(BUILTIN_CHARACTER_ORDER)
 

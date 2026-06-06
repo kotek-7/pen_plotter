@@ -170,6 +170,7 @@ def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"永", "あ", "い", "う", "え", "お"} <= BUILTIN_CHARACTERS
     assert {"今", "日", "本", "天", "気", "春", "川", "歩", "、", "。"} <= BUILTIN_CHARACTERS
     assert {"が", "っ", "ア", "レ", "ビ", "ュ"} <= BUILTIN_CHARACTERS
+    assert {"0", "9", "A", "Z", "a", "z", "!", "?", "(", ")", "[", "]", "{", "}", "『", "』"} <= BUILTIN_CHARACTERS
 
 
 def test_builtin_dictionary_covers_fixed_evaluation_inputs() -> None:
