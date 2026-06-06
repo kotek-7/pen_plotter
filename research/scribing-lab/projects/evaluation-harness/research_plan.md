@@ -138,7 +138,17 @@ preview 差分と failure tag から、各 input / seed で次に採る候補と
 
 - 各 group に selected candidate が 1 つ決まる。
 - selected candidate から next action が自動生成される。
-- selected candidate の profile / layout / motion のどこを直すかが説明できる。
+- selected candidate の profile / layout / motion / dictionary のどこを直すかが説明できる。
+
+### Experiment 7: revision plan export
+
+preview から選定した候補について、次実験で変えるべき parameter と再生成ヒントを出力する。
+
+評価:
+
+- `motion`、`layout`、`dictionary`、`profile`、`safety` のいずれかに分類できる。
+- 変更候補が具体的な parameter 名と direction を持つ。
+- 同一 input / seed の再生成方針を Markdown と JSON で保存できる。
 
 ## 成果物
 

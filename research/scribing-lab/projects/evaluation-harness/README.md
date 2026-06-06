@@ -18,6 +18,7 @@
 - `compare`: baseline との差分比較レポート。
 - `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
 - `recommend-preview-fixed-inputs`: preview 候補の選定と次の改版案。
+- `propose-preview-fixed-inputs`: preview 選定候補からの改版提案。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -82,6 +83,9 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `recommend-preview-fixed-inputs` は、preview がある候補の中から各 input / seed ごとに
 最小 failure tag の候補を選び、次に直すべき profile / layout / motion の提案を出す。
+
+`propose-preview-fixed-inputs` は、選定候補ごとに `motion`、`layout`、`dictionary`、
+`profile`、`safety` のどれを変えるべきかを revision plan として出力する。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

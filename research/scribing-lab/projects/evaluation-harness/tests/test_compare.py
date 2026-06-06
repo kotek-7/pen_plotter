@@ -6,10 +6,12 @@ from evaluation_harness.compare import (
     compare_fixed_input_set,
     compare_preview_fixed_input_set,
     recommend_preview_fixed_input_set,
+    propose_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
     render_preview_recommendation_markdown,
+    render_preview_revision_plan_markdown,
 )
 from evaluation_harness.models import ExperimentRecord
 
@@ -285,6 +287,50 @@ def test_recommend_preview_fixed_input_set_reports_action_from_tags(tmp_path: Pa
     assert selected["suggested_next_actions"] == [
         "motion-synthesis の speed profile / timing jitter を上げる"
     ]
+
+
+def test_propose_preview_fixed_input_set_builds_revision_plan(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    candidate_preview.write_bytes(b"candidate-preview")
+
+    proposal = propose_preview_fixed_input_set(
+        [
+            _record(
+                experiment_id="exp-baseline",
+                input_text="永",
+                seed=1,
+                generator="baseline-outline",
+                artifacts={"preview": str(baseline_preview)},
+            ),
+            _record(
+                experiment_id="exp-candidate",
+                input_text="永",
+                seed=1,
+                generator="structure-motion",
+                metrics={
+                    "point_count": 10,
+                    "velocity_peak_count": 0,
+                    "draw_speed_cv": 0.01,
+                    "shape_variation_mm": 0.6,
+                    "layout_variation_mm": 0.6,
+                },
+                artifacts={"preview": str(candidate_preview)},
+            ),
+        ],
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    plan = proposal["revision_plans"][0]
+    assert plan["focus_area"] == "motion"
+    assert plan["proposed_changes"][0]["target"] == "motion"
+    assert plan["proposed_changes"][0]["parameter"] == "timing_jitter_cv"
+    assert "再生成" in plan["next_experiment_hint"]
+    report = render_preview_revision_plan_markdown(proposal)
+    assert "# Preview Revision Plan" in report
+    assert "selected_candidate_count" in report
 
 
 def _record(

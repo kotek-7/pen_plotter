@@ -16,10 +16,12 @@ from evaluation_harness.compare import (
     compare_fixed_input_set,
     compare_preview_fixed_input_set,
     recommend_preview_fixed_input_set,
+    propose_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
     render_preview_recommendation_markdown,
+    render_preview_revision_plan_markdown,
 )
 from evaluation_harness.human_review import (
     build_human_review_packet,
@@ -134,6 +136,20 @@ def build_parser() -> argparse.ArgumentParser:
     preview_recommend.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     preview_recommend.add_argument("--output", default="preview_recommendation.md")
     preview_recommend.add_argument("--json-output", default="preview_recommendation.json")
+
+    preview_propose = sub.add_parser(
+        "propose-preview-fixed-inputs",
+        help="Generate revision plans from preview-selected candidates",
+    )
+    preview_propose.add_argument(
+        "--root",
+        default="runs/baseline-outline",
+        help="Run output directory",
+    )
+    preview_propose.add_argument("--baseline-generator", default="baseline-outline")
+    preview_propose.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_propose.add_argument("--output", default="preview_revision_plan.md")
+    preview_propose.add_argument("--json-output", default="preview_revision_plan.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -338,6 +354,26 @@ def main() -> None:
         print(f"expected_group_count: {recommendation['expected_group_count']}")
         print(f"selected_candidate_count: {recommendation['selected_candidate_count']}")
         print(f"selected_coverage_ratio: {recommendation['selected_coverage_ratio']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "propose-preview-fixed-inputs":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        proposal = propose_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_preview_revision_plan_markdown(proposal), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(proposal, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"expected_group_count: {proposal['expected_group_count']}")
+        print(f"selected_candidate_count: {proposal['selected_candidate_count']}")
+        print(f"selected_coverage_ratio: {proposal['selected_coverage_ratio']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

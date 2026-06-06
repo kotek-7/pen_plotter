@@ -324,6 +324,66 @@ def recommend_preview_fixed_input_set(
     }
 
 
+def propose_preview_fixed_input_set(
+    records: Iterable[ExperimentRecord],
+    *,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    baseline_generator: str = "baseline-outline",
+    metrics: tuple[str, ...] = DEFAULT_COMPARE_METRICS,
+) -> dict[str, Any]:
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=expected_input_texts,
+        expected_seeds=expected_seeds,
+        baseline_generator=baseline_generator,
+        metrics=metrics,
+    )
+
+    revision_plans: list[dict[str, Any]] = []
+    revision_area_counts: Counter[str] = Counter()
+    for item in recommendation["recommendations"]:
+        selected = item["selected_candidate"]
+        if selected is None:
+            revision_plans.append(
+                {
+                    "input_text": item["input_text"],
+                    "seed": item["seed"],
+                    "status": "no-preview-candidate",
+                    "focus_area": "preview",
+                    "candidate_experiment_id": "",
+                    "proposed_changes": [],
+                    "next_experiment_hint": "preview artifact を持つ候補を追加して比較する",
+                }
+            )
+            continue
+
+        focus_area = _focus_area_from_tags(selected["inferred_failure_tags"])
+        proposed_changes = _proposed_changes_for_tags(selected["inferred_failure_tags"], focus_area)
+        revision_area_counts[focus_area] += 1
+        revision_plans.append(
+            {
+                "input_text": item["input_text"],
+                "seed": item["seed"],
+                "status": "selected",
+                "baseline_experiment_id": item["baseline_experiment_id"],
+                "candidate_experiment_id": selected["experiment_id"],
+                "candidate_profile_id": selected["profile_id"],
+                "focus_area": focus_area,
+                "selected_failure_tags": list(selected["inferred_failure_tags"]),
+                "selected_next_actions": list(selected["suggested_next_actions"]),
+                "proposed_changes": proposed_changes,
+                "next_experiment_hint": _next_experiment_hint(focus_area, selected["inferred_failure_tags"]),
+            }
+        )
+
+    return {
+        **recommendation,
+        "revision_area_counts": dict(sorted(revision_area_counts.items())),
+        "revision_plans": revision_plans,
+    }
+
+
 def render_comparison_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Baseline Comparison Report",
@@ -503,6 +563,54 @@ def render_preview_recommendation_markdown(comparison: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_preview_revision_plan_markdown(comparison: dict[str, Any]) -> str:
+    lines = [
+        "# Preview Revision Plan",
+        "",
+        f"- baseline_generator: `{comparison['baseline_generator']}`",
+        f"- expected_group_count: `{comparison['expected_group_count']}`",
+        f"- selected_candidate_count: `{comparison['selected_candidate_count']}`",
+        f"- selected_coverage_ratio: `{comparison['selected_coverage_ratio']}`",
+        f"- revision_area_counts: `{comparison['revision_area_counts']}`",
+        "",
+        "## Revision Plans",
+        "",
+    ]
+    if not comparison["revision_plans"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    for item in comparison["revision_plans"]:
+        lines.extend(
+            [
+                f"### input={item['input_text']} seed={item['seed']}",
+                "",
+                f"- status: `{item['status']}`",
+                f"- focus_area: `{item['focus_area']}`",
+                f"- candidate_experiment_id: `{item['candidate_experiment_id']}`",
+                f"- candidate_profile_id: `{item.get('candidate_profile_id', '')}`",
+                f"- selected_failure_tags: `{item.get('selected_failure_tags', [])}`",
+                f"- selected_next_actions: `{item.get('selected_next_actions', [])}`",
+                f"- next_experiment_hint: `{item['next_experiment_hint']}`",
+                "- proposed_changes:",
+            ]
+        )
+        if item["proposed_changes"]:
+            for change in item["proposed_changes"]:
+                lines.append(
+                    "  - "
+                    f"target=`{change['target']}` "
+                    f"parameter=`{change['parameter']}` "
+                    f"direction=`{change['direction']}` "
+                    f"amount_hint=`{change['amount_hint']}` "
+                    f"reason=`{change['reason']}`"
+                )
+        else:
+            lines.append("  - none")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def _metric_deltas(
     baseline: ExperimentRecord,
     candidate: ExperimentRecord,
@@ -574,3 +682,118 @@ def _focus_area_from_tags(tags: list[str]) -> str:
         if tag in tag_set:
             return area
     return "preview"
+
+
+def _proposed_changes_for_tags(tags: list[str], focus_area: str) -> list[dict[str, Any]]:
+    change_map = {
+        "too-uniform": [
+            {
+                "target": "motion",
+                "parameter": "timing_jitter_cv",
+                "direction": "increase",
+                "amount_hint": 0.03,
+                "reason": "等速感を減らし、速度ピークを作る",
+            }
+        ],
+        "over-jittered": [
+            {
+                "target": "motion",
+                "parameter": "timing_jitter_cv",
+                "direction": "decrease",
+                "amount_hint": 0.03,
+                "reason": "揺れが強すぎるので運動を落ち着かせる",
+            }
+        ],
+        "line-too-mechanical": [
+            {
+                "target": "layout",
+                "parameter": "baseline_drift_mm",
+                "direction": "increase",
+                "amount_hint": 0.4,
+                "reason": "行方向の機械的整列を崩す",
+            }
+        ],
+        "spacing-unnatural": [
+            {
+                "target": "layout",
+                "parameter": "spacing_mean_mm",
+                "direction": "increase",
+                "amount_hint": 0.15,
+                "reason": "字間をわずかに広げる",
+            }
+        ],
+        "skeleton-too-rigid": [
+            {
+                "target": "dictionary",
+                "parameter": "shape_variation",
+                "direction": "increase",
+                "amount_hint": 0.02,
+                "reason": "字形の剛直さを和らげる",
+            }
+        ],
+        "repeated-char-too-identical": [
+            {
+                "target": "dictionary",
+                "parameter": "shape_variation",
+                "direction": "increase",
+                "amount_hint": 0.02,
+                "reason": "同一文字の見え方の差を増やす",
+            }
+        ],
+        "terminal-too-uniform": [
+            {
+                "target": "profile",
+                "parameter": "terminal_gains",
+                "direction": "increase-contrast",
+                "amount_hint": 0.1,
+                "reason": "払い、はね、とめの終端差を強める",
+            }
+        ],
+        "too-font-like": [
+            {
+                "target": "profile",
+                "parameter": "slant_deg",
+                "direction": "adjust",
+                "amount_hint": 2.0,
+                "reason": "字体から離して筆者寄りに寄せる",
+            }
+        ],
+        "plotter-unsafe": [
+            {
+                "target": "safety",
+                "parameter": "gcode_safety",
+                "direction": "fix",
+                "amount_hint": None,
+                "reason": "安全性違反を解消してから再比較する",
+            }
+        ],
+    }
+    proposed: list[dict[str, Any]] = []
+    for tag in tags:
+        proposed.extend(change_map.get(tag, []))
+
+    if not proposed:
+        proposed.append(
+            {
+                "target": focus_area,
+                "parameter": "profile_id",
+                "direction": "keep-compare",
+                "amount_hint": None,
+                "reason": "明確な failure tag がないため、同条件で別 profile を比較する",
+            }
+        )
+    return proposed
+
+
+def _next_experiment_hint(focus_area: str, tags: list[str]) -> str:
+    if "plotter-unsafe" in tags:
+        return "G-code safety を直してから同じ input / seed で再評価する"
+    if focus_area == "motion":
+        return "同じ input / seed で motion profile を上げて再生成する"
+    if focus_area == "layout":
+        return "同じ input / seed で layout spacing と baseline drift を調整する"
+    if focus_area == "dictionary":
+        return "同じ input / seed で dictionary の shape variation を増やして再生成する"
+    if focus_area == "profile":
+        return "同じ input / seed で別 profile を適用して再生成する"
+    return "同じ input / seed で preview 比較を継続する"

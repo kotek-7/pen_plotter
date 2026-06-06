@@ -11,10 +11,12 @@ from evaluation_harness.compare import (
     compare_fixed_input_set,
     compare_preview_fixed_input_set,
     recommend_preview_fixed_input_set,
+    propose_preview_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
     render_preview_recommendation_markdown,
+    render_preview_revision_plan_markdown,
 )
 from evaluation_harness.metrics import compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
@@ -52,12 +54,14 @@ __all__ = [
     "compare_fixed_input_set",
     "compare_preview_fixed_input_set",
     "recommend_preview_fixed_input_set",
+    "propose_preview_fixed_input_set",
     "compute_trajectory_metrics",
     "render_markdown_report",
     "render_comparison_markdown",
     "render_fixed_input_comparison_markdown",
     "render_preview_fixed_input_comparison_markdown",
     "render_preview_recommendation_markdown",
+    "render_preview_revision_plan_markdown",
     "run_baseline_outline",
     "run_baseline_outline_batch",
     "run_structure_uniform",
