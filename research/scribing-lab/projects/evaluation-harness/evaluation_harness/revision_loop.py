@@ -11,6 +11,7 @@ from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.structure_motion import run_structure_motion
 from evaluation_harness.writer_profile import build_revision_profile, resolve_writer_profile
+from writer_profile import estimate_writer_profile_from_jsonl
 
 
 def run_preview_revision_loop_fixed_input_set(
@@ -469,6 +470,122 @@ def render_stable_writer_profile_evaluation_markdown(packet: dict[str, Any]) -> 
     return "\n".join(lines) + "\n"
 
 
+def evaluate_data_driven_writer_prior_fixed_input_set(
+    root: Path,
+    *,
+    samples_jsonl: str | Path,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    base_profile_id: str = "baseline-neat",
+) -> dict[str, Any]:
+    estimate = estimate_writer_profile_from_jsonl(
+        samples_jsonl,
+        base_profile_id=base_profile_id,
+    )
+    derived_profile = estimate["profile"]
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    base_profile = resolve_writer_profile(base_profile_id)
+
+    baseline_records: list[ExperimentRecord] = []
+    for input_index, input_text in enumerate(expected_input_texts, start=1):
+        for seed in expected_seeds:
+            baseline_records.append(
+                _run_or_load_structure_motion(
+                    root=root,
+                    registry=registry,
+                    experiment_id=_data_prior_experiment_id(
+                        "baseline",
+                        base_profile.profile_id,
+                        input_index,
+                        seed,
+                    ),
+                    input_text=input_text,
+                    seed=seed,
+                    writer_profile=base_profile,
+                )
+            )
+
+    candidate_records: list[ExperimentRecord] = []
+    for input_index, input_text in enumerate(expected_input_texts, start=1):
+        for seed in expected_seeds:
+            candidate_records.append(
+                _run_or_load_structure_motion(
+                    root=root,
+                    registry=registry,
+                    experiment_id=_data_prior_experiment_id(
+                        "derived",
+                        derived_profile.profile_id,
+                        input_index,
+                        seed,
+                    ),
+                    input_text=input_text,
+                    seed=seed,
+                    writer_profile=derived_profile,
+                )
+            )
+
+    baseline_by_key = _records_by_input_and_seed(baseline_records)
+    candidate_evaluation = _compare_against_profile_baseline(candidate_records, baseline_by_key)
+    selected, selection_reason = _is_selected_data_prior_candidate(candidate_evaluation)
+
+    return {
+        "base_profile_id": base_profile_id,
+        "samples_jsonl": str(samples_jsonl),
+        "expected_input_texts": list(expected_input_texts),
+        "expected_seeds": list(expected_seeds),
+        "base_profile": base_profile.to_dict(),
+        "derived_profile": derived_profile.to_dict(),
+        "estimate": {
+            "summary": estimate["summary"],
+            "source": estimate["source"],
+        },
+        "baseline_record_count": len(baseline_records),
+        "candidate_record_count": len(candidate_records),
+        "comparison": candidate_evaluation,
+        "selected": selected,
+        "selection_reason": selection_reason,
+        "selected_profile_id": derived_profile.profile_id if selected else "",
+        "evaluation_summary": {
+            "selection_status": "selected" if selected else "rejected",
+            "candidate_count": 1,
+            "selected_candidate_count": 1 if selected else 0,
+            "resolved_failure_tag_count": candidate_evaluation["resolved_failure_tag_count"],
+            "new_failure_tag_count": candidate_evaluation["new_failure_tag_count"],
+            "safety_violation_count": candidate_evaluation["safety_violation_count"],
+            "metric_delta_means": candidate_evaluation["metric_delta_means"],
+        },
+    }
+
+
+def render_data_driven_writer_prior_evaluation_markdown(packet: dict[str, Any]) -> str:
+    lines = [
+        "# Data-driven Writer Prior Evaluation",
+        "",
+        f"- base_profile_id: `{packet['base_profile_id']}`",
+        f"- samples_jsonl: `{packet['samples_jsonl']}`",
+        f"- expected_input_texts: `{packet['expected_input_texts']}`",
+        f"- expected_seeds: `{packet['expected_seeds']}`",
+        f"- selected: `{packet['selected']}`",
+        f"- selected_profile_id: `{packet['selected_profile_id']}`",
+        f"- selection_reason: `{packet['selection_reason']}`",
+        "",
+        "## Estimated Prior",
+        "",
+        f"- source: `{packet['estimate']['source']}`",
+        f"- summary: `{packet['estimate']['summary']}`",
+        "",
+        "## Comparison",
+        "",
+        f"- comparison_count: `{packet['comparison']['comparison_count']}`",
+        f"- resolved_failure_tag_count: `{packet['comparison']['resolved_failure_tag_count']}`",
+        f"- new_failure_tag_count: `{packet['comparison']['new_failure_tag_count']}`",
+        f"- safety_violation_count: `{packet['comparison']['safety_violation_count']}`",
+        f"- metric_delta_means: `{packet['comparison']['metric_delta_means']}`",
+        "",
+    ]
+    return "\n".join(lines) + "\n"
+
+
 def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
     lines = [
         "# Preview Revision Loop",
@@ -757,6 +874,16 @@ def _is_selected_stable_candidate(
     return True, "selected"
 
 
+def _is_selected_data_prior_candidate(evaluation: dict[str, Any]) -> tuple[bool, str]:
+    if int(evaluation["safety_violation_count"]) > 0:
+        return False, "safety violation count is non-zero"
+    if int(evaluation["new_failure_tag_count"]) > 0:
+        return False, "new failure tags remain"
+    if int(evaluation["resolved_failure_tag_count"]) == 0:
+        return False, "no baseline failure tags were resolved"
+    return True, "selected"
+
+
 def _run_or_load_structure_motion(
     *,
     root: Path,
@@ -801,6 +928,15 @@ def _stable_profile_experiment_id(
     seed: int,
 ) -> str:
     return f"exp-stable-{candidate_type[:4]}-{profile_id}-{input_index:02d}-s{seed:03d}"
+
+
+def _data_prior_experiment_id(
+    candidate_type: str,
+    profile_id: str,
+    input_index: int,
+    seed: int,
+) -> str:
+    return f"exp-prior-{candidate_type[:4]}-{profile_id}-{input_index:02d}-s{seed:03d}"
 
 
 def _build_stable_writer_profile_candidate(

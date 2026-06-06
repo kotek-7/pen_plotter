@@ -3,9 +3,11 @@ from pathlib import Path
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.revision_loop import (
+    evaluate_data_driven_writer_prior_fixed_input_set,
     evaluate_stable_writer_profile_candidates,
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_data_driven_writer_prior_evaluation_markdown,
     render_stable_writer_profile_evaluation_markdown,
     render_stable_writer_profile_candidates_markdown,
     propose_stable_writer_profile_candidates,
@@ -259,6 +261,118 @@ def test_evaluate_stable_writer_profile_candidates_selects_stable_profile(
     report = render_stable_writer_profile_evaluation_markdown(packet)
     assert "# Stable Writer Profile Evaluation" in report
     assert "selected_profile_ids" in report
+
+
+def test_evaluate_data_driven_writer_prior_fixed_input_set_selects_derived_profile(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    root = tmp_path / "runs"
+    samples_path = tmp_path / "samples.jsonl"
+    samples_path.write_text(
+        "\n".join(
+            [
+                _point_line("sample-1", "writer-a", "永", 0.0, 0.0, 0, 1, 1.0),
+                _point_line("sample-1", "writer-a", "永", 1.0, 1.0, 10, 1, 1.0),
+                _point_line("sample-1", "writer-a", "永", 2.0, 2.0, 20, 1, 1.2),
+                _point_line("sample-1", "writer-a", "永", 2.5, 2.2, 30, 0, None),
+                _point_line("sample-2", "writer-b", "あ", 0.0, 0.0, 0, 1, 1.0),
+                _point_line("sample-2", "writer-b", "あ", 0.5, 1.0, 20, 1, 1.1),
+                _point_line("sample-2", "writer-b", "あ", 1.5, 2.5, 40, 1, 1.0),
+                _point_line("sample-2", "writer-b", "あ", 2.0, 3.0, 50, 0, None),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    def fake_run_structure_motion(
+        *,
+        root: Path,
+        experiment_id: str,
+        input_text: str,
+        seed: int,
+        writer_profile,
+        **_: object,
+    ) -> ExperimentRecord:
+        is_baseline = writer_profile.profile_id == "baseline-neat"
+        failure_tags = ["too-uniform"] if is_baseline else []
+        metrics = {
+            "duration_ms": 1000,
+            "velocity_peak_count": 0 if is_baseline else 3,
+            "draw_speed_cv": 0.01 if is_baseline else 0.2,
+            "baseline_drift_mm": 0.0 if is_baseline else 0.4,
+            "shape_variation_mm": 0.0 if is_baseline else 0.5,
+            "layout_variation_mm": 0.0 if is_baseline else 0.5,
+            "gcode_safety_ok": 1,
+            "gcode_safety_violation_count": 0,
+        }
+        return _record(
+            experiment_id=experiment_id,
+            input_text=input_text,
+            seed=seed,
+            generator="structure-motion",
+            profile_id=writer_profile.profile_id,
+            metrics=metrics,
+            failure_tags=failure_tags,
+            artifacts={
+                "preview": str(root / f"{experiment_id}.png"),
+                "report": str(root / f"{experiment_id}.md"),
+            },
+        )
+
+    monkeypatch.setattr(
+        "evaluation_harness.revision_loop.run_structure_motion",
+        fake_run_structure_motion,
+    )
+
+    packet = evaluate_data_driven_writer_prior_fixed_input_set(
+        root,
+        samples_jsonl=samples_path,
+        expected_input_texts=("永",),
+        expected_seeds=(1, 2),
+    )
+
+    assert packet["selected"] is True
+    assert packet["selected_profile_id"].startswith("baseline-neat-data-prior-")
+    assert packet["evaluation_summary"]["selection_status"] == "selected"
+    assert packet["comparison"]["resolved_failure_tag_count"] == 2
+    assert packet["comparison"]["new_failure_tag_count"] == 0
+    report = render_data_driven_writer_prior_evaluation_markdown(packet)
+    assert "# Data-driven Writer Prior Evaluation" in report
+    assert "selected_profile_id" in report
+
+
+def _point_line(
+    sample_id: str,
+    writer_id: str,
+    char_or_text: str,
+    x_mm: float,
+    y_mm: float,
+    t_ms: int,
+    pen_state: int,
+    pressure_optional: float | None,
+) -> str:
+    return (
+        "{"
+        f"\"sample_id\": \"{sample_id}\", "
+        f"\"writer_id\": \"{writer_id}\", "
+        f"\"char_or_text\": \"{char_or_text}\", "
+        f"\"x_mm\": {x_mm}, "
+        f"\"y_mm\": {y_mm}, "
+        f"\"t_ms\": {t_ms}, "
+        f"\"pen_state\": {pen_state}, "
+        f"\"pressure_optional\": {json_value(pressure_optional)}, "
+        "\"source\": \"stylus\", "
+        "\"license_scope\": \"research-only\""
+        "}"
+    )
+
+
+def json_value(value: float | None) -> str:
+    if value is None:
+        return "null"
+    return str(value)
 
 
 def _record(

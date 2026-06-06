@@ -210,6 +210,16 @@ revision loop の比較結果から、再現可能な設計原理を抽出して
 - baseline と比較して、新しい failure tag が出ない候補だけを採択できる。
 - selected profile ids と selection summary を保存できる。
 
+### Experiment 14: data-driven prior evaluation
+
+JSONL 形式のオンライン筆記サンプルから推定した prior を、固定入力セットで手設計 profile と比較する。
+
+評価:
+
+- samples.jsonl から derived profile を作れる。
+- baseline profile と同じ fixed input set で再生成できる。
+- preview / metrics / failure tags の比較から、prior の改善点と副作用を記録できる。
+
 ## 成果物
 
 - metrics spec。

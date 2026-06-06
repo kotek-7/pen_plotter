@@ -26,8 +26,10 @@ from evaluation_harness.compare import (
     preview_iteration_fixed_input_set,
 )
 from evaluation_harness.revision_loop import (
+    evaluate_data_driven_writer_prior_fixed_input_set,
     render_preview_revision_loop_markdown,
     render_preview_revision_loop_summary_markdown,
+    render_data_driven_writer_prior_evaluation_markdown,
     render_stable_writer_profile_evaluation_markdown,
     render_stable_writer_profile_candidates_markdown,
     propose_stable_writer_profile_candidates,
@@ -225,6 +227,20 @@ def build_parser() -> argparse.ArgumentParser:
     stable_profile_evaluation.add_argument(
         "--json-output",
         default="stable_writer_profile_evaluation.json",
+    )
+
+    data_prior_evaluation = sub.add_parser(
+        "evaluate-data-driven-writer-prior",
+        help="Evaluate a data-driven prior against the fixed input set",
+    )
+    data_prior_evaluation.add_argument("--samples-jsonl", required=True)
+    data_prior_evaluation.add_argument("--root", required=True, help="Run output directory")
+    data_prior_evaluation.add_argument("--base-profile-id", default="baseline-neat")
+    data_prior_evaluation.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    data_prior_evaluation.add_argument("--output", default="data_driven_prior_evaluation.md")
+    data_prior_evaluation.add_argument(
+        "--json-output",
+        default="data_driven_prior_evaluation.json",
     )
 
     offline_review = sub.add_parser(
@@ -556,6 +572,27 @@ def main() -> None:
         print(f"candidate_count: {packet['candidate_count']}")
         print(f"selected_profile_count: {packet['selected_profile_count']}")
         print(f"selected_profile_ids: {packet['selected_profile_ids']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "evaluate-data-driven-writer-prior":
+        root = Path(args.root)
+        packet = evaluate_data_driven_writer_prior_fixed_input_set(
+            root,
+            samples_jsonl=Path(args.samples_jsonl),
+            base_profile_id=args.base_profile_id,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        output_path = root / args.output
+        json_path = root / args.json_output
+        output_path.write_text(
+            render_data_driven_writer_prior_evaluation_markdown(packet), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"selected: {packet['selected']}")
+        print(f"selected_profile_id: {packet['selected_profile_id']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

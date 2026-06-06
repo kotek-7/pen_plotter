@@ -327,6 +327,34 @@ def test_evaluate_stable_writer_profiles_parser_accepts_summary_and_root() -> No
     assert args.json_output == "stable_eval.json"
 
 
+def test_evaluate_data_driven_writer_prior_parser_accepts_samples_and_root() -> None:
+    args = build_parser().parse_args(
+        [
+            "evaluate-data-driven-writer-prior",
+            "--samples-jsonl",
+            "runs/test/samples.jsonl",
+            "--root",
+            "runs/test",
+            "--base-profile-id",
+            "baseline-neat",
+            "--seeds",
+            "1,2",
+            "--output",
+            "prior_eval.md",
+            "--json-output",
+            "prior_eval.json",
+        ]
+    )
+
+    assert args.command == "evaluate-data-driven-writer-prior"
+    assert args.samples_jsonl == "runs/test/samples.jsonl"
+    assert args.root == "runs/test"
+    assert args.base_profile_id == "baseline-neat"
+    assert args.seeds == "1,2"
+    assert args.output == "prior_eval.md"
+    assert args.json_output == "prior_eval.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -971,6 +999,86 @@ def test_evaluate_stable_writer_profiles_command_writes_reports(
     assert "Stable Writer Profile Evaluation" in markdown
     assert "selected_profile_ids" in markdown
     assert '"selected_profile_count": 1' in json_text
+
+
+def test_evaluate_data_driven_writer_prior_command_writes_reports(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    samples_path = root / "samples.jsonl"
+    samples_path.write_text(
+        """
+{"sample_id":"sample-1","writer_id":"writer-a","char_or_text":"永","x_mm":0.0,"y_mm":0.0,"t_ms":0,"pen_state":1,"pressure_optional":1.0,"source":"stylus","license_scope":"research-only"}
+{"sample_id":"sample-1","writer_id":"writer-a","char_or_text":"永","x_mm":1.0,"y_mm":1.0,"t_ms":10,"pen_state":1,"pressure_optional":1.0,"source":"stylus","license_scope":"research-only"}
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "evaluation_harness.cli.evaluate_data_driven_writer_prior_fixed_input_set",
+        lambda *_args, **_kwargs: {
+            "base_profile_id": "baseline-neat",
+            "samples_jsonl": str(samples_path),
+            "expected_input_texts": ["永"],
+            "expected_seeds": [1],
+            "selected": True,
+            "selected_profile_id": "baseline-neat-data-prior-1234",
+            "selection_reason": "selected",
+            "estimate": {
+                "source": "data-driven",
+                "summary": {"sample_count": 1, "writer_count": 1},
+            },
+            "comparison": {
+                "comparison_count": 1,
+                "resolved_failure_tag_count": 1,
+                "new_failure_tag_count": 0,
+                "safety_violation_count": 0,
+                "metric_delta_means": {"draw_speed_cv": 0.1},
+            },
+            "evaluation_summary": {
+                "selection_status": "selected",
+                "candidate_count": 1,
+                "selected_candidate_count": 1,
+                "resolved_failure_tag_count": 1,
+                "new_failure_tag_count": 0,
+                "safety_violation_count": 0,
+                "metric_delta_means": {"draw_speed_cv": 0.1},
+            },
+        },
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "evaluate-data-driven-writer-prior",
+            "--samples-jsonl",
+            str(samples_path),
+            "--root",
+            str(root),
+            "--base-profile-id",
+            "baseline-neat",
+            "--seeds",
+            "1",
+            "--output",
+            "prior_eval.md",
+            "--json-output",
+            "prior_eval.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "prior_eval.md").read_text(encoding="utf-8")
+    json_text = (root / "prior_eval.json").read_text(encoding="utf-8")
+
+    assert "Data-driven Writer Prior Evaluation" in markdown
+    assert "selected_profile_id" in markdown
+    assert '"selected": true' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:

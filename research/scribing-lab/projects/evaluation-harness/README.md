@@ -24,6 +24,7 @@
 - `summarize-preview-revision-loops`: 複数ラウンドの設計原理と失敗傾向の要約。
 - `propose-stable-writer-profiles`: 要約から安定候補 profile 群を生成。
 - `evaluate-stable-writer-profiles`: 安定候補 profile 群を固定入力セットで評価し、採択候補を選定。
+- `evaluate-data-driven-writer-prior`: JSONL のオンライン筆記サンプルから推定した prior を評価。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -109,6 +110,9 @@ derived writer profile 候補を作る。
 `evaluate-stable-writer-profiles` は、候補 profile を固定評価入力セットへ流し、
 baseline と比較して新しい failure tag が出ない候補だけを採択する。
 評価結果は `selected_profile_ids` と `selection_summary` に保存される。
+
+`evaluate-data-driven-writer-prior` は、`samples.jsonl` から推定した derived profile を
+固定評価入力セットへ流し、baseline と比較して prior が実際に改善するかを確認する。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 
