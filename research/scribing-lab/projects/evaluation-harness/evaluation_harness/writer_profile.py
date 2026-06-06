@@ -89,18 +89,36 @@ def apply_writer_profile_to_structure_motion_config(config: Any, profile: Writer
         config,
         char_spacing=max(
             0.0,
-            config.char_spacing + (params.spacing_mean_mm - BASELINE_PROFILE.params.spacing_mean_mm),
+            config.char_spacing
+            + _blend_delta(
+                params.spacing_mean_mm - BASELINE_PROFILE.params.spacing_mean_mm,
+                strength=0.85,
+            ),
         ),
         timing_jitter_cv=max(
             0.0,
-            config.timing_jitter_cv + (params.timing_jitter_cv - BASELINE_PROFILE.params.timing_jitter_cv),
+            config.timing_jitter_cv
+            + _blend_delta(
+                params.timing_jitter_cv - BASELINE_PROFILE.params.timing_jitter_cv,
+                strength=0.55,
+            ),
         ),
         tremor_mm=max(
             0.0,
-            config.tremor_mm + (params.tremor_mm - BASELINE_PROFILE.params.tremor_mm),
+            config.tremor_mm
+            + _blend_delta(
+                params.tremor_mm - BASELINE_PROFILE.params.tremor_mm,
+                strength=0.55,
+            ),
         ),
-        shape_variation=max(0.0, config.shape_variation + params.shape_variation),
-        layout_variation=max(0.0, config.layout_variation + params.layout_variation),
+        shape_variation=max(
+            0.0,
+            config.shape_variation + _blend_delta(params.shape_variation, strength=0.85),
+        ),
+        layout_variation=max(
+            0.0,
+            config.layout_variation + _blend_delta(params.layout_variation, strength=0.75),
+        ),
     )
 
 
@@ -114,11 +132,19 @@ def apply_writer_profile_to_motion_config(config: Any, profile: WriterProfile) -
         ),
         timing_jitter_cv=max(
             0.0,
-            config.timing_jitter_cv + (params.timing_jitter_cv - BASELINE_PROFILE.params.timing_jitter_cv),
+            config.timing_jitter_cv
+            + _blend_delta(
+                params.timing_jitter_cv - BASELINE_PROFILE.params.timing_jitter_cv,
+                strength=0.55,
+            ),
         ),
         tremor_mm=max(
             0.0,
-            config.tremor_mm + (params.tremor_mm - BASELINE_PROFILE.params.tremor_mm),
+            config.tremor_mm
+            + _blend_delta(
+                params.tremor_mm - BASELINE_PROFILE.params.tremor_mm,
+                strength=0.55,
+            ),
         ),
         harai_min_pressure=_scaled_pressure(
             config.harai_min_pressure,
@@ -242,3 +268,7 @@ def _scaled_pressure(base_pressure: float, profile_gain: float, baseline_gain: f
     if baseline_gain <= 0:
         return base_pressure
     return max(0.0, base_pressure * (profile_gain / baseline_gain))
+
+
+def _blend_delta(delta: float, *, strength: float) -> float:
+    return delta * max(0.0, min(strength, 1.0))

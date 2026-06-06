@@ -1,3 +1,4 @@
+from dataclasses import dataclass
 from pathlib import Path
 
 from evaluation_harness.compare import compare_against_baseline
@@ -8,6 +9,11 @@ from evaluation_harness.structure_motion import (
     run_structure_motion_batch,
 )
 from evaluation_harness.structure_uniform import run_structure_uniform
+from evaluation_harness.writer_profile import (
+    apply_writer_profile_to_motion_config,
+    apply_writer_profile_to_structure_motion_config,
+    resolve_writer_profile,
+)
 
 
 def test_run_structure_motion_registers_motion_metrics(tmp_path: Path) -> None:
@@ -159,3 +165,43 @@ def test_structure_motion_profile_changes_timing_and_pressure(tmp_path: Path) ->
     assert fast.metrics["writer_profile_speed_mean_mm_s"] == 54.0
     assert fast.metrics["writer_profile_timing_jitter_cv"] == 0.14
     assert fast.metrics["duration_ms"] != baseline.metrics["duration_ms"]
+
+
+def test_writer_profile_application_blends_motion_variation() -> None:
+    config = StructureMotionConfig(
+        char_spacing=1.6,
+        timing_jitter_cv=0.12,
+        tremor_mm=0.02,
+        shape_variation=0.08,
+        layout_variation=0.09,
+    )
+    profile = resolve_writer_profile("fast-casual")
+
+    motion_cfg = apply_writer_profile_to_structure_motion_config(config, profile)
+    pen_cfg = apply_writer_profile_to_motion_config(
+        _MotionConfig(
+            draw_speed_mm_s=40.0,
+            timing_jitter_cv=0.12,
+            tremor_mm=0.02,
+            harai_min_pressure=0.2,
+            hane_min_pressure=0.25,
+            tome_terminal_pressure=1.05,
+        ),
+        profile,
+    )
+
+    assert motion_cfg.timing_jitter_cv < 0.18
+    assert motion_cfg.tremor_mm < 0.025
+    assert motion_cfg.layout_variation < 0.12
+    assert pen_cfg.timing_jitter_cv < 0.18
+    assert pen_cfg.tremor_mm < 0.025
+
+
+@dataclass(frozen=True)
+class _MotionConfig:
+    draw_speed_mm_s: float
+    timing_jitter_cv: float
+    tremor_mm: float
+    harai_min_pressure: float
+    hane_min_pressure: float
+    tome_terminal_pressure: float
