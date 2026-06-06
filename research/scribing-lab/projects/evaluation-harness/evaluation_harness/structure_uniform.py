@@ -9,6 +9,7 @@ import numpy as np
 
 from evaluation_harness.artifacts import ArtifactStore
 from evaluation_harness.baseline_outline import (
+    DEFAULT_EVALUATION_INPUTS,
     _json_dumps,
     _series_summary,
     _use_headless_matplotlib,
@@ -27,6 +28,7 @@ from evaluation_harness.writer_profile import (
 )
 
 DEFAULT_STRUCTURE_INPUTS: tuple[str, ...] = ("永", "あいうえお")
+EVALUATION_STRUCTURE_INPUTS: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS
 EXTENDED_STRUCTURE_INPUTS: tuple[str, ...] = (
     "永",
     "あいうえお",
