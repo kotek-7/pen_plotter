@@ -150,6 +150,16 @@ preview から選定した候補について、次実験で変えるべき param
 - 変更候補が具体的な parameter 名と direction を持つ。
 - 同一 input / seed の再生成方針を Markdown と JSON で保存できる。
 
+### Experiment 8: preview iteration loop
+
+preview 比較、候補選定、改版提案を 1 ラウンドに束ね、次の実験へそのまま渡せる形にする。
+
+評価:
+
+- 1 ラウンドの status を JSON と Markdown で保存できる。
+- selected candidate がある group とない group を区別できる。
+- 次の実験ヒントを 1 つの summary で確認できる。
+
 ## 成果物
 
 - metrics spec。

@@ -7,9 +7,11 @@ from evaluation_harness.compare import (
     compare_preview_fixed_input_set,
     recommend_preview_fixed_input_set,
     propose_preview_fixed_input_set,
+    preview_iteration_fixed_input_set,
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
+    render_preview_iteration_markdown,
     render_preview_recommendation_markdown,
     render_preview_revision_plan_markdown,
 )
@@ -331,6 +333,50 @@ def test_propose_preview_fixed_input_set_builds_revision_plan(tmp_path: Path) ->
     report = render_preview_revision_plan_markdown(proposal)
     assert "# Preview Revision Plan" in report
     assert "selected_candidate_count" in report
+
+
+def test_preview_iteration_fixed_input_set_reports_iteration_status(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    candidate_preview.write_bytes(b"candidate-preview")
+
+    iteration = preview_iteration_fixed_input_set(
+        [
+            _record(
+                experiment_id="exp-baseline",
+                input_text="永",
+                seed=1,
+                generator="baseline-outline",
+                artifacts={"preview": str(baseline_preview)},
+            ),
+            _record(
+                experiment_id="exp-candidate",
+                input_text="永",
+                seed=1,
+                generator="structure-motion",
+                metrics={
+                    "point_count": 10,
+                    "velocity_peak_count": 0,
+                    "draw_speed_cv": 0.01,
+                    "shape_variation_mm": 0.6,
+                    "layout_variation_mm": 0.6,
+                },
+                artifacts={"preview": str(candidate_preview)},
+            ),
+        ],
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    assert iteration["iteration_status"] == "ready"
+    assert iteration["iteration_selected_area_count"] == 1
+    assert iteration["iteration_next_experiment_hints"] == [
+        "同じ input / seed で motion profile を上げて再生成する"
+    ]
+    report = render_preview_iteration_markdown(iteration)
+    assert "# Preview Iteration Report" in report
+    assert "iteration_status" in report
 
 
 def _record(

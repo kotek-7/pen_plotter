@@ -384,6 +384,48 @@ def propose_preview_fixed_input_set(
     }
 
 
+def preview_iteration_fixed_input_set(
+    records: Iterable[ExperimentRecord],
+    *,
+    expected_input_texts: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
+    expected_seeds: tuple[int, ...] = (1, 2, 3),
+    baseline_generator: str = "baseline-outline",
+    metrics: tuple[str, ...] = DEFAULT_COMPARE_METRICS,
+) -> dict[str, Any]:
+    proposal = propose_preview_fixed_input_set(
+        records,
+        expected_input_texts=expected_input_texts,
+        expected_seeds=expected_seeds,
+        baseline_generator=baseline_generator,
+        metrics=metrics,
+    )
+    selected_candidate_count = proposal["selected_candidate_count"]
+    expected_group_count = proposal["expected_group_count"]
+    if selected_candidate_count == 0:
+        iteration_status = "needs-more-preview-data"
+    elif selected_candidate_count < expected_group_count:
+        iteration_status = "partial"
+    else:
+        iteration_status = "ready"
+
+    next_experiment_hints = sorted(
+        {
+            plan["next_experiment_hint"]
+            for plan in proposal["revision_plans"]
+            if plan.get("status") == "selected"
+        }
+    )
+    if not next_experiment_hints:
+        next_experiment_hints = ["preview artifact を持つ候補を追加して比較する"]
+
+    return {
+        **proposal,
+        "iteration_status": iteration_status,
+        "iteration_next_experiment_hints": next_experiment_hints,
+        "iteration_selected_area_count": len(proposal["revision_area_counts"]),
+    }
+
+
 def render_comparison_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Baseline Comparison Report",
@@ -607,6 +649,61 @@ def render_preview_revision_plan_markdown(comparison: dict[str, Any]) -> str:
                 )
         else:
             lines.append("  - none")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
+def render_preview_iteration_markdown(comparison: dict[str, Any]) -> str:
+    lines = [
+        "# Preview Iteration Report",
+        "",
+        f"- baseline_generator: `{comparison['baseline_generator']}`",
+        f"- expected_group_count: `{comparison['expected_group_count']}`",
+        f"- preview_ready_count: `{comparison['preview_ready_count']}`",
+        f"- selected_candidate_count: `{comparison['selected_candidate_count']}`",
+        f"- selected_coverage_ratio: `{comparison['selected_coverage_ratio']}`",
+        f"- iteration_status: `{comparison['iteration_status']}`",
+        f"- iteration_selected_area_count: `{comparison['iteration_selected_area_count']}`",
+        f"- iteration_next_experiment_hints: `{comparison['iteration_next_experiment_hints']}`",
+        "",
+        "## Iteration Summary",
+        "",
+        f"- focus_area_counts: `{comparison['focus_area_counts']}`",
+        f"- recommended_action_counts: `{comparison['recommended_action_counts']}`",
+        f"- revision_area_counts: `{comparison['revision_area_counts']}`",
+        "",
+        "## Revision Plans",
+        "",
+    ]
+    if not comparison["revision_plans"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    for item in comparison["revision_plans"]:
+        lines.extend(
+            [
+                f"### input={item['input_text']} seed={item['seed']}",
+                "",
+                f"- status: `{item['status']}`",
+                f"- focus_area: `{item['focus_area']}`",
+                f"- candidate_experiment_id: `{item['candidate_experiment_id']}`",
+                f"- candidate_profile_id: `{item.get('candidate_profile_id', '')}`",
+                f"- next_experiment_hint: `{item['next_experiment_hint']}`",
+            ]
+        )
+        if item["proposed_changes"]:
+            lines.append("- proposed_changes:")
+            for change in item["proposed_changes"]:
+                lines.append(
+                    "  - "
+                    f"target=`{change['target']}` "
+                    f"parameter=`{change['parameter']}` "
+                    f"direction=`{change['direction']}` "
+                    f"amount_hint=`{change['amount_hint']}` "
+                    f"reason=`{change['reason']}`"
+                )
+        else:
+            lines.append("- proposed_changes: `none`")
         lines.append("")
     return "\n".join(lines) + "\n"
 

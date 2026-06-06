@@ -19,6 +19,7 @@
 - `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
 - `recommend-preview-fixed-inputs`: preview 候補の選定と次の改版案。
 - `propose-preview-fixed-inputs`: preview 選定候補からの改版提案。
+- `preview-iteration-fixed-inputs`: preview 比較から改版提案までの 1 ラウンド集約。
 - `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `preview-review-packet`: preview を主軸にしたレビュー束の別名。
@@ -86,6 +87,9 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `propose-preview-fixed-inputs` は、選定候補ごとに `motion`、`layout`、`dictionary`、
 `profile`、`safety` のどれを変えるべきかを revision plan として出力する。
+
+`preview-iteration-fixed-inputs` は、preview 差分、候補選定、改版提案を 1 ラウンドとして
+束ね、次の実験に渡すための summary を保存する。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

@@ -20,8 +20,10 @@ from evaluation_harness.compare import (
     render_comparison_markdown,
     render_fixed_input_comparison_markdown,
     render_preview_fixed_input_comparison_markdown,
+    render_preview_iteration_markdown,
     render_preview_recommendation_markdown,
     render_preview_revision_plan_markdown,
+    preview_iteration_fixed_input_set,
 )
 from evaluation_harness.human_review import (
     build_human_review_packet,
@@ -150,6 +152,20 @@ def build_parser() -> argparse.ArgumentParser:
     preview_propose.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     preview_propose.add_argument("--output", default="preview_revision_plan.md")
     preview_propose.add_argument("--json-output", default="preview_revision_plan.json")
+
+    preview_iteration = sub.add_parser(
+        "preview-iteration-fixed-inputs",
+        help="Run one preview-driven experiment iteration for the fixed input set",
+    )
+    preview_iteration.add_argument(
+        "--root",
+        default="runs/baseline-outline",
+        help="Run output directory",
+    )
+    preview_iteration.add_argument("--baseline-generator", default="baseline-outline")
+    preview_iteration.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_iteration.add_argument("--output", default="preview_iteration.md")
+    preview_iteration.add_argument("--json-output", default="preview_iteration.json")
 
     offline_review = sub.add_parser(
         "offline-review",
@@ -374,6 +390,26 @@ def main() -> None:
         print(f"expected_group_count: {proposal['expected_group_count']}")
         print(f"selected_candidate_count: {proposal['selected_candidate_count']}")
         print(f"selected_coverage_ratio: {proposal['selected_coverage_ratio']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "preview-iteration-fixed-inputs":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        iteration = preview_iteration_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_preview_iteration_markdown(iteration), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(iteration, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"expected_group_count: {iteration['expected_group_count']}")
+        print(f"selected_candidate_count: {iteration['selected_candidate_count']}")
+        print(f"iteration_status: {iteration['iteration_status']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "offline-review":

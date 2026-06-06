@@ -207,6 +207,31 @@ def test_propose_preview_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.json_output == "propose.json"
 
 
+def test_preview_iteration_fixed_inputs_parser_accepts_seeds() -> None:
+    args = build_parser().parse_args(
+        [
+            "preview-iteration-fixed-inputs",
+            "--root",
+            "runs/test",
+            "--baseline-generator",
+            "baseline-outline",
+            "--seeds",
+            "1,2",
+            "--output",
+            "iteration.md",
+            "--json-output",
+            "iteration.json",
+        ]
+    )
+
+    assert args.command == "preview-iteration-fixed-inputs"
+    assert args.root == "runs/test"
+    assert args.baseline_generator == "baseline-outline"
+    assert args.seeds == "1,2"
+    assert args.output == "iteration.md"
+    assert args.json_output == "iteration.json"
+
+
 def test_structure_motion_parser_accepts_shape_variation() -> None:
     args = build_parser().parse_args(
         [
@@ -488,6 +513,70 @@ def test_propose_preview_fixed_inputs_command_writes_reports(tmp_path: Path, mon
     assert "Preview Revision Plan" in markdown
     assert "proposed_changes" in markdown
     assert '"focus_area": "motion"' in json_text
+
+
+def test_preview_iteration_fixed_inputs_command_writes_reports(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    candidate_preview = root / "candidate.png"
+    baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={
+                "point_count": 10,
+                "velocity_peak_count": 0,
+                "draw_speed_cv": 0.01,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(candidate_preview)},
+        )
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "preview-iteration-fixed-inputs",
+            "--root",
+            str(root),
+            "--seeds",
+            "1",
+            "--output",
+            "iteration.md",
+            "--json-output",
+            "iteration.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "iteration.md").read_text(encoding="utf-8")
+    json_text = (root / "iteration.json").read_text(encoding="utf-8")
+
+    assert "Preview Iteration Report" in markdown
+    assert "iteration_status" in markdown
+    assert '"iteration_status": "partial"' in json_text
 
 
 def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatch) -> None:
