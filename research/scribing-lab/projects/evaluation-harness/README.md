@@ -94,6 +94,8 @@ python3 -m evaluation_harness compare-preview-fixed-inputs \
 
 `apply-preview-revision-fixed-inputs` は、選定候補の `revision plan` を derived profile に
 反映し、同じ input / seed で再生成した結果を registry に追加する。
+このループでは、before / after の比較に加えて、`design_principles` と
+`comparison_summary` を記録し、どの変更が効いたかを後から追えるようにする。
 
 生成 preview の前段で、registry 内の metrics / failure tags から次の調整候補を出す場合:
 

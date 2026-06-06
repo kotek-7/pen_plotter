@@ -170,6 +170,16 @@ revision plan を derived profile に変換して再生成し、同じ input / s
 - 再生成した experiment が registry に追加される。
 - before / after の preview iteration を Markdown と JSON で保存できる。
 
+### Experiment 10: design principle extraction
+
+revision loop の比較結果から、再現可能な設計原理を抽出して残す。
+
+評価:
+
+- comparison summary が `metric_names` と `resolved_failure_tags` を持つ。
+- design principles が change target ごとに出力される。
+- ループ結果から安定版候補を説明できる。
+
 ## 成果物
 
 - metrics spec。

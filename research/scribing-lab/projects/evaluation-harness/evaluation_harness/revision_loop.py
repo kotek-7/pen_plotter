@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation_harness.compare import preview_iteration_fixed_input_set
+from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.structure_motion import run_structure_motion
 from evaluation_harness.writer_profile import build_revision_profile, resolve_writer_profile
@@ -29,6 +30,7 @@ def run_preview_revision_loop_fixed_input_set(
 
     applications: list[dict[str, Any]] = []
     rerun_records = []
+    before_by_id = {record.experiment_id: record for record in before_records}
     for plan in before_iteration["revision_plans"]:
         if plan["status"] != "selected":
             applications.append(
@@ -77,6 +79,7 @@ def run_preview_revision_loop_fixed_input_set(
             writer_profile=application["profile"],
         )
         rerun_records.append(record)
+        candidate_record = before_by_id.get(plan["candidate_experiment_id"])
         applications.append(
             {
                 "input_text": plan["input_text"],
@@ -89,6 +92,9 @@ def run_preview_revision_loop_fixed_input_set(
                 "preview": record.artifacts.get("preview", ""),
                 "applied_changes": list(application["applied_changes"]),
                 "unapplied_changes": list(application["unapplied_changes"]),
+                "comparison": _compare_revision_outcome(candidate_record, record)
+                if candidate_record is not None
+                else None,
             }
         )
 
@@ -105,6 +111,8 @@ def run_preview_revision_loop_fixed_input_set(
         "before_iteration": before_iteration,
         "applications": applications,
         "rerun_count": len(rerun_records),
+        "design_principles": _extract_design_principles(applications),
+        "comparison_summary": _summarize_comparisons(applications),
         "after_iteration": after_iteration,
     }
 
@@ -117,6 +125,8 @@ def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
         f"- expected_input_texts: `{packet['expected_input_texts']}`",
         f"- expected_seeds: `{packet['expected_seeds']}`",
         f"- rerun_count: `{packet['rerun_count']}`",
+        f"- comparison_summary: `{packet['comparison_summary']}`",
+        f"- design_principles: `{packet['design_principles']}`",
         "",
         "## Before",
         "",
@@ -143,6 +153,15 @@ def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
                 f"- unapplied_changes: `{item.get('unapplied_changes', [])}`",
             ]
         )
+        if item.get("comparison") is not None:
+            comparison = item["comparison"]
+            lines.extend(
+                [
+                    f"- comparison_metric_deltas: `{comparison['metric_deltas']}`",
+                    f"- comparison_resolved_failure_tags: `{comparison['resolved_failure_tags']}`",
+                    f"- comparison_new_failure_tags: `{comparison['new_failure_tags']}`",
+                ]
+            )
         if item.get("report"):
             lines.append(f"- report: `{item['report']}`")
         if item.get("preview"):
@@ -161,6 +180,99 @@ def render_preview_revision_loop_markdown(packet: dict[str, Any]) -> str:
         ]
     )
     return "\n".join(lines) + "\n"
+
+
+def _compare_revision_outcome(
+    candidate: ExperimentRecord,
+    revision: ExperimentRecord,
+) -> dict[str, Any]:
+    metric_names = (
+        "duration_ms",
+        "velocity_peak_count",
+        "draw_speed_cv",
+        "mean_abs_jerk_mm_s3",
+        "stroke_start_spacing_cv",
+        "baseline_drift_mm",
+        "shape_variation_mm",
+        "layout_variation_mm",
+        "repeated_char_ratio",
+    )
+    return {
+        "candidate_experiment_id": candidate.experiment_id,
+        "revision_experiment_id": revision.experiment_id,
+        "metric_deltas": _metric_deltas(candidate, revision, metric_names),
+        "resolved_failure_tags": sorted(
+            set(candidate.failure_tags) - set(revision.failure_tags)
+        ),
+        "new_failure_tags": sorted(set(revision.failure_tags) - set(candidate.failure_tags)),
+    }
+
+
+def _metric_deltas(
+    baseline: ExperimentRecord,
+    candidate: ExperimentRecord,
+    metric_names: tuple[str, ...],
+) -> dict[str, float]:
+    deltas: dict[str, float] = {}
+    for name in metric_names:
+        if name not in baseline.metrics or name not in candidate.metrics:
+            continue
+        base_value = baseline.metrics[name]
+        candidate_value = candidate.metrics[name]
+        if isinstance(base_value, (int, float)) and isinstance(candidate_value, (int, float)):
+            deltas[name] = round(float(candidate_value) - float(base_value), 4)
+    return deltas
+
+
+def _summarize_comparisons(applications: list[dict[str, Any]]) -> dict[str, Any]:
+    compared = [item["comparison"] for item in applications if item.get("comparison") is not None]
+    metric_names = sorted(
+        {
+            name
+            for item in compared
+            for name in item["metric_deltas"].keys()
+        }
+    )
+    resolved_tags = sorted({tag for item in compared for tag in item["resolved_failure_tags"]})
+    new_tags = sorted({tag for item in compared for tag in item["new_failure_tags"]})
+    return {
+        "comparison_count": len(compared),
+        "metric_names": metric_names,
+        "resolved_failure_tags": resolved_tags,
+        "new_failure_tags": new_tags,
+    }
+
+
+def _extract_design_principles(applications: list[dict[str, Any]]) -> list[str]:
+    principles: list[str] = []
+    for item in applications:
+        if item.get("status") != "rerun":
+            continue
+        for change in item.get("applied_changes", []):
+            principle = _principle_from_change(change)
+            if principle and principle not in principles:
+                principles.append(principle)
+    return principles
+
+
+def _principle_from_change(change: dict[str, Any]) -> str:
+    target = str(change.get("target", ""))
+    parameter = str(change.get("parameter", ""))
+    if target == "motion" and parameter == "timing_jitter_cv":
+        return "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+    if target == "layout" and parameter == "baseline_drift_mm":
+        return "layout: 長文が機械的なら baseline_drift_mm を増やす"
+    if target == "layout" and parameter == "spacing_mean_mm":
+        return "layout: 字間が不自然なら spacing_mean_mm を調整する"
+    if target == "dictionary" and parameter == "shape_variation":
+        return "dictionary: 骨格が硬いなら shape_variation を増やす"
+    if target == "profile" and parameter == "terminal_gains":
+        return "profile: 終端差が弱いなら terminal_gains の対比を強める"
+    if target == "profile" and parameter == "slant_deg":
+        return "profile: 字形がフォント寄りなら slant_deg をずらす"
+    if target == "safety":
+        return "safety: 安全性違反は見た目評価の前に修正する"
+    return ""
 
 
 def _revision_profile_id(plan: dict[str, Any]) -> str:

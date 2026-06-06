@@ -80,10 +80,15 @@ def test_run_preview_revision_loop_fixed_input_set_reruns_selected_candidate(
     assert packet["rerun_count"] == 1
     assert packet["applications"][0]["status"] == "rerun"
     assert packet["applications"][0]["revision_experiment_id"].startswith("exp-candidate-rev-")
+    assert packet["comparison_summary"]["comparison_count"] == 1
+    assert packet["design_principles"] == [
+        "motion: 等速感が強いときは timing_jitter_cv を先に上げる"
+    ]
     assert packet["after_iteration"]["preview_group_summaries"][0]["candidate_count"] == 2
     report = render_preview_revision_loop_markdown(packet)
     assert "# Preview Revision Loop" in report
     assert "rerun_count" in report
+    assert "design_principles" in report
 
 
 def _record(
