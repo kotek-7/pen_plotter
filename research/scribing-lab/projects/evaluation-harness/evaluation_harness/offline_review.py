@@ -386,7 +386,7 @@ def _looks_spacing_unnatural(metrics: dict[str, float | int | str]) -> bool:
     baseline_drift = float(metrics.get("baseline_drift_mm", 0.0))
     mean_gap = float(metrics.get("mean_stroke_start_gap_mm", 0.0))
     return (
-        spacing_cv > 1.4
+        spacing_cv > 1.75
         # Expanded evaluation inputs include dense ASCII and multi-line samples.
         or baseline_drift > 20.0
         or mean_gap > 20.0

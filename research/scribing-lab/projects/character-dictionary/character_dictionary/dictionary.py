@@ -4,6 +4,7 @@ import json
 import math
 import random
 from dataclasses import replace
+from pathlib import Path
 from typing import Any
 
 import numpy as np
@@ -13,6 +14,7 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.path import Path as MplPath
 from matplotlib.textpath import TextPath
 
+from character_dictionary.kanjivg import load_kanjivg_asset
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
 
@@ -35,7 +37,8 @@ class DictionaryLookupError(KeyError):
 
 
 SCHEMA_VERSION = 1
-DICTIONARY_ID = "manual-kanjivg-mvp"
+DICTIONARY_ID = "kanjivg-backed-mvp"
+KANJIVG_ASSET_PATH = Path(__file__).resolve().parent / "data" / "kanjivg_templates.json"
 
 
 def _dedupe_character_order(chars: tuple[str, ...]) -> tuple[str, ...]:
@@ -531,20 +534,24 @@ def _slant_offset(py: float, config: LayoutConfig) -> float:
 
 
 def _build_templates() -> dict[str, CharacterTemplate]:
+    kanjivg_templates = load_kanjivg_asset(KANJIVG_ASSET_PATH)
     templates: dict[str, CharacterTemplate] = {
-        "永": _template(
-            "永",
-            (
-                _stroke(1, "ten", ((0.50, 0.08), (0.54, 0.20))),
-                _stroke(2, "yoko", ((0.28, 0.30), (0.74, 0.30))),
-                _stroke(3, "tate", ((0.50, 0.22), (0.50, 0.78), (0.42, 0.94))),
-                _stroke(4, "hidari", ((0.44, 0.52), (0.30, 0.72), (0.16, 0.88))),
-                _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
-            ),
-        ),
+        literal: template for literal, template in kanjivg_templates.items()
     }
     for literal in BUILTIN_CHARACTER_ORDER:
         if literal in templates:
+            continue
+        if literal == "永":
+            templates[literal] = _template(
+                "永",
+                (
+                    _stroke(1, "ten", ((0.50, 0.08), (0.54, 0.20))),
+                    _stroke(2, "yoko", ((0.28, 0.30), (0.74, 0.30))),
+                    _stroke(3, "tate", ((0.50, 0.22), (0.50, 0.78), (0.42, 0.94))),
+                    _stroke(4, "hidari", ((0.44, 0.52), (0.30, 0.72), (0.16, 0.88))),
+                    _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
+                ),
+            )
             continue
         templates[literal] = _font_outline_template(literal)
     return templates

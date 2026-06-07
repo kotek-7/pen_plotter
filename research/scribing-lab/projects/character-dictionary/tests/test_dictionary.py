@@ -19,18 +19,19 @@ def test_get_template_returns_ordered_strokes_for_ei() -> None:
     template = get_template("永")
 
     assert template.char_id == "U+6C38"
+    assert template.source == "kanjivg"
     assert len(template.strokes) == 5
     assert [stroke.order for stroke in template.strokes] == [1, 2, 3, 4, 5]
     assert {stroke.terminal for stroke in template.strokes} >= {"tome", "harai"}
 
 
 @pytest.mark.parametrize("literal", ["あ", "い", "う", "え", "お"])
-def test_kana_templates_are_font_outlines(literal: str) -> None:
+def test_kana_templates_are_kanjivg(literal: str) -> None:
     template = get_template(literal)
 
-    assert template.source == "font-outline"
+    assert template.source == "kanjivg"
     assert template.strokes
-    assert all(stroke.stroke_type == "outline" for stroke in template.strokes)
+    assert all(stroke.stroke_type == "none" for stroke in template.strokes)
     assert all(stroke.terminal == "none" for stroke in template.strokes)
 
     xs = [x for stroke in template.strokes for x, _ in stroke.skeleton_points]
@@ -155,10 +156,10 @@ def test_layout_text_baseline_drift_moves_lower_lines() -> None:
 
 
 def test_layout_text_falls_back_for_unknown_character() -> None:
-    strokes = layout_text("今", LayoutConfig())
+    strokes = layout_text("☀", LayoutConfig())
 
     assert strokes
-    assert all(stroke.literal == "今" for stroke in strokes)
+    assert all(stroke.literal == "☀" for stroke in strokes)
     assert all(stroke.terminal == "none" for stroke in strokes)
     assert min(x for stroke in strokes for x, _ in stroke.points) >= 0.0
     assert max(x for stroke in strokes for x, _ in stroke.points) <= 210.0
@@ -215,6 +216,7 @@ def test_export_dictionary_is_normalized_and_deterministic() -> None:
     assert first == second
     assert first["schema_version"] == SCHEMA_VERSION
     assert first["dictionary_id"] == DICTIONARY_ID
+    assert first["dictionary_id"] == "kanjivg-backed-mvp"
     assert first["character_count"] == len(BUILTIN_CHARACTER_ORDER)
     assert [item["literal"] for item in first["characters"]] == list(BUILTIN_CHARACTER_ORDER)
     assert all(item["strokes"] for item in first["characters"])
@@ -227,7 +229,7 @@ def test_export_dictionary_json_is_stable() -> None:
     json_text = export_dictionary_json()
 
     assert '"schema_version": 1' in json_text
-    assert '"dictionary_id": "manual-kanjivg-mvp"' in json_text
+    assert '"dictionary_id": "kanjivg-backed-mvp"' in json_text
     assert json_text.endswith("\n")
 
 
@@ -239,6 +241,8 @@ def test_export_dictionary_json_is_stable() -> None:
         ("hidari", "harai"),
         ("migi", "harai"),
         ("hane", "hane"),
+        ("㇔", "tome"),
+        ("㇏", "harai"),
         ("unknown", "none"),
     ],
 )
