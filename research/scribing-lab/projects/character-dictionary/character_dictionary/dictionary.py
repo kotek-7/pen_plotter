@@ -17,9 +17,12 @@ from matplotlib.textpath import TextPath
 from character_dictionary.classification import (
     character_advance_ratio,
     character_display_scale,
+    character_layout_offset,
+    character_shape_variation_scale,
     classify_character,
     font_candidates_for_character,
 )
+from character_dictionary.hershey import HERSHEY_ASSET_PATH, load_hershey_asset
 from character_dictionary.kanjivg import load_kanjivg_asset
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
@@ -234,6 +237,10 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
         template = _TEMPLATES.get(char)
         display_scale = template.display_scale if template is not None else character_display_scale(char)
         advance_ratio = template.advance_ratio if template is not None else character_advance_ratio(char)
+        layout_shift_x, layout_shift_y = character_layout_offset(
+            char,
+            script_group=template.script_group if template is not None else None,
+        )
         if template is None:
             stroke_entries = [
                 (glyph_stroke, "none", "outline", index + 1)
@@ -269,12 +276,14 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
                     + line_offset_x * line_char_index
                     + line_wave * cfg.char_size * 0.02
                     + px * cfg.char_size
+                    + layout_shift_x * cfg.char_size
                     + _slant_offset(py, cfg),
                     y_top
                     + layout_offset_y
                     + line_offset_y * line_char_index
                     + line_wave * cfg.char_size * 0.03
                     + repeat_index * cfg.layout_variation * cfg.char_size * 0.04
+                    + layout_shift_y * cfg.char_size
                     - py * cfg.char_size,
                 )
                 for px, py in skeleton_points
@@ -405,23 +414,27 @@ def _vary_skeleton_points(
     stroke: StrokeTemplate,
     config: LayoutConfig,
 ) -> tuple[tuple[float, float], ...]:
-    strength = max(float(config.shape_variation), 0.0)
+    script_group = classify_character(literal)
+    strength = max(float(config.shape_variation), 0.0) * character_shape_variation_scale(
+        literal,
+        script_group=script_group,
+    )
     if strength == 0.0:
         return stroke.skeleton_points
 
     rng = random.Random(
         f"{config.variation_seed}:{literal}:{char_index}:{stroke.stroke_id}:{stroke.stroke_type}"
     )
-    slant = rng.uniform(-0.25, 0.25) * strength
-    stretch_x = 1.0 + rng.uniform(-0.35, 0.35) * strength
-    stretch_y = 1.0 + rng.uniform(-0.30, 0.30) * strength
-    shift_x = rng.uniform(-0.35, 0.35) * strength
-    shift_y = rng.uniform(-0.35, 0.35) * strength
-    point_jitter = 0.35 * strength
+    slant = rng.uniform(-0.12, 0.12) * strength
+    stretch_x = 1.0 + rng.uniform(-0.12, 0.12) * strength
+    stretch_y = 1.0 + rng.uniform(-0.10, 0.10) * strength
+    shift_x = rng.uniform(-0.12, 0.12) * strength
+    shift_y = rng.uniform(-0.12, 0.12) * strength
+    point_jitter = 0.12 * strength
 
     varied: list[tuple[float, float]] = []
     for index, (px, py) in enumerate(stroke.skeleton_points):
-        endpoint_scale = 0.45 if index in {0, len(stroke.skeleton_points) - 1} else 1.0
+        endpoint_scale = 0.30 if index in {0, len(stroke.skeleton_points) - 1} else 1.0
         jitter_x = rng.uniform(-point_jitter, point_jitter) * endpoint_scale
         jitter_y = rng.uniform(-point_jitter, point_jitter) * endpoint_scale
         centered_x = (px - 0.5) * stretch_x + slant * (py - 0.5)
@@ -469,16 +482,18 @@ def _fallback_glyph_strokes(char: str) -> list[Stroke]:
 
 
 def _find_font(name: str | None, path: str | None, *, literal: str | None = None) -> FontProperties:
+    group = classify_character(literal or "あ")
+    weight = "bold" if group in {"latin", "digit", "punctuation", "symbol"} else "regular"
     if path is not None:
-        return FontProperties(fname=path)
+        return FontProperties(fname=path, weight=weight)
     if name:
-        return FontProperties(family=name)
+        return FontProperties(family=name, weight=weight)
 
     available = {font.name for font in font_manager.fontManager.ttflist}
     for candidate in font_candidates_for_character(literal or "あ"):
         if candidate in available:
-            return FontProperties(family=candidate)
-    return FontProperties(family="DejaVu Sans")
+            return FontProperties(family=candidate, weight=weight)
+    return FontProperties(family="DejaVu Sans", weight=weight)
 
 
 def _flatten_text_path(path: TextPath) -> list[Stroke]:
@@ -566,6 +581,7 @@ def _slant_offset(py: float, config: LayoutConfig) -> float:
 
 def _build_templates() -> dict[str, CharacterTemplate]:
     kanjivg_templates = load_kanjivg_asset(KANJIVG_ASSET_PATH)
+    hershey_templates = load_hershey_asset(HERSHEY_ASSET_PATH)
     templates: dict[str, CharacterTemplate] = {
         literal: template for literal, template in kanjivg_templates.items()
     }
@@ -583,6 +599,9 @@ def _build_templates() -> dict[str, CharacterTemplate]:
                     _stroke(5, "migi", ((0.56, 0.52), (0.70, 0.74), (0.86, 0.90))),
                 ),
             )
+            continue
+        if literal in hershey_templates:
+            templates[literal] = hershey_templates[literal]
             continue
         templates[literal] = _font_outline_template(literal)
     return templates

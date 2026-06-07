@@ -33,6 +33,11 @@ JAPANESE_FONT_CANDIDATES: tuple[str, ...] = (
 )
 
 LATIN_FONT_CANDIDATES: tuple[str, ...] = (
+    "Comic Neue",
+    "Ubuntu Sans",
+    "FreeSans",
+    "Open Sans",
+    "Liberation Sans",
     "Noto Sans",
     "Noto Sans Mono",
     "DejaVu Sans",
@@ -42,6 +47,10 @@ LATIN_FONT_CANDIDATES: tuple[str, ...] = (
     "Helvetica",
     "Arial",
 )
+
+SMALL_KANA_LITERALS = frozenset("ぁぃぅぇぉゃゅょっゎゕゖァィゥェォャュョッヮヵヶ")
+SMALL_PUNCTUATION_LITERALS = frozenset("、。，．・")
+FULL_WIDTH_PUNCTUATION_LITERALS = frozenset("！？!?")
 
 
 def classify_character(literal: str) -> str:
@@ -74,16 +83,24 @@ def character_display_scale(
     source: str = "",
 ) -> float:
     group = script_group or classify_character(literal)
+    if literal in SMALL_KANA_LITERALS:
+        return 0.48
+    if literal in SMALL_PUNCTUATION_LITERALS:
+        return 0.40
+    if literal == "ー":
+        return 0.74
+    if literal in FULL_WIDTH_PUNCTUATION_LITERALS:
+        return 0.60
     if group in {SCRIPT_GROUP_KANA, SCRIPT_GROUP_KANJI}:
         return 1.0
     if group == SCRIPT_GROUP_LATIN:
-        return 1.08 if source == "font-outline" else 1.04
+        return 0.94 if source == "font-outline" else 0.92
     if group == SCRIPT_GROUP_DIGIT:
-        return 1.06
+        return 0.88
     if group == SCRIPT_GROUP_PUNCTUATION:
-        return 0.94 if source == "font-outline" else 0.9
+        return 0.52 if source == "font-outline" else 0.48
     if group == SCRIPT_GROUP_SYMBOL:
-        return 0.98
+        return 0.72
     return 1.0
 
 
@@ -94,19 +111,65 @@ def character_advance_ratio(
     source: str = "",
 ) -> float:
     group = script_group or classify_character(literal)
+    if literal in SMALL_KANA_LITERALS:
+        return 0.42
+    if literal in SMALL_PUNCTUATION_LITERALS:
+        return 0.28
+    if literal == "ー":
+        return 0.72
+    if literal in FULL_WIDTH_PUNCTUATION_LITERALS:
+        return 0.44
     if group == SCRIPT_GROUP_KANA:
         return 0.9
     if group == SCRIPT_GROUP_KANJI:
         return 0.92 if source == "font-outline" else 0.9
     if group == SCRIPT_GROUP_LATIN:
-        return 0.84
+        return 0.70
     if group == SCRIPT_GROUP_DIGIT:
-        return 0.86
+        return 0.74
     if group == SCRIPT_GROUP_PUNCTUATION:
-        return 0.7
+        return 0.36
     if group == SCRIPT_GROUP_SYMBOL:
-        return 0.78
+        return 0.50
     return 0.9
+
+
+def character_shape_variation_scale(literal: str, *, script_group: str | None = None) -> float:
+    group = script_group or classify_character(literal)
+    if literal in SMALL_KANA_LITERALS:
+        return 0.03
+    if literal in SMALL_PUNCTUATION_LITERALS:
+        return 0.0
+    if literal == "ー":
+        return 0.03
+    if group == SCRIPT_GROUP_LATIN:
+        return 0.0
+    if group == SCRIPT_GROUP_DIGIT:
+        return 0.0
+    if group == SCRIPT_GROUP_PUNCTUATION:
+        return 0.0
+    if group == SCRIPT_GROUP_SYMBOL:
+        return 0.0
+    return 1.0
+
+
+def character_layout_offset(
+    literal: str,
+    *,
+    script_group: str | None = None,
+) -> tuple[float, float]:
+    group = script_group or classify_character(literal)
+    if literal in SMALL_KANA_LITERALS:
+        return (0.01, -0.16)
+    if literal in SMALL_PUNCTUATION_LITERALS:
+        return (0.10, -0.22)
+    if literal == "ー":
+        return (0.02, -0.06)
+    if literal in FULL_WIDTH_PUNCTUATION_LITERALS:
+        return (0.04, -0.12)
+    if group in {SCRIPT_GROUP_LATIN, SCRIPT_GROUP_DIGIT, SCRIPT_GROUP_PUNCTUATION, SCRIPT_GROUP_SYMBOL}:
+        return (0.0, 0.0)
+    return (0.0, 0.0)
 
 
 def font_candidates_for_character(literal: str) -> tuple[str, ...]:

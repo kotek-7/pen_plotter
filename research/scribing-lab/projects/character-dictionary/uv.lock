@@ -1,0 +1,22 @@
+version = 1
+revision = 3
+requires-python = ">=3.11"
+
+[[package]]
+name = "character-dictionary"
+version = "0.1.0"
+source = { virtual = "." }
+dependencies = [
+    { name = "hershey-fonts" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "hershey-fonts" }]
+
+[[package]]
+name = "hershey-fonts"
+version = "2.1.0"
+source = { registry = "https://pypi.org/simple" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/67/7b/6b42706a7a7bc88aa4aea1d19793c7d44709c4bf115ffeb5216b0ffe2dce/Hershey_Fonts-2.1.0-py2.py3-none-any.whl", hash = "sha256:e53ef56bdef231f10f0576a6570f49fcc8442e45115028bc52a7ade15d824581", size = 63934, upload-time = "2021-09-13T14:55:23.223Z" },
+]

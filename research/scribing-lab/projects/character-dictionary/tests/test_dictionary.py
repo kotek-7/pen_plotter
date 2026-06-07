@@ -13,6 +13,10 @@ from character_dictionary import (
     layout_text,
     map_stroke_type_to_terminal,
 )
+from character_dictionary.classification import (
+    character_layout_offset,
+    character_shape_variation_scale,
+)
 
 
 def test_get_template_returns_ordered_strokes_for_ei() -> None:
@@ -181,16 +185,30 @@ def test_dictionary_reflects_character_types() -> None:
     latin = get_template("A")
     digit = get_template("0")
     punctuation = get_template("、")
+    small_kana = get_template("ぁ")
 
     assert latin.script_group == "latin"
-    assert latin.display_scale >= 1.04
-    assert latin.advance_ratio < 0.9
+    assert latin.source == "hershey"
+    assert latin.display_scale <= 0.92
+    assert latin.advance_ratio > 0.7
+    assert character_shape_variation_scale("A") == 0.0
+    assert character_layout_offset("A") == (0.0, 0.0)
     assert digit.script_group == "digit"
-    assert digit.display_scale >= 1.06
-    assert digit.advance_ratio < 0.9
+    assert digit.source == "hershey"
+    assert digit.display_scale <= 0.88
+    assert digit.advance_ratio >= 0.9
+    assert character_shape_variation_scale("0") == 0.0
+    assert character_layout_offset("0") == (0.0, 0.0)
     assert punctuation.script_group == "punctuation"
-    assert punctuation.display_scale < 1.0
-    assert punctuation.advance_ratio < 0.8
+    assert punctuation.display_scale == 0.40
+    assert punctuation.advance_ratio == 0.28
+    assert character_shape_variation_scale("、") == 0.0
+    assert character_layout_offset("、") == (0.10, -0.22)
+    assert small_kana.script_group == "kana"
+    assert small_kana.display_scale == 0.48
+    assert small_kana.advance_ratio == 0.42
+    assert character_shape_variation_scale("ぁ") == 0.03
+    assert character_layout_offset("ぁ") == (0.01, -0.16)
 
 
 def test_builtin_dictionary_covers_fixed_evaluation_inputs() -> None:
