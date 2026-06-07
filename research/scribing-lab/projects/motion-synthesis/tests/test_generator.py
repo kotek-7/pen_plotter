@@ -101,6 +101,39 @@ def test_synthesize_motion_is_stable_for_same_first_stroke() -> None:
     assert _first_stroke_trace(first_only) == _first_stroke_trace(with_following)
 
 
+def test_synthesize_motion_uses_stroke_type_for_speed_bias() -> None:
+    horizontal = synthesize_motion(
+        [
+            SkeletonStroke(
+                points=((0.0, 0.0), (10.0, 0.0)),
+                terminal="tome",
+                stroke_type="㇐",
+                literal="一",
+            )
+        ],
+        seed=1,
+        config=MotionConfig(tremor_mm=0.0, timing_jitter_cv=0.0),
+    )
+    diagonal = synthesize_motion(
+        [
+            SkeletonStroke(
+                points=((0.0, 0.0), (10.0, 0.0)),
+                terminal="harai",
+                stroke_type="㇏",
+                literal="人",
+            )
+        ],
+        seed=1,
+        config=MotionConfig(tremor_mm=0.0, timing_jitter_cv=0.0),
+    )
+
+    horizontal_down = [point.pressure for point in horizontal if point.pen_state == 1]
+    diagonal_down = [point.pressure for point in diagonal if point.pen_state == 1]
+
+    assert horizontal[-1].t != diagonal[-1].t
+    assert horizontal_down[-1] != diagonal_down[-1]
+
+
 def _first_stroke_trace(trajectory):
     trace = []
     started = False

@@ -111,6 +111,7 @@ def _speed_profile_weights(n_segments: int, *, stroke: SkeletonStroke) -> list[f
             + terminal_slowdown * (1.0 - phase)
             + occurrence_bias * phase
             + line_bias * phase
+            + _stroke_type_speed_bias(stroke.stroke_type) * (0.5 - abs(phase - 0.5))
         )
     return weights
 
@@ -184,6 +185,7 @@ def _stroke_draw_speed(cfg: MotionConfig, stroke: SkeletonStroke) -> float:
         slowdown += 0.03
     elif stroke.terminal == "hane":
         slowdown += 0.015
+    slowdown += max(0.0, -_stroke_type_speed_bias(stroke.stroke_type)) * 0.04
     return max(1.0, cfg.draw_speed_mm_s / slowdown)
 
 
@@ -196,4 +198,21 @@ def _stroke_tremor(cfg: MotionConfig, stroke: SkeletonStroke) -> float:
     scale = 1.0 + min(stroke.line_index, 4) * 0.08 + min(stroke.repeat_index, 3) * 0.06
     if stroke.terminal == "hane":
         scale += 0.04
+    scale += max(0.0, _stroke_type_speed_bias(stroke.stroke_type)) * 0.1
     return max(0.0, cfg.tremor_mm * scale)
+
+
+def _stroke_type_speed_bias(stroke_type: str) -> float:
+    if stroke_type in {"㇔", "D"}:
+        return -0.18
+    if stroke_type in {"㇐", "H"}:
+        return -0.12
+    if stroke_type in {"㇏", "N"}:
+        return 0.12
+    if stroke_type in {"㇒", "P"}:
+        return 0.1
+    if stroke_type in {"㇓", "SP"}:
+        return 0.08
+    if stroke_type in {"㇆", "㇈", "㇉", "㇙", "㇛", "㇜", "㇟"}:
+        return 0.06
+    return 0.0
