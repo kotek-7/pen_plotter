@@ -209,6 +209,7 @@ def render_human_review_response_template_markdown(template: dict[str, Any]) -> 
                 f"### {item['experiment_id']}",
                 "",
                 f"- input_text: `{item['input_text']}`",
+                f"- input_script_groups: `{item.get('input_script_groups', [])}`",
                 f"- seed: `{item['seed']}`",
                 f"- preview: `{item['preview']}`",
                 f"- failure_tags: `{item['failure_tags']}`",
@@ -297,6 +298,7 @@ def _template_response_item(item: dict[str, Any], *, reviewer_id: str) -> dict[s
     return {
         "experiment_id": item["experiment_id"],
         "input_text": item["input_text"],
+        "input_script_groups": list(item.get("input_script_groups", [])),
         "seed": item["seed"],
         "preview": item["preview"],
         "failure_tags": list(item["failure_tags"]),

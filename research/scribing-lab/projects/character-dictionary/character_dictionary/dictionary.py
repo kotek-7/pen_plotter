@@ -14,22 +14,17 @@ from matplotlib.font_manager import FontProperties
 from matplotlib.path import Path as MplPath
 from matplotlib.textpath import TextPath
 
+from character_dictionary.classification import (
+    character_advance_ratio,
+    character_display_scale,
+    classify_character,
+    font_candidates_for_character,
+)
 from character_dictionary.kanjivg import load_kanjivg_asset
 from character_dictionary.models import CharacterTemplate, LaidOutStroke, LayoutConfig, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
 
 Stroke = npt.NDArray[np.float64]
-
-DEFAULT_FONT_CANDIDATES = (
-    "Noto Sans CJK JP",
-    "Noto Serif CJK JP",
-    "IPAexGothic",
-    "IPAGothic",
-    "Yu Gothic",
-    "Meiryo",
-    "TakaoGothic",
-    "DejaVu Sans",
-)
 
 
 class DictionaryLookupError(KeyError):
@@ -237,6 +232,8 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
         line_offset_x, line_offset_y, spacing_scale = line_offsets
         line_wave = math.sin((line_char_index + 1) * 0.7 + line_index * 0.45)
         template = _TEMPLATES.get(char)
+        display_scale = template.display_scale if template is not None else character_display_scale(char)
+        advance_ratio = template.advance_ratio if template is not None else character_advance_ratio(char)
         if template is None:
             stroke_entries = [
                 (glyph_stroke, "none", "outline", index + 1)
@@ -264,6 +261,7 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
                     ),
                     config=cfg,
                 )
+            skeleton_points = _scale_unit_points(skeleton_points, display_scale)
             points = tuple(
                 (
                     x
@@ -299,7 +297,7 @@ def layout_text(text: str, config: LayoutConfig | None = None) -> list[LaidOutSt
         spacing_adjustment += min(repeat_index, 3) * cfg.layout_variation * cfg.char_size * 0.02
         if char in "、。，．,.!?！？":
             spacing_adjustment *= 0.72
-        x += cfg.char_size + spacing_adjustment
+        x += cfg.char_size * advance_ratio + spacing_adjustment
         char_index += 1
         line_char_index += 1
     return strokes
@@ -333,15 +331,17 @@ def _fit_layout_to_page(text: str, config: LayoutConfig) -> LayoutConfig:
 
 
 def _estimate_line_width(line: str, config: LayoutConfig) -> float:
-    visible_count = 0
     width = 0.0
     for char in line:
         if char.isspace():
             width += config.char_size * 0.48
             continue
-        visible_count += 1
-        width += config.char_size + config.char_spacing
-    if visible_count > 0:
+        template = _TEMPLATES.get(char)
+        advance_ratio = (
+            template.advance_ratio if template is not None else character_advance_ratio(char)
+        )
+        width += config.char_size * advance_ratio + config.char_spacing
+    if width > 0.0:
         width -= config.char_spacing
     return max(width, 0.0)
 
@@ -357,6 +357,7 @@ def _stroke(stroke_id: int, stroke_type: str, points: tuple[tuple[float, float],
 
 
 def _template(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTemplate:
+    script_group = classify_character(literal)
     return CharacterTemplate(
         char_id=f"U+{ord(literal):04X}",
         literal=literal,
@@ -364,10 +365,14 @@ def _template(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTem
         license="research-internal",
         bbox=(0.0, 0.0, 1.0, 1.0),
         strokes=strokes,
+        script_group=script_group,
+        display_scale=character_display_scale(literal, script_group=script_group, source="manual"),
+        advance_ratio=character_advance_ratio(literal, script_group=script_group, source="manual"),
     )
 
 
 def _font_outline_template(literal: str) -> CharacterTemplate:
+    script_group = classify_character(literal)
     strokes = _font_outline_points(literal)
     return CharacterTemplate(
         char_id=f"U+{ord(literal):04X}",
@@ -378,6 +383,17 @@ def _font_outline_template(literal: str) -> CharacterTemplate:
         strokes=tuple(
             _stroke(index + 1, "outline", points)
             for index, points in enumerate(strokes)
+        ),
+        script_group=script_group,
+        display_scale=character_display_scale(
+            literal,
+            script_group=script_group,
+            source="font-outline",
+        ),
+        advance_ratio=character_advance_ratio(
+            literal,
+            script_group=script_group,
+            source="font-outline",
         ),
     )
 
@@ -452,14 +468,14 @@ def _fallback_glyph_strokes(char: str) -> list[Stroke]:
     return [np.array(points, dtype=float) for points in _font_outline_points(char)]
 
 
-def _find_font(name: str | None, path: str | None) -> FontProperties:
+def _find_font(name: str | None, path: str | None, *, literal: str | None = None) -> FontProperties:
     if path is not None:
         return FontProperties(fname=path)
     if name:
         return FontProperties(family=name)
 
     available = {font.name for font in font_manager.fontManager.ttflist}
-    for candidate in DEFAULT_FONT_CANDIDATES:
+    for candidate in font_candidates_for_character(literal or "あ"):
         if candidate in available:
             return FontProperties(family=candidate)
     return FontProperties(family="DejaVu Sans")
@@ -492,7 +508,7 @@ def _clamp_unit(value: float) -> float:
 
 
 def _font_outline_points(char: str) -> list[tuple[tuple[float, float], ...]]:
-    font = _find_font(None, None)
+    font = _find_font(None, None, literal=char)
     char_path = TextPath((0, 0), char, size=1.0, prop=font)
     strokes = _flatten_text_path(char_path)
     return _normalize_strokes_to_unit_square(strokes)
@@ -525,6 +541,21 @@ def _normalize_strokes_to_unit_square(strokes: list[Stroke]) -> list[tuple[tuple
             )
         )
     return normalized
+
+
+def _scale_unit_points(
+    points: tuple[tuple[float, float], ...],
+    scale: float,
+) -> tuple[tuple[float, float], ...]:
+    if scale == 1.0:
+        return points
+    return tuple(
+        (
+            _clamp_unit(0.5 + (x - 0.5) * scale),
+            _clamp_unit(0.5 + (y - 0.5) * scale),
+        )
+        for x, y in points
+    )
 
 
 def _slant_offset(py: float, config: LayoutConfig) -> float:

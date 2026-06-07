@@ -31,6 +31,9 @@ class CharacterTemplate:
     license: str
     bbox: tuple[float, float, float, float]
     strokes: tuple[StrokeTemplate, ...]
+    script_group: str = "other"
+    display_scale: float = 1.0
+    advance_ratio: float = 1.0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -39,6 +42,9 @@ class CharacterTemplate:
             "source": self.source,
             "license": self.license,
             "bbox": list(self.bbox),
+            "script_group": self.script_group,
+            "display_scale": self.display_scale,
+            "advance_ratio": self.advance_ratio,
             "strokes": [stroke.to_dict() for stroke in self.strokes],
         }
 

@@ -90,6 +90,88 @@ def test_build_human_review_packet_scales_with_larger_record_sets() -> None:
     assert packet["representatives"][0]["experiment_id"].startswith("exp-")
 
 
+def test_build_human_review_packet_reflects_script_groups() -> None:
+    records = [
+        _record(
+            "exp-kana",
+            input_text="あいう",
+            seed=1,
+            metrics={
+                "draw_speed_cv": 0.2,
+                "mean_abs_jerk_mm_s3": 1000.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        ),
+        _record(
+            "exp-kanji",
+            input_text="永日本",
+            seed=2,
+            metrics={
+                "draw_speed_cv": 0.3,
+                "mean_abs_jerk_mm_s3": 1200.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        ),
+        _record(
+            "exp-latin",
+            input_text="ABC",
+            seed=3,
+            metrics={
+                "draw_speed_cv": 0.4,
+                "mean_abs_jerk_mm_s3": 1300.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        ),
+        _record(
+            "exp-digit",
+            input_text="012",
+            seed=4,
+            metrics={
+                "draw_speed_cv": 0.5,
+                "mean_abs_jerk_mm_s3": 1400.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        ),
+        _record(
+            "exp-punct",
+            input_text="、。",
+            seed=5,
+            metrics={
+                "draw_speed_cv": 0.6,
+                "mean_abs_jerk_mm_s3": 1500.0,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        ),
+    ]
+
+    packet = build_human_review_packet(records)
+    groups = {
+        group
+        for item in packet["representatives"]
+        for group in item.get("input_script_groups", [])
+    }
+
+    assert {"kana", "kanji", "latin", "digit", "punctuation"} <= groups
+    assert packet["script_group_counts"]["kana"] == 1
+    assert packet["script_group_counts"]["kanji"] == 1
+    assert packet["script_group_counts"]["latin"] == 1
+
+
 def test_render_human_review_packet_markdown_includes_preview_paths() -> None:
     packet = build_human_review_packet(
         [

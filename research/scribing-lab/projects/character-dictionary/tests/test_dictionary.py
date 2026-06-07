@@ -30,6 +30,9 @@ def test_kana_templates_are_kanjivg(literal: str) -> None:
     template = get_template(literal)
 
     assert template.source == "kanjivg"
+    assert template.script_group == "kana"
+    assert template.display_scale == 1.0
+    assert template.advance_ratio == 0.9
     assert template.strokes
     assert all(stroke.stroke_type == "none" for stroke in template.strokes)
     assert all(stroke.terminal == "none" for stroke in template.strokes)
@@ -172,6 +175,22 @@ def test_builtin_dictionary_covers_minimum_evaluation_subset() -> None:
     assert {"今", "日", "本", "天", "気", "春", "川", "歩", "、", "。"} <= BUILTIN_CHARACTERS
     assert {"が", "っ", "ア", "レ", "ビ", "ュ"} <= BUILTIN_CHARACTERS
     assert {"0", "9", "A", "Z", "a", "z", "!", "?", "(", ")", "[", "]", "{", "}", "『", "』"} <= BUILTIN_CHARACTERS
+
+
+def test_dictionary_reflects_character_types() -> None:
+    latin = get_template("A")
+    digit = get_template("0")
+    punctuation = get_template("、")
+
+    assert latin.script_group == "latin"
+    assert latin.display_scale >= 1.04
+    assert latin.advance_ratio < 0.9
+    assert digit.script_group == "digit"
+    assert digit.display_scale >= 1.06
+    assert digit.advance_ratio < 0.9
+    assert punctuation.script_group == "punctuation"
+    assert punctuation.display_scale < 1.0
+    assert punctuation.advance_ratio < 0.8
 
 
 def test_builtin_dictionary_covers_fixed_evaluation_inputs() -> None:

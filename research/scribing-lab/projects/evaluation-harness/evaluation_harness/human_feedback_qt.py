@@ -295,10 +295,15 @@ class HumanFeedbackQtWindow(QMainWindow):
         layout.addWidget(self._item_list, 1)
 
         for item in self._packet.get("representatives", []):
-            label = f"{item['experiment_id']} | {item['input_text']} | seed={item['seed']}"
+            script_groups = ",".join(item.get("input_script_groups", [])) or "other"
+            label = (
+                f"{item['experiment_id']} | {item['input_text']} | "
+                f"groups={script_groups} | seed={item['seed']}"
+            )
             list_item = QListWidgetItem(label)
             list_item.setToolTip(
-                f"{item['experiment_id']}\ninput_text: {item['input_text']}\nseed: {item['seed']}"
+                f"{item['experiment_id']}\ninput_text: {item['input_text']}\n"
+                f"input_script_groups: {item.get('input_script_groups', [])}\nseed: {item['seed']}"
             )
             self._item_list.addItem(list_item)
 
@@ -583,6 +588,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         lines = [
             f"experiment_id: {item['experiment_id']}",
             f"input_text: {item['input_text']}",
+            f"input_script_groups: {item.get('input_script_groups', [])}",
             f"seed: {item['seed']}",
             f"reason: {item['reason']}",
             f"failure_tags: {item['failure_tags']}",

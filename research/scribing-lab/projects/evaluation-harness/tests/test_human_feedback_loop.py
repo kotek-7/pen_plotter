@@ -17,6 +17,7 @@ def test_build_human_feedback_loop_without_responses_returns_template() -> None:
     assert loop["response_summary"] is None
     assert loop["response_template"]["reviewer_id"] == "reviewer-1"
     assert loop["response_template"]["responses"][0]["experiment_id"] == "exp-a"
+    assert loop["response_template"]["responses"][0]["input_script_groups"] == ["kanji"]
     assert "response_template を埋めて" in loop["next_actions"][0]
 
 

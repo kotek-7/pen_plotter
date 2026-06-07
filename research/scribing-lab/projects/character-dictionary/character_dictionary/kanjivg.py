@@ -10,6 +10,11 @@ from typing import Any
 
 import numpy as np
 
+from character_dictionary.classification import (
+    character_advance_ratio,
+    character_display_scale,
+    classify_character,
+)
 from character_dictionary.models import CharacterTemplate, StrokeTemplate
 from character_dictionary.terminal import map_stroke_type_to_terminal
 
@@ -41,6 +46,7 @@ def build_kanjivg_template(literal: str, svg_text: str | None = None) -> Charact
     strokes, bbox = _parse_svg_template(literal, svg_text)
     if not strokes:
         raise ValueError(f"no KanjiVG strokes found for {literal!r}")
+    script_group = classify_character(literal)
     return CharacterTemplate(
         char_id=f"U+{ord(literal):04X}",
         literal=literal,
@@ -48,6 +54,9 @@ def build_kanjivg_template(literal: str, svg_text: str | None = None) -> Charact
         license=KANJIVG_LICENSE,
         bbox=bbox,
         strokes=tuple(strokes),
+        script_group=script_group,
+        display_scale=character_display_scale(literal, script_group=script_group, source=KANJIVG_SOURCE),
+        advance_ratio=character_advance_ratio(literal, script_group=script_group, source=KANJIVG_SOURCE),
     )
 
 
@@ -113,6 +122,27 @@ def load_kanjivg_asset(path: Path) -> dict[str, CharacterTemplate]:
             license=str(item["license"]),
             bbox=tuple(float(value) for value in item["bbox"]),
             strokes=strokes,
+            script_group=str(item.get("script_group", classify_character(str(item["literal"])))),
+            display_scale=float(
+                item.get(
+                    "display_scale",
+                    character_display_scale(
+                        str(item["literal"]),
+                        script_group=str(item.get("script_group", classify_character(str(item["literal"])))),
+                        source=str(item.get("source", KANJIVG_SOURCE)),
+                    ),
+                )
+            ),
+            advance_ratio=float(
+                item.get(
+                    "advance_ratio",
+                    character_advance_ratio(
+                        str(item["literal"]),
+                        script_group=str(item.get("script_group", classify_character(str(item["literal"])))),
+                        source=str(item.get("source", KANJIVG_SOURCE)),
+                    ),
+                )
+            ),
         )
         templates[template.literal] = template
     return templates
