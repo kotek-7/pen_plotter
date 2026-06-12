@@ -204,7 +204,8 @@ ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う�
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
 
 ABX feedback loop から preview 修正案へ戻す場合は `abx-revision-plan` を使う。
-feedback loop JSON を渡すと、代表 item ごとの proposed_changes と次の実験ヒントをまとめる。
+feedback loop JSON を渡すか、packet JSON と responses JSON を渡すと、代表 item ごとの
+proposed_changes と次の実験ヒントをまとめる。
 
 ```sh
 python3 -m evaluation_harness human-feedback-ui \

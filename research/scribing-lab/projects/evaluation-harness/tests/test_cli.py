@@ -233,6 +233,34 @@ def test_abx_revision_plan_parser_accepts_feedback_loop_path() -> None:
     assert args.json_output == "revision.json"
 
 
+def test_abx_revision_plan_parser_accepts_packet_and_responses_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-revision-plan",
+            "--packet-json",
+            "runs/test/human_abx_packet.json",
+            "--responses-json",
+            "runs/test/human_abx_responses.json",
+            "--max-items",
+            "18",
+            "--evaluator-id",
+            "eval-1",
+            "--output",
+            "revision.md",
+            "--json-output",
+            "revision.json",
+        ]
+    )
+
+    assert args.command == "abx-revision-plan"
+    assert args.packet_json == "runs/test/human_abx_packet.json"
+    assert args.responses_json == "runs/test/human_abx_responses.json"
+    assert args.max_items == 18
+    assert args.evaluator_id == "eval-1"
+    assert args.output == "revision.md"
+    assert args.json_output == "revision.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [

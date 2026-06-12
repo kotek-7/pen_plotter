@@ -397,7 +397,11 @@ def build_parser() -> argparse.ArgumentParser:
         "abx-revision-plan",
         help="Generate a preview revision plan from an ABX feedback loop",
     )
-    abx_revision.add_argument("--feedback-loop-json", required=True)
+    abx_revision.add_argument("--feedback-loop-json", default="")
+    abx_revision.add_argument("--packet-json", default="")
+    abx_revision.add_argument("--responses-json", default="")
+    abx_revision.add_argument("--max-items", type=int, default=36)
+    abx_revision.add_argument("--evaluator-id", default="")
     abx_revision.add_argument("--output", default="abx_revision_plan.md")
     abx_revision.add_argument("--json-output", default="abx_revision_plan.json")
 
@@ -956,10 +960,28 @@ def main() -> None:
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "abx-revision-plan":
-        feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
+        if args.feedback_loop_json:
+            feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
+        else:
+            if not args.packet_json:
+                raise ValueError("--packet-json is required when --feedback-loop-json is not set")
+            packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+            responses_data = None
+            if args.responses_json:
+                responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+            feedback_loop = build_human_abx_feedback_loop(
+                packet,
+                responses_data=responses_data,
+                evaluator_id=args.evaluator_id,
+                max_items=args.max_items,
+            )
         plan = build_abx_revision_plan(feedback_loop)
         output_path = Path(args.feedback_loop_json).parent / args.output
         json_path = Path(args.feedback_loop_json).parent / args.json_output
+        if not args.feedback_loop_json:
+            base_dir = Path(args.packet_json).parent
+            output_path = base_dir / args.output
+            json_path = base_dir / args.json_output
         output_path.write_text(render_abx_revision_plan_markdown(plan), encoding="utf-8")
         json_path.write_text(
             json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
