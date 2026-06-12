@@ -16,6 +16,7 @@ BUILTIN_PROFILE_ORDER = (
     "micro-casual",
     "flow-casual",
     "textured-casual",
+    "textured-steady",
     "shaky-slow",
 )
 BUILTIN_PROFILE_IDS = frozenset(BUILTIN_PROFILE_ORDER)
@@ -163,6 +164,30 @@ _PROFILES = OrderedDict(
                 ),
                 parent_profile="compact-casual",
                 notes="Textured casual profile for longer text and symbol-heavy comparison runs.",
+            ),
+        ),
+        (
+            "textured-steady",
+            WriterProfile(
+                profile_id="textured-steady",
+                version=1,
+                source="manual",
+                allowed_use="research-baseline",
+                params=WriterProfileParameters(
+                    slant_deg=4.1,
+                    spacing_mean_mm=1.08,
+                    speed_mean_mm_s=41.5,
+                    harai_gain=1.08,
+                    hane_gain=1.04,
+                    tome_gain=0.96,
+                    timing_jitter_cv=0.11,
+                    tremor_mm=0.017,
+                    baseline_drift_mm=0.48,
+                    shape_variation=0.024,
+                    layout_variation=0.014,
+                ),
+                parent_profile="textured-casual",
+                notes="Stable textured profile for longer text and symbol-heavy comparison runs.",
             ),
         ),
         (
