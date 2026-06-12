@@ -273,22 +273,23 @@ def _contextual_motion_variation(input_text: str, *, seed: int) -> tuple[float, 
     digit_count = int(metrics.get("digit_char_count", 0))
     punct_count = int(metrics.get("punctuation_char_count", 0))
     repeated_char_ratio = float(metrics.get("repeated_char_ratio", 0.0))
+    symbol_count = ascii_count + digit_count + punct_count
 
     seed_bias = (seed % 7) * 0.002
     if visible_char_count <= 1:
-        length_bias = 0.03
+        length_bias = 0.035
     elif visible_char_count <= 2:
-        length_bias = 0.025
+        length_bias = 0.03
     elif visible_char_count <= 4:
-        length_bias = 0.015
+        length_bias = 0.02
     else:
         length_bias = 0.0
 
-    symbol_bias = 0.012 if ascii_count + digit_count + punct_count > 0 and visible_char_count <= 4 else 0.0
+    symbol_bias = min(0.02, 0.008 + symbol_count * 0.0005) if symbol_count > 0 else 0.0
     repeat_bias = min(0.008, repeated_char_ratio * 0.03)
 
-    timing_jitter_cv = min(0.16, 0.08 + length_bias + symbol_bias + repeat_bias + seed_bias)
-    tremor_mm = min(0.035, 0.015 + length_bias * 0.25 + symbol_bias * 0.2 + seed_bias * 0.4)
+    timing_jitter_cv = min(0.18, 0.08 + length_bias + symbol_bias + repeat_bias + seed_bias)
+    tremor_mm = min(0.04, 0.015 + length_bias * 0.25 + symbol_bias * 0.25 + seed_bias * 0.4)
     return timing_jitter_cv, tremor_mm
 
 

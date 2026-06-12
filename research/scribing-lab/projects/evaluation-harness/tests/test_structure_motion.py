@@ -150,6 +150,32 @@ def test_run_structure_motion_applies_short_input_motion_variation(tmp_path: Pat
     ]
 
 
+def test_run_structure_motion_boosts_symbol_heavy_short_inputs(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    kana_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-kana",
+        input_text="く",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+    symbol_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-symbol",
+        input_text="A",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+
+    assert symbol_record.metrics["contextual_timing_jitter_cv"] >= kana_record.metrics[
+        "contextual_timing_jitter_cv"
+    ]
+    assert symbol_record.metrics["contextual_tremor_mm"] >= kana_record.metrics[
+        "contextual_tremor_mm"
+    ]
+
+
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     baseline = run_structure_uniform(
