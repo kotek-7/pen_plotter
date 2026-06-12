@@ -114,6 +114,15 @@ def run_structure_motion(
         ),
         profile,
     )
+    contextual_timing_jitter, contextual_tremor = _contextual_motion_variation(
+        input_text,
+        seed=seed,
+    )
+    motion_cfg = replace(
+        motion_cfg,
+        timing_jitter_cv=max(motion_cfg.timing_jitter_cv, contextual_timing_jitter),
+        tremor_mm=max(motion_cfg.tremor_mm, contextual_tremor),
+    )
     trajectory = [point.to_dict() for point in synthesize_motion(skeletons, seed=seed, config=motion_cfg)]
 
     gcode_lines = export_xdraw_gcode(trajectory)
@@ -134,6 +143,8 @@ def run_structure_motion(
             "contextual_layout_variation_mm": round(
                 contextual_layout_variation * cfg.char_size, 4
             ),
+            "contextual_timing_jitter_cv": contextual_timing_jitter,
+            "contextual_tremor_mm": contextual_tremor,
             "gcode_line_count": len(gcode_lines),
             **writer_profile_metrics(profile),
             "gcode_safety_ok": int(safety.ok),
@@ -253,6 +264,32 @@ def _contextual_variation(input_text: str, *, seed: int) -> tuple[float, float]:
     shape_variation = min(0.14, 0.075 + length_bias + repeat_bias + seed_bias)
     layout_variation = min(0.14, 0.075 + length_bias * 0.6 + line_bias + seed_bias * 0.5)
     return shape_variation, layout_variation
+
+
+def _contextual_motion_variation(input_text: str, *, seed: int) -> tuple[float, float]:
+    metrics = compute_text_metrics(input_text)
+    visible_char_count = int(metrics.get("visible_char_count", 0))
+    ascii_count = int(metrics.get("ascii_char_count", 0))
+    digit_count = int(metrics.get("digit_char_count", 0))
+    punct_count = int(metrics.get("punctuation_char_count", 0))
+    repeated_char_ratio = float(metrics.get("repeated_char_ratio", 0.0))
+
+    seed_bias = (seed % 7) * 0.002
+    if visible_char_count <= 1:
+        length_bias = 0.03
+    elif visible_char_count <= 2:
+        length_bias = 0.025
+    elif visible_char_count <= 4:
+        length_bias = 0.015
+    else:
+        length_bias = 0.0
+
+    symbol_bias = 0.012 if ascii_count + digit_count + punct_count > 0 and visible_char_count <= 4 else 0.0
+    repeat_bias = min(0.008, repeated_char_ratio * 0.03)
+
+    timing_jitter_cv = min(0.16, 0.08 + length_bias + symbol_bias + repeat_bias + seed_bias)
+    tremor_mm = min(0.035, 0.015 + length_bias * 0.25 + symbol_bias * 0.2 + seed_bias * 0.4)
+    return timing_jitter_cv, tremor_mm
 
 
 def summarize_motion_records(records: list[ExperimentRecord]) -> dict[str, Any]:

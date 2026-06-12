@@ -16,6 +16,7 @@ from writer_profile.registry import WriterProfileLookupError
 def test_builtin_profile_order_is_stable() -> None:
     assert BUILTIN_PROFILE_ORDER == (
         "baseline-neat",
+        "glyph-neat",
         "steady-neat",
         "fast-casual",
         "compact-casual",
@@ -74,6 +75,18 @@ def test_steady_neat_profile_targets_subtle_variation() -> None:
     profile = get_profile("steady-neat")
 
     assert profile.profile_id == "steady-neat"
+    assert profile.parent_profile == "glyph-neat"
+    assert profile.params.spacing_mean_mm > get_profile("glyph-neat").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s <= get_profile("glyph-neat").params.speed_mean_mm_s
+    assert profile.params.timing_jitter_cv < get_profile("glyph-neat").params.timing_jitter_cv
+    assert profile.params.tremor_mm < get_profile("glyph-neat").params.tremor_mm
+    assert profile.params.shape_variation < get_profile("glyph-neat").params.shape_variation
+
+
+def test_glyph_neat_profile_targets_single_glyph_variation() -> None:
+    profile = get_profile("glyph-neat")
+
+    assert profile.profile_id == "glyph-neat"
     assert profile.parent_profile == "baseline-neat"
     assert profile.params.spacing_mean_mm < get_profile("baseline-neat").params.spacing_mean_mm
     assert profile.params.speed_mean_mm_s > get_profile("baseline-neat").params.speed_mean_mm_s

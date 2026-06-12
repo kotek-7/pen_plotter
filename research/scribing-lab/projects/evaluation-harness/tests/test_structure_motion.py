@@ -124,6 +124,32 @@ def test_run_structure_motion_records_layout_variation_metrics(tmp_path: Path) -
     assert "line-too-mechanical" not in record.failure_tags
 
 
+def test_run_structure_motion_applies_short_input_motion_variation(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    short_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-short",
+        input_text="く",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+    long_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-longer",
+        input_text="今日はよい天気です。",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+
+    assert short_record.metrics["contextual_timing_jitter_cv"] > long_record.metrics[
+        "contextual_timing_jitter_cv"
+    ]
+    assert short_record.metrics["contextual_tremor_mm"] > long_record.metrics[
+        "contextual_tremor_mm"
+    ]
+
+
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     baseline = run_structure_uniform(
