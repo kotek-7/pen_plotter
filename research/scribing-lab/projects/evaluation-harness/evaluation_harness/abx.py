@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 from dataclasses import asdict, dataclass
 from collections import defaultdict
 from collections import Counter
@@ -476,6 +477,7 @@ def run_abx_revision_loop(
     plan = build_abx_revision_plan(feedback_loop)
     applications: list[dict[str, Any]] = []
     rerun_records = []
+    preview_changed_count = 0
 
     for item in plan["items"]:
         if not item["proposed_changes"]:
@@ -551,6 +553,11 @@ def run_abx_revision_loop(
             writer_profile=revision["profile"],
         )
         rerun_records.append(record)
+        preview_before = _file_sha256(candidate_record.artifacts.get("preview", ""))
+        preview_after = _file_sha256(record.artifacts.get("preview", ""))
+        preview_changed = preview_before is not None and preview_after is not None and preview_before != preview_after
+        if preview_changed:
+            preview_changed_count += 1
         applications.append(
             {
                 "item_id": item["item_id"],
@@ -560,6 +567,8 @@ def run_abx_revision_loop(
                 "revision_profile_id": record.profile_id,
                 "applied_changes": list(revision["applied_changes"]),
                 "unapplied_changes": list(revision["unapplied_changes"]),
+                "preview_changed": preview_changed,
+                "preview_before": candidate_record.artifacts.get("preview", ""),
                 "preview": record.artifacts.get("preview", ""),
                 "report": record.artifacts.get("report", ""),
             }
@@ -573,6 +582,7 @@ def run_abx_revision_loop(
         "revision_plan": plan,
         "applications": applications,
         "rerun_count": len(rerun_records),
+        "preview_changed_count": preview_changed_count,
     }
 
 
@@ -584,6 +594,7 @@ def render_abx_revision_run_markdown(run: dict[str, Any]) -> str:
         f"- before_record_count: `{run['before_record_count']}`",
         f"- after_record_count: `{run['after_record_count']}`",
         f"- rerun_count: `{run['rerun_count']}`",
+        f"- preview_changed_count: `{run['preview_changed_count']}`",
         "",
         "## Revision Plan",
         "",
@@ -606,8 +617,11 @@ def render_abx_revision_run_markdown(run: dict[str, Any]) -> str:
                 f"- revision_profile_id: `{item.get('revision_profile_id', '')}`",
                 f"- applied_changes: `{item.get('applied_changes', [])}`",
                 f"- unapplied_changes: `{item.get('unapplied_changes', [])}`",
+                f"- preview_changed: `{item.get('preview_changed', False)}`",
             ]
         )
+        if item.get("preview_before"):
+            lines.append(f"- preview_before: `{item['preview_before']}`")
         if item.get("preview"):
             lines.append(f"- preview: `{item['preview']}`")
         if item.get("report"):
@@ -776,6 +790,19 @@ def _abx_item_from_packet(item: dict[str, Any]) -> AbxItem:
         question=str(item.get("question", "")),
         expected_preference=item.get("expected_preference"),
     )
+
+
+def _file_sha256(path: str) -> str | None:
+    if not path:
+        return None
+    file_path = Path(path)
+    if not file_path.exists():
+        return None
+    digest = hashlib.sha256()
+    with file_path.open("rb") as f:
+        for chunk in iter(lambda: f.read(8192), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _markdown_cell(value: Any) -> str:

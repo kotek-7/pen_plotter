@@ -1531,6 +1531,8 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
     root = tmp_path / "runs"
+    candidate_preview = tmp_path / "preview.png"
+    candidate_preview.write_bytes(b"candidate-preview")
     registry = ExperimentRegistry(root / "registry.jsonl")
     registry.append(
         _record(
@@ -1539,7 +1541,7 @@ def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
             seed=1,
             generator="structure-motion",
             profile_id="symbol-neat",
-            artifacts={"preview": str(tmp_path / "preview.png")},
+            artifacts={"preview": str(candidate_preview)},
             metrics={
                 "draw_speed_cv": 0.16,
                 "baseline_drift_mm": 0.24,
@@ -1594,6 +1596,8 @@ def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
     json_text = (root / "abx_revision_run.json").read_text(encoding="utf-8")
     assert "ABX Revision Run" in markdown
     assert '"rerun_count"' in json_text
+    assert '"preview_changed_count"' in json_text
+    assert '"preview_changed": true' in json_text
 
 
 def _record(
