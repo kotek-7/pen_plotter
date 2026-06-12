@@ -22,6 +22,7 @@ def test_builtin_profile_order_is_stable() -> None:
         "flow-casual",
         "textured-casual",
         "textured-steady",
+        "textured-tight",
         "shaky-slow",
     )
     assert BUILTIN_PROFILE_IDS == set(BUILTIN_PROFILE_ORDER)
@@ -117,11 +118,23 @@ def test_textured_steady_profile_targets_stable_texture() -> None:
 
     assert profile.profile_id == "textured-steady"
     assert profile.parent_profile == "textured-casual"
-    assert profile.params.spacing_mean_mm >= get_profile("textured-casual").params.spacing_mean_mm
+    assert profile.params.spacing_mean_mm < get_profile("textured-casual").params.spacing_mean_mm
     assert profile.params.speed_mean_mm_s <= get_profile("textured-casual").params.speed_mean_mm_s
     assert profile.params.timing_jitter_cv < get_profile("textured-casual").params.timing_jitter_cv
     assert profile.params.tremor_mm < get_profile("textured-casual").params.tremor_mm
     assert profile.params.baseline_drift_mm < get_profile("textured-casual").params.baseline_drift_mm
+
+
+def test_textured_tight_profile_targets_spacing_sensitive_text() -> None:
+    profile = get_profile("textured-tight")
+
+    assert profile.profile_id == "textured-tight"
+    assert profile.parent_profile == "textured-steady"
+    assert profile.params.spacing_mean_mm < get_profile("textured-steady").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s <= get_profile("textured-steady").params.speed_mean_mm_s
+    assert profile.params.timing_jitter_cv <= get_profile("textured-steady").params.timing_jitter_cv
+    assert profile.params.tremor_mm <= get_profile("textured-steady").params.tremor_mm
+    assert profile.params.baseline_drift_mm < get_profile("textured-steady").params.baseline_drift_mm
 
 
 def test_get_profile_rejects_unknown_profile() -> None:

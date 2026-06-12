@@ -17,6 +17,7 @@ BUILTIN_PROFILE_ORDER = (
     "flow-casual",
     "textured-casual",
     "textured-steady",
+    "textured-tight",
     "shaky-slow",
 )
 BUILTIN_PROFILE_IDS = frozenset(BUILTIN_PROFILE_ORDER)
@@ -175,7 +176,7 @@ _PROFILES = OrderedDict(
                 allowed_use="research-baseline",
                 params=WriterProfileParameters(
                     slant_deg=4.1,
-                    spacing_mean_mm=1.08,
+                    spacing_mean_mm=1.04,
                     speed_mean_mm_s=41.5,
                     harai_gain=1.08,
                     hane_gain=1.04,
@@ -188,6 +189,30 @@ _PROFILES = OrderedDict(
                 ),
                 parent_profile="textured-casual",
                 notes="Stable textured profile for longer text and symbol-heavy comparison runs.",
+            ),
+        ),
+        (
+            "textured-tight",
+            WriterProfile(
+                profile_id="textured-tight",
+                version=1,
+                source="manual",
+                allowed_use="research-baseline",
+                params=WriterProfileParameters(
+                    slant_deg=4.0,
+                    spacing_mean_mm=0.98,
+                    speed_mean_mm_s=41.0,
+                    harai_gain=1.07,
+                    hane_gain=1.03,
+                    tome_gain=0.96,
+                    timing_jitter_cv=0.10,
+                    tremor_mm=0.016,
+                    baseline_drift_mm=0.36,
+                    shape_variation=0.022,
+                    layout_variation=0.012,
+                ),
+                parent_profile="textured-steady",
+                notes="Tighter textured profile for longer text and spacing-sensitive comparisons.",
             ),
         ),
         (
