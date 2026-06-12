@@ -75,3 +75,16 @@ def test_compute_text_metrics_counts_repeated_visible_chars() -> None:
     assert metrics["line_count"] == 1
     assert metrics["repeated_char_count"] == 1
     assert metrics["repeated_char_ratio"] > 0.0
+
+
+def test_compute_text_metrics_counts_script_categories() -> None:
+    metrics = compute_text_metrics("ABC123！？あ漢@")
+
+    assert metrics["visible_char_count"] == 11
+    assert metrics["ascii_char_count"] == 3
+    assert metrics["digit_char_count"] == 3
+    assert metrics["punctuation_char_count"] == 2
+    assert metrics["kana_char_count"] == 1
+    assert metrics["kanji_char_count"] == 1
+    assert metrics["symbol_char_count"] == 1
+    assert metrics["other_char_count"] == 0

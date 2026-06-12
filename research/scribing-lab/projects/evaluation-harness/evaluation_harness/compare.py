@@ -29,12 +29,12 @@ DEFAULT_COMPARE_METRICS: tuple[str, ...] = (
 
 SCRIPT_PROFILE_PREFERENCES: dict[str, tuple[str, ...]] = {
     "kana": ("kana-neat", "glyph-neat", "steady-neat", "micro-casual", "compact-casual"),
-    "kanji": ("kanji-neat", "steady-neat", "glyph-neat", "textured-steady", "textured-casual"),
-    "latin": ("latin-neat", "kana-neat", "glyph-neat", "micro-casual", "compact-casual"),
-    "digit": ("latin-neat", "micro-casual", "kana-neat", "glyph-neat", "compact-casual"),
-    "punctuation": ("latin-neat", "kana-neat", "glyph-neat", "steady-neat", "micro-casual"),
-    "symbol": ("latin-neat", "kana-neat", "glyph-neat", "steady-neat", "micro-casual"),
-    "other": ("steady-neat", "glyph-neat", "kana-neat", "latin-neat", "micro-casual"),
+    "kanji": ("kanji-tight", "kanji-neat", "steady-neat", "glyph-neat", "textured-steady"),
+    "latin": ("latin-neat", "symbol-neat", "kana-neat", "glyph-neat", "micro-casual"),
+    "digit": ("latin-neat", "symbol-neat", "micro-casual", "kana-neat", "glyph-neat"),
+    "punctuation": ("symbol-neat", "latin-neat", "kana-neat", "glyph-neat", "steady-neat"),
+    "symbol": ("symbol-neat", "latin-neat", "kana-neat", "glyph-neat", "steady-neat"),
+    "other": ("steady-neat", "glyph-neat", "kana-neat", "latin-neat", "symbol-neat"),
 }
 
 

@@ -2,7 +2,7 @@
 
 筆者ごとの癖を推定・保存・適用する研究プロジェクトである。
 
-実装済みの MVP は、`baseline-neat` / `glyph-neat` / `kana-neat` / `latin-neat` / `kanji-neat` / `steady-neat` / `fast-casual` / `compact-casual` / `micro-casual` / `flow-casual` / `textured-casual` / `textured-steady` / `textured-tight` / `shaky-slow` の 14 種類の手動 profile を登録し、
+実装済みの MVP は、`baseline-neat` / `glyph-neat` / `kana-neat` / `latin-neat` / `symbol-neat` / `kanji-neat` / `kanji-tight` / `steady-neat` / `fast-casual` / `compact-casual` / `micro-casual` / `flow-casual` / `textured-casual` / `textured-steady` / `textured-tight` / `shaky-slow` の 16 種類の手動 profile を登録し、
 `structure-uniform` と `structure-motion` に適用できるレジストリである。
 
 `writer_profile.prior` は、JSONL 形式のオンライン筆記サンプルから統計を推定し、

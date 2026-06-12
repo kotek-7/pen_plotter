@@ -176,6 +176,32 @@ def test_run_structure_motion_boosts_symbol_heavy_short_inputs(tmp_path: Path) -
     ]
 
 
+def test_run_structure_motion_treats_short_kanji_inputs_as_steady(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+
+    kana_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-kana-short",
+        input_text="く",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+    kanji_record = run_structure_motion(
+        root=root,
+        experiment_id="exp-motion-kanji-short",
+        input_text="提出",
+        seed=1,
+        profile_id="baseline-neat",
+    )
+
+    assert kanji_record.metrics["contextual_timing_jitter_cv"] < kana_record.metrics[
+        "contextual_timing_jitter_cv"
+    ]
+    assert kanji_record.metrics["contextual_tremor_mm"] < kana_record.metrics[
+        "contextual_tremor_mm"
+    ]
+
+
 def test_structure_motion_resolves_too_uniform_against_structure_uniform(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     baseline = run_structure_uniform(

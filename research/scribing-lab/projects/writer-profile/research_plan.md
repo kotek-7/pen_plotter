@@ -10,7 +10,7 @@ writer profile は単なる個人癖モデルではなく、実験条件とし�
 
 以下は実装済みである。
 
-- `baseline-neat` / `glyph-neat` / `kana-neat` / `latin-neat` / `kanji-neat` / `steady-neat` / `fast-casual` / `compact-casual` / `micro-casual` / `flow-casual` / `textured-casual` / `textured-steady` / `textured-tight` / `shaky-slow` の手動 profile registry。
+- `baseline-neat` / `glyph-neat` / `kana-neat` / `latin-neat` / `symbol-neat` / `kanji-neat` / `kanji-tight` / `steady-neat` / `fast-casual` / `compact-casual` / `micro-casual` / `flow-casual` / `textured-casual` / `textured-steady` / `textured-tight` / `shaky-slow` の手動 profile registry。
 - `structure-uniform` / `structure-motion` への profile 適用。
 - `writer_profile.json` artifact の保存。
 - `profile_id` と profile パラメータの experiment record への記録。

@@ -291,6 +291,120 @@ def test_recommend_preview_prefers_script_aligned_profile(tmp_path: Path) -> Non
     assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "latin-neat"
 
 
+def test_recommend_preview_prefers_symbol_neat_for_punctuation(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    baseline_candidate_preview = tmp_path / "baseline_candidate.png"
+    symbol_preview = tmp_path / "symbol.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    baseline_candidate_preview.write_bytes(b"baseline-candidate-preview")
+    symbol_preview.write_bytes(b"symbol-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="？",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-motion-baseline",
+            input_text="？",
+            seed=1,
+            generator="structure-motion",
+            profile_id="baseline-neat",
+            artifacts={"preview": str(baseline_candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.22,
+                "baseline_drift_mm": 1.24,
+                "penup_distance_mm": 33.2,
+                "visible_char_count": 1,
+            },
+        ),
+        _record(
+            experiment_id="exp-motion-symbol",
+            input_text="？",
+            seed=1,
+            generator="structure-motion",
+            profile_id="symbol-neat",
+            artifacts={"preview": str(symbol_preview)},
+            metrics={
+                "draw_speed_cv": 0.20,
+                "baseline_drift_mm": 1.23,
+                "penup_distance_mm": 32.8,
+                "visible_char_count": 1,
+            },
+        ),
+    ]
+
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=("？",),
+        expected_seeds=(1,),
+    )
+
+    assert recommendation["selected_candidate_count"] == 1
+    assert recommendation["selected_profile_counts"] == {"symbol-neat": 1}
+    assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "symbol-neat"
+
+
+def test_recommend_preview_prefers_kanji_tight_for_short_kanji_phrase(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    kanji_preview = tmp_path / "kanji.png"
+    tight_preview = tmp_path / "tight.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    kanji_preview.write_bytes(b"kanji-preview")
+    tight_preview.write_bytes(b"tight-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="提出",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-motion-kanji",
+            input_text="提出",
+            seed=1,
+            generator="structure-motion",
+            profile_id="kanji-neat",
+            artifacts={"preview": str(kanji_preview)},
+            metrics={
+                "draw_speed_cv": 0.18,
+                "baseline_drift_mm": 0.39,
+                "penup_distance_mm": 47.2,
+                "visible_char_count": 2,
+            },
+        ),
+        _record(
+            experiment_id="exp-motion-tight",
+            input_text="提出",
+            seed=1,
+            generator="structure-motion",
+            profile_id="kanji-tight",
+            artifacts={"preview": str(tight_preview)},
+            metrics={
+                "draw_speed_cv": 0.17,
+                "baseline_drift_mm": 0.38,
+                "penup_distance_mm": 46.9,
+                "visible_char_count": 2,
+            },
+        ),
+    ]
+
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=("提出",),
+        expected_seeds=(1,),
+    )
+
+    assert recommendation["selected_candidate_count"] == 1
+    assert recommendation["selected_profile_counts"] == {"kanji-tight": 1}
+    assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "kanji-tight"
+
+
 def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:
     baseline_preview = tmp_path / "baseline.png"
     baseline_preview.write_bytes(b"baseline-preview")

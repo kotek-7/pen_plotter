@@ -113,12 +113,20 @@ def compute_text_metrics(text: str) -> dict[str, float | int]:
     visible = [char for char in text if not char.isspace()]
     repeated_count = len(visible) - len(set(visible))
     line_count = len(text.splitlines()) if text else 0
+    script_counts = _count_text_scripts(visible)
     return {
         "char_count": len(text),
         "visible_char_count": len(visible),
         "line_count": line_count,
         "repeated_char_count": repeated_count,
         "repeated_char_ratio": round(repeated_count / len(visible), 4) if visible else 0.0,
+        "ascii_char_count": script_counts["ascii"],
+        "digit_char_count": script_counts["digit"],
+        "punctuation_char_count": script_counts["punctuation"],
+        "symbol_char_count": script_counts["symbol"],
+        "kana_char_count": script_counts["kana"],
+        "kanji_char_count": script_counts["kanji"],
+        "other_char_count": script_counts["other"],
     }
 
 
@@ -202,3 +210,37 @@ def _baseline_drift(starts: Sequence[tuple[float, float]]) -> float:
         return 0.0
     ys = [point[1] for point in starts]
     return round(max(ys) - min(ys), 4)
+
+
+def _count_text_scripts(chars: Sequence[str]) -> dict[str, int]:
+    counts = {
+        "ascii": 0,
+        "digit": 0,
+        "punctuation": 0,
+        "symbol": 0,
+        "kana": 0,
+        "kanji": 0,
+        "other": 0,
+    }
+    for char in chars:
+        group = _classify_text_character(char)
+        counts[group] += 1
+    return counts
+
+
+def _classify_text_character(char: str) -> str:
+    if not char or char.isspace():
+        return "other"
+    if "0" <= char <= "9":
+        return "digit"
+    if "A" <= char <= "Z" or "a" <= char <= "z":
+        return "ascii"
+    if "ぁ" <= char <= "ゟ" or "ァ" <= char <= "ヿ":
+        return "kana"
+    if "一" <= char <= "龯":
+        return "kanji"
+    if char in "。、，．！？「」『』・ー,.;:!?-()[]{}<>/\\":
+        return "punctuation"
+    if char in "@#$%&*+=~^_|`'\"":
+        return "symbol"
+    return "other"

@@ -19,7 +19,9 @@ def test_builtin_profile_order_is_stable() -> None:
         "glyph-neat",
         "kana-neat",
         "latin-neat",
+        "symbol-neat",
         "kanji-neat",
+        "kanji-tight",
         "steady-neat",
         "fast-casual",
         "compact-casual",
@@ -120,6 +122,28 @@ def test_latin_neat_profile_targets_ascii_and_symbols() -> None:
     assert profile.params.timing_jitter_cv <= get_profile("kana-neat").params.timing_jitter_cv
     assert profile.params.tremor_mm <= get_profile("kana-neat").params.tremor_mm
     assert profile.params.shape_variation <= get_profile("kana-neat").params.shape_variation
+
+
+def test_symbol_neat_profile_targets_punctuation_and_brackets() -> None:
+    profile = get_profile("symbol-neat")
+
+    assert profile.profile_id == "symbol-neat"
+    assert profile.parent_profile == "latin-neat"
+    assert profile.params.spacing_mean_mm < get_profile("latin-neat").params.spacing_mean_mm
+    assert profile.params.timing_jitter_cv < get_profile("latin-neat").params.timing_jitter_cv
+    assert profile.params.tremor_mm < get_profile("latin-neat").params.tremor_mm
+    assert profile.params.shape_variation < get_profile("latin-neat").params.shape_variation
+
+
+def test_kanji_tight_profile_targets_short_kanji_phrases() -> None:
+    profile = get_profile("kanji-tight")
+
+    assert profile.profile_id == "kanji-tight"
+    assert profile.parent_profile == "kanji-neat"
+    assert profile.params.spacing_mean_mm < get_profile("kanji-neat").params.spacing_mean_mm
+    assert profile.params.timing_jitter_cv < get_profile("kanji-neat").params.timing_jitter_cv
+    assert profile.params.tremor_mm < get_profile("kanji-neat").params.tremor_mm
+    assert profile.params.shape_variation < get_profile("kanji-neat").params.shape_variation
 
 
 def test_glyph_neat_profile_targets_single_glyph_variation() -> None:
