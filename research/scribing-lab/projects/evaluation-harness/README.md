@@ -200,6 +200,9 @@ response template、次アクションを 1 つの束にする。responses が�
 `--max-items` で代表項目数を絞れるので、口頭 FB 用には小さめの束を作る。
 `--template-json-output` で、埋め戻し用の response template を別ファイルに保存できる。
 
+ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
+packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
+
 ```sh
 python3 -m evaluation_harness human-feedback-ui \
   --root runs/structure-motion

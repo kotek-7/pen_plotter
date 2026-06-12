@@ -172,9 +172,10 @@ def build_human_abx_feedback_loop(
     response_summary = None
     if responses_data is not None:
         responses = load_abx_responses(responses_data)
+        items = _abx_items_for_response_ids(packet, responses)
         response_summary = summarize_abx_responses(
             responses,
-            items=_abx_items_from_packet(packet),
+            items=items,
         )
 
     loop_status = _abx_loop_status(response_summary)
@@ -331,6 +332,32 @@ def _abx_items_from_packet(packet: dict[str, Any]) -> list[AbxItem]:
         )
         for item in packet.get("abx_items", [])
     ]
+
+
+def _abx_items_for_response_ids(
+    packet: dict[str, Any],
+    responses: list[AbxResponse],
+) -> list[AbxItem]:
+    packet_items = {
+        str(item.get("item_id", "")): item for item in packet.get("abx_items", [])
+    }
+    selected_item_ids = {response.item_id for response in responses}
+    return [
+        _abx_item_from_packet(packet_items[item_id])
+        for item_id in sorted(selected_item_ids)
+        if item_id in packet_items
+    ]
+
+
+def _abx_item_from_packet(item: dict[str, Any]) -> AbxItem:
+    return AbxItem(
+        item_id=str(item.get("item_id", "")),
+        prompt=str(item.get("prompt", "")),
+        option_a_artifact=str(item.get("option_a_artifact", "")),
+        option_b_artifact=str(item.get("option_b_artifact", "")),
+        question=str(item.get("question", "")),
+        expected_preference=item.get("expected_preference"),
+    )
 
 
 def _abx_loop_status(response_summary: dict[str, Any] | None) -> str:

@@ -52,6 +52,7 @@ from evaluation_harness.human_abx import (
     render_abx_feedback_loop_markdown,
     render_human_abx_packet_markdown,
 )
+from evaluation_harness.abx import AbxItem, load_abx_responses, render_abx_summary_markdown, summarize_abx_responses
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -399,6 +400,15 @@ def build_parser() -> argparse.ArgumentParser:
     validate_human.add_argument("--responses-json", required=True)
     validate_human.add_argument("--output", default="human_review_response_summary.md")
     validate_human.add_argument("--json-output", default="human_review_response_summary.json")
+
+    validate_abx = sub.add_parser(
+        "validate-abx-responses",
+        help="Validate and summarize ABX responses against an ABX packet",
+    )
+    validate_abx.add_argument("--packet-json", required=True)
+    validate_abx.add_argument("--responses-json", required=True)
+    validate_abx.add_argument("--output", default="abx_response_summary.md")
+    validate_abx.add_argument("--json-output", default="abx_response_summary.json")
 
     plot_ready = sub.add_parser(
         "plot-ready-packet",
@@ -909,6 +919,33 @@ def main() -> None:
         print(f"can_proceed_to_plot: {summary['can_proceed_to_plot']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
+    elif args.command == "validate-abx-responses":
+        packet_path = Path(args.packet_json)
+        responses_path = Path(args.responses_json)
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        responses = load_abx_responses(json.loads(responses_path.read_text(encoding="utf-8")))
+        packet_items = {
+            str(item.get("item_id", "")): item for item in packet.get("abx_items", [])
+        }
+        summary = summarize_abx_responses(
+            responses,
+            items=[
+                _abx_item_from_packet(packet_items[item_id])
+                for item_id in sorted({response.item_id for response in responses})
+                if item_id in packet_items
+            ],
+        )
+        output_path = responses_path.parent / args.output
+        json_path = responses_path.parent / args.json_output
+        output_path.write_text(render_abx_summary_markdown(summary), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"response_count: {summary['response_count']}")
+        print(f"tie_rate: {summary['tie_rate']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
     elif args.command == "plot-ready-packet":
         root = Path(args.root)
         human_summary_path = Path(args.human_summary_json)
@@ -1070,6 +1107,17 @@ def _parse_seeds(raw: str) -> list[int]:
     if any(seed < 0 for seed in seeds):
         raise ValueError("seeds must be non-negative")
     return seeds
+
+
+def _abx_item_from_packet(item: dict[str, object]) -> AbxItem:
+    return AbxItem(
+        item_id=str(item.get("item_id", "")),
+        prompt=str(item.get("prompt", "")),
+        option_a_artifact=str(item.get("option_a_artifact", "")),
+        option_b_artifact=str(item.get("option_b_artifact", "")),
+        question=str(item.get("question", "")),
+        expected_preference=item.get("expected_preference"),
+    )
 
 
 def _structure_inputs(input_set: str) -> tuple[str, ...]:

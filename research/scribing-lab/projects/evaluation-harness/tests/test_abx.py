@@ -172,3 +172,51 @@ def test_build_human_abx_feedback_loop_limits_items_by_profile() -> None:
 
     assert len(loop["packet"]["abx_items"]) == 3
     assert {item["candidate_profile_id"] for item in loop["packet"]["abx_items"]} == {"a", "b", "c"}
+
+
+def test_build_human_abx_feedback_loop_summarizes_responses() -> None:
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "永",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "kanji-tight",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-candidate",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": [],
+                "selected_next_actions": [],
+            },
+            {
+                "item_id": "item-2",
+                "prompt": "？",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "symbol-neat",
+                "baseline_experiment_id": "exp-baseline-2",
+                "candidate_experiment_id": "exp-candidate-2",
+                "option_a_artifact": "a2.png",
+                "option_b_artifact": "b2.png",
+                "selected_failure_tags": [],
+                "selected_next_actions": [],
+            },
+        ]
+    }
+    responses = {
+        "responses": [
+            {
+                "item_id": "item-2",
+                "evaluator_id": "eval-1",
+                "choice": "B",
+                "confidence": 4,
+            }
+        ]
+    }
+
+    loop = build_human_abx_feedback_loop(packet, responses_data=responses)
+
+    assert loop["loop_status"] == "ready"
+    assert loop["response_summary"]["response_count"] == 1
+    assert loop["response_summary"]["choice_counts"] == {"A": 0, "B": 1, "tie": 0}
+    assert loop["response_summary"]["bradley_terry_ranking"]
