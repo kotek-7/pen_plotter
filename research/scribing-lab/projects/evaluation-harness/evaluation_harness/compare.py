@@ -258,6 +258,8 @@ def recommend_preview_fixed_input_set(
     selected_candidate_count = 0
     recommended_action_counts: Counter[str] = Counter()
     focus_area_counts: Counter[str] = Counter()
+    selected_profile_counts: Counter[str] = Counter()
+    candidate_profile_counts: Counter[str] = Counter()
 
     for input_text, seed in expected_groups:
         group = grouped.get((input_text, seed), [])
@@ -266,9 +268,11 @@ def recommend_preview_fixed_input_set(
         baseline_preview = _preview_artifact_summary(baseline.artifacts.get("preview", "")) if baseline else None
         candidate_items: list[dict[str, Any]] = []
         for candidate in candidate_records:
+            candidate_profile_counts[candidate.profile_id] += 1
             preview_summary = _preview_artifact_summary(candidate.artifacts.get("preview", ""))
             inferred_tags = infer_offline_failure_tags(candidate)
             candidate_actions = suggested_next_actions(inferred_tags)
+            quality_key = _preview_candidate_quality_key(candidate.metrics)
             preview_hash_changed = (
                 None
                 if baseline_preview is None or preview_summary is None
@@ -284,10 +288,12 @@ def recommend_preview_fixed_input_set(
                     "preview_hash_changed": preview_hash_changed,
                     "inferred_failure_tags": inferred_tags,
                     "suggested_next_actions": candidate_actions,
+                    "quality_key": quality_key,
                     "selection_key": _preview_candidate_selection_key(
                         preview_summary=preview_summary,
                         inferred_failure_tags=inferred_tags,
                         preview_hash_changed=bool(preview_hash_changed),
+                        quality_key=quality_key,
                         experiment_id=candidate.experiment_id,
                     ),
                 }
@@ -298,6 +304,7 @@ def recommend_preview_fixed_input_set(
         if comparable_candidates:
             selected = min(comparable_candidates, key=lambda item: item["selection_key"])
             selected_candidate_count += 1
+            selected_profile_counts[selected["profile_id"]] += 1
             if selected["suggested_next_actions"]:
                 for action in selected["suggested_next_actions"]:
                     recommended_action_counts[action] += 1
@@ -325,6 +332,8 @@ def recommend_preview_fixed_input_set(
         "selected_coverage_ratio": round(selected_candidate_count / expected_group_count, 4)
         if expected_group_count
         else 0.0,
+        "selected_profile_counts": dict(sorted(selected_profile_counts.items())),
+        "candidate_profile_counts": dict(sorted(candidate_profile_counts.items())),
         "recommended_action_counts": dict(sorted(recommended_action_counts.items())),
         "focus_area_counts": dict(sorted(focus_area_counts.items())),
         "recommendations": recommendations,
@@ -574,6 +583,8 @@ def render_preview_recommendation_markdown(comparison: dict[str, Any]) -> str:
         f"- expected_group_count: `{comparison['expected_group_count']}`",
         f"- selected_candidate_count: `{comparison['selected_candidate_count']}`",
         f"- selected_coverage_ratio: `{comparison['selected_coverage_ratio']}`",
+        f"- selected_profile_counts: `{comparison.get('selected_profile_counts', {})}`",
+        f"- candidate_profile_counts: `{comparison.get('candidate_profile_counts', {})}`",
         f"- focus_area_counts: `{comparison['focus_area_counts']}`",
         f"- recommended_action_counts: `{comparison['recommended_action_counts']}`",
         "",
@@ -750,13 +761,29 @@ def _preview_candidate_selection_key(
     preview_summary: dict[str, Any] | None,
     inferred_failure_tags: list[str],
     preview_hash_changed: bool,
+    quality_key: tuple[float, float, float],
     experiment_id: str,
-) -> tuple[int, int, int, str]:
+) -> tuple[int, int, int, float, float, float, str]:
     return (
         0 if preview_summary is not None else 1,
         len(inferred_failure_tags),
         0 if preview_hash_changed else 1,
+        quality_key[0],
+        quality_key[1],
+        quality_key[2],
         experiment_id,
+    )
+
+
+def _preview_candidate_quality_key(metrics: dict[str, Any]) -> tuple[float, float, float]:
+    draw_speed_cv = max(0.0, min(float(metrics.get("draw_speed_cv", 0.0)), 1.5))
+    baseline_drift_mm = max(0.0, min(float(metrics.get("baseline_drift_mm", 0.0)), 10.0))
+    speed_cv_target = 0.55
+    drift_target = 4.0
+    return (
+        abs(draw_speed_cv - speed_cv_target),
+        abs(baseline_drift_mm - drift_target),
+        float(metrics.get("penup_distance_mm", 0.0)),
     )
 
 

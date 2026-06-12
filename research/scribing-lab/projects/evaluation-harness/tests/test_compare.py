@@ -171,6 +171,69 @@ def test_compare_preview_fixed_input_set_reports_preview_hash_deltas(tmp_path: P
     assert "preview_similarity" in report
 
 
+def test_recommend_preview_prefers_higher_variation_profile(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    baseline_candidate_preview = tmp_path / "baseline_candidate.png"
+    fast_candidate_preview = tmp_path / "fast_candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    baseline_candidate_preview.write_bytes(b"baseline-candidate-preview")
+    fast_candidate_preview.write_bytes(b"fast-candidate-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-motion-base",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            profile_id="baseline-neat",
+            artifacts={"preview": str(baseline_candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.62,
+                "baseline_drift_mm": 0.2,
+                "velocity_peak_count": 4,
+                "visible_char_count": 1,
+            },
+        ),
+        _record(
+            experiment_id="exp-motion-fast",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            profile_id="fast-casual",
+            artifacts={"preview": str(fast_candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.56,
+                "baseline_drift_mm": 0.6,
+                "velocity_peak_count": 5,
+                "visible_char_count": 1,
+            },
+        ),
+    ]
+
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=("永",),
+        expected_seeds=(1,),
+    )
+
+    assert recommendation["selected_candidate_count"] == 1
+    assert recommendation["selected_profile_counts"] == {"fast-casual": 1}
+    assert recommendation["candidate_profile_counts"] == {
+        "baseline-neat": 1,
+        "fast-casual": 1,
+    }
+    assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "fast-casual"
+    report = render_preview_recommendation_markdown(recommendation)
+    assert "selected_profile_counts" in report
+
+
 def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:
     baseline_preview = tmp_path / "baseline.png"
     baseline_preview.write_bytes(b"baseline-preview")
@@ -429,6 +492,7 @@ def _record(
     input_text: str,
     seed: int,
     generator: str,
+    profile_id: str = "baseline-neat",
     artifacts: dict[str, str] | None = None,
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
@@ -437,7 +501,7 @@ def _record(
         experiment_id=experiment_id,
         hypothesis="test",
         input_text=input_text,
-        profile_id="baseline-neat",
+        profile_id=profile_id,
         seed=seed,
         generator=generator,
         exporter="xdraw-gcode",

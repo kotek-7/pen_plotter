@@ -111,6 +111,34 @@ def test_preview_review_packet_parser_accepts_output_paths() -> None:
     assert args.json_output == "preview.json"
 
 
+def test_human_abx_packet_parser_accepts_input_set_and_output_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-packet",
+            "--root",
+            "runs/test",
+            "--input-set",
+            "wide",
+            "--seeds",
+            "1,2",
+            "--baseline-generator",
+            "baseline-outline",
+            "--output",
+            "abx.md",
+            "--json-output",
+            "abx.json",
+        ]
+    )
+
+    assert args.command == "human-abx-packet"
+    assert args.root == "runs/test"
+    assert args.input_set == "wide"
+    assert args.seeds == "1,2"
+    assert args.baseline_generator == "baseline-outline"
+    assert args.output == "abx.md"
+    assert args.json_output == "abx.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -165,6 +193,8 @@ def test_compare_fixed_inputs_parser_accepts_seeds() -> None:
             "baseline-outline",
             "--seeds",
             "1,2",
+            "--input-set",
+            "wide",
             "--output",
             "fixed.md",
             "--json-output",
@@ -176,8 +206,123 @@ def test_compare_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.root == "runs/test"
     assert args.baseline_generator == "baseline-outline"
     assert args.seeds == "1,2"
+    assert args.input_set == "wide"
     assert args.output == "fixed.md"
     assert args.json_output == "fixed.json"
+
+
+def test_baseline_outline_batch_parser_accepts_input_set() -> None:
+    args = build_parser().parse_args(
+        [
+            "baseline-outline-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--input-set",
+            "wide",
+        ]
+    )
+
+    assert args.command == "baseline-outline-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.input_set == "wide"
+
+
+def test_baseline_outline_batch_parser_accepts_experiment_prefix() -> None:
+    args = build_parser().parse_args(
+        [
+            "baseline-outline-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--experiment-prefix",
+            "exp-baseline-wide",
+        ]
+    )
+
+    assert args.command == "baseline-outline-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.experiment_prefix == "exp-baseline-wide"
+
+
+def test_structure_uniform_batch_parser_accepts_wide_input_set() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-uniform-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--input-set",
+            "wide",
+        ]
+    )
+
+    assert args.command == "structure-uniform-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.input_set == "wide"
+
+
+def test_structure_uniform_batch_parser_accepts_experiment_prefix() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-uniform-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--experiment-prefix",
+            "exp-structure-wide",
+        ]
+    )
+
+    assert args.command == "structure-uniform-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.experiment_prefix == "exp-structure-wide"
+
+
+def test_structure_motion_batch_parser_accepts_wide_input_set() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-motion-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--input-set",
+            "wide",
+        ]
+    )
+
+    assert args.command == "structure-motion-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.input_set == "wide"
+
+
+def test_structure_motion_batch_parser_accepts_experiment_prefix() -> None:
+    args = build_parser().parse_args(
+        [
+            "structure-motion-batch",
+            "--root",
+            "runs/test",
+            "--seeds",
+            "1,2",
+            "--experiment-prefix",
+            "exp-motion-fast",
+        ]
+    )
+
+    assert args.command == "structure-motion-batch"
+    assert args.root == "runs/test"
+    assert args.seeds == "1,2"
+    assert args.experiment_prefix == "exp-motion-fast"
 
 
 def test_compare_preview_fixed_inputs_parser_accepts_seeds() -> None:

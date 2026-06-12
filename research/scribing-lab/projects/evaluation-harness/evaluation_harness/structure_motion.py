@@ -196,6 +196,7 @@ def run_structure_motion_batch(
     input_texts: tuple[str, ...] | list[str] = DEFAULT_STRUCTURE_INPUTS,
     seeds: tuple[int, ...] | list[int] = (1, 2, 3),
     profile_id: str = "baseline-neat",
+    experiment_prefix: str = "exp-motion",
     config: StructureMotionConfig | None = None,
 ) -> list[ExperimentRecord]:
     records: list[ExperimentRecord] = []
@@ -204,7 +205,7 @@ def run_structure_motion_batch(
             records.append(
                 run_structure_motion(
                     root=root,
-                    experiment_id=f"exp-motion-i{input_index:02d}-s{seed:03d}",
+                    experiment_id=f"{experiment_prefix}-i{input_index:02d}-s{seed:03d}",
                     input_text=input_text,
                     seed=seed,
                     profile_id=profile_id,

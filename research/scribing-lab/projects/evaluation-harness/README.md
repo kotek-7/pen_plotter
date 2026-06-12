@@ -14,7 +14,7 @@
 - `preview_metrics`: preview の画像統計と SSIM 近似比較。
 - `render_markdown_report`: 実験レビュー向け report。
 - `FAILURE_TAGS`: 固定 failure taxonomy。
-- `baseline-outline-batch`: 拡張固定評価入力セットの batch runner。
+- `baseline-outline-batch`: `fixed` / `review` / `wide` を選べる batch runner。
 - `review_packet.md`: batch 実験のレビュー束。
 - `compare`: baseline との差分比較レポート。
 - `compare-preview-fixed-inputs`: 固定評価入力セットの preview 差分レポート。
@@ -39,6 +39,7 @@
 - `Bradley-Terry`: ABX の paired comparison を順位化する比較モデル。
 
 固定評価入力セットは、かな・漢字・数字・Latin・記号を含む拡張コーパスを使う。
+広い評価セットは、常用文字を広く含む 100 種類以上の文字・文章を扱う。
 
 ## 採用した外部手法
 
@@ -94,12 +95,13 @@ python3 -m evaluation_harness baseline-outline \
   --seed 1
 ```
 
-拡張固定評価入力セットを複数 seed で一括登録する場合:
+固定・レビュー・広い評価入力セットを複数 seed で一括登録する場合:
 
 ```sh
 python3 -m evaluation_harness baseline-outline-batch \
   --root runs/baseline-outline \
-  --seeds 1,2,3
+  --seeds 1,2,3 \
+  --input-set wide
 ```
 
 registry 内の候補実験を `baseline-outline` と比較する場合:
@@ -110,20 +112,22 @@ python3 -m evaluation_harness compare \
   --baseline-generator baseline-outline
 ```
 
-固定評価入力セットの比較完備性を確認する場合:
+固定・レビュー・広い評価入力セットの比較完備性を確認する場合:
 
 ```sh
 python3 -m evaluation_harness compare-fixed-inputs \
   --root runs/baseline-outline \
-  --seeds 1,2,3
+  --seeds 1,2,3 \
+  --input-set wide
 ```
 
-固定評価入力セットの preview 由来の差分を確認する場合:
+固定・レビュー・広い評価入力セットの preview 由来の差分を確認する場合:
 
 ```sh
 python3 -m evaluation_harness compare-preview-fixed-inputs \
   --root runs/baseline-outline \
-  --seeds 1,2,3
+  --seeds 1,2,3 \
+  --input-set wide
 ```
 
 `compare-preview-fixed-inputs` は、baseline と candidate の `preview` artifact の

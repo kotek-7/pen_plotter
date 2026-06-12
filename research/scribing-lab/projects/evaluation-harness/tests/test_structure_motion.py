@@ -166,8 +166,8 @@ def test_structure_motion_profile_changes_timing_and_pressure(tmp_path: Path) ->
         profile_id="fast-casual",
     )
 
-    assert fast.metrics["writer_profile_speed_mean_mm_s"] == 54.0
-    assert fast.metrics["writer_profile_timing_jitter_cv"] == 0.14
+    assert fast.metrics["writer_profile_speed_mean_mm_s"] == 50.0
+    assert fast.metrics["writer_profile_timing_jitter_cv"] == 0.18
     assert fast.metrics["duration_ms"] != baseline.metrics["duration_ms"]
 
 

@@ -5,6 +5,7 @@ from evaluation_harness.abx import (
     summarize_abx_responses,
     validate_abx_responses,
 )
+from evaluation_harness.human_abx import build_human_abx_packet, render_human_abx_packet_markdown
 from evaluation_harness.artifacts import ArtifactStore
 from evaluation_harness.baseline_outline import (
     DEFAULT_EVALUATION_INPUTS,
@@ -50,8 +51,15 @@ from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.reference_basis import build_reference_basis, render_reference_basis_markdown
 from evaluation_harness.report import render_markdown_report
 from evaluation_harness.scan import ScanMetadata, attach_scan_artifact, validate_scan_metadata
+from evaluation_harness.evaluation_inputs import (
+    FIXED_EVALUATION_INPUTS,
+    REVIEW_EVALUATION_INPUTS,
+    WIDE_EVALUATION_INPUTS,
+    get_evaluation_inputs,
+)
 from evaluation_harness.structure_uniform import (
     DEFAULT_STRUCTURE_INPUTS,
+    WIDE_STRUCTURE_INPUTS,
     StructureUniformConfig,
     run_structure_uniform,
     run_structure_uniform_batch,
@@ -87,6 +95,9 @@ __all__ = [
     "GoalAuditResult",
     "HarnessSelfCheckResult",
     "DEFAULT_EVALUATION_INPUTS",
+    "FIXED_EVALUATION_INPUTS",
+    "REVIEW_EVALUATION_INPUTS",
+    "WIDE_EVALUATION_INPUTS",
     "DEFAULT_STRUCTURE_INPUTS",
     "ExperimentRecord",
     "ExperimentRegistry",
@@ -95,6 +106,7 @@ __all__ = [
     "ScanMetadata",
     "StructureMotionConfig",
     "StructureUniformConfig",
+    "WIDE_STRUCTURE_INPUTS",
     "build_revision_profile",
     "build_reference_basis",
     "attach_scan_artifact",
@@ -102,6 +114,7 @@ __all__ = [
     "compare_fixed_input_set",
     "compare_preview_fixed_input_set",
     "build_human_feedback_loop",
+    "build_human_abx_packet",
     "build_human_review_response_template",
     "recommend_preview_fixed_input_set",
     "propose_preview_fixed_input_set",
@@ -115,6 +128,7 @@ __all__ = [
     "render_preview_recommendation_markdown",
     "render_preview_revision_plan_markdown",
     "render_human_feedback_loop_markdown",
+    "render_human_abx_packet_markdown",
     "render_human_review_response_template_markdown",
     "render_goal_audit_markdown",
     "render_reference_basis_markdown",
@@ -144,4 +158,5 @@ __all__ = [
     "validate_abx_responses",
     "summarize_preview_revision_loops",
     "validate_scan_metadata",
+    "get_evaluation_inputs",
 ]

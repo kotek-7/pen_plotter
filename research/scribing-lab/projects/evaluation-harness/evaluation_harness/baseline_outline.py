@@ -132,12 +132,13 @@ def run_baseline_outline_batch(
     input_texts: list[str] | tuple[str, ...] = DEFAULT_EVALUATION_INPUTS,
     seeds: list[int] | tuple[int, ...] = (1, 2, 3),
     profile_id: str = "baseline-neat",
+    experiment_prefix: str = "exp-baseline",
     config: BaselineOutlineConfig | None = None,
 ) -> list[ExperimentRecord]:
     records: list[ExperimentRecord] = []
     for input_index, input_text in enumerate(input_texts, start=1):
         for seed in seeds:
-            experiment_id = f"exp-baseline-i{input_index:02d}-s{seed:03d}"
+            experiment_id = f"{experiment_prefix}-i{input_index:02d}-s{seed:03d}"
             records.append(
                 run_baseline_outline(
                     root=root,

@@ -48,6 +48,17 @@ def test_get_profile_returns_known_profile() -> None:
     assert profile.params.slant_deg == 2.0
 
 
+def test_fast_casual_profile_is_distinct_from_baseline() -> None:
+    profile = get_profile("fast-casual")
+
+    assert profile.profile_id == "fast-casual"
+    assert profile.parent_profile == "baseline-neat"
+    assert profile.params.speed_mean_mm_s > 40.0
+    assert profile.params.timing_jitter_cv > get_profile("baseline-neat").params.timing_jitter_cv
+    assert profile.params.tremor_mm > get_profile("baseline-neat").params.tremor_mm
+    assert profile.params.baseline_drift_mm > get_profile("baseline-neat").params.baseline_drift_mm
+
+
 def test_get_profile_rejects_unknown_profile() -> None:
     with pytest.raises(WriterProfileLookupError):
         get_profile("unknown-profile")

@@ -15,7 +15,7 @@ from evaluation_harness.baseline_outline import (
     _use_headless_matplotlib,
     strokes_to_trajectory,
 )
-from evaluation_harness.evaluation_inputs import REVIEW_EVALUATION_INPUTS
+from evaluation_harness.evaluation_inputs import REVIEW_EVALUATION_INPUTS, WIDE_EVALUATION_INPUTS
 from evaluation_harness.metrics import compute_text_metrics, compute_trajectory_metrics
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -31,6 +31,7 @@ from evaluation_harness.writer_profile import (
 DEFAULT_STRUCTURE_INPUTS: tuple[str, ...] = ("永", "あいうえお")
 EVALUATION_STRUCTURE_INPUTS: tuple[str, ...] = DEFAULT_EVALUATION_INPUTS
 REVIEW_STRUCTURE_INPUTS: tuple[str, ...] = REVIEW_EVALUATION_INPUTS
+WIDE_STRUCTURE_INPUTS: tuple[str, ...] = WIDE_EVALUATION_INPUTS
 EXTENDED_STRUCTURE_INPUTS: tuple[str, ...] = (
     "永",
     "あいうえお",
@@ -167,6 +168,7 @@ def run_structure_uniform_batch(
     input_texts: tuple[str, ...] | list[str] = DEFAULT_STRUCTURE_INPUTS,
     seeds: tuple[int, ...] | list[int] = (1, 2, 3),
     profile_id: str = "baseline-neat",
+    experiment_prefix: str = "exp-structure",
     config: StructureUniformConfig | None = None,
 ) -> list[ExperimentRecord]:
     records: list[ExperimentRecord] = []
@@ -175,7 +177,7 @@ def run_structure_uniform_batch(
             records.append(
                 run_structure_uniform(
                     root=root,
-                    experiment_id=f"exp-structure-i{input_index:02d}-s{seed:03d}",
+                    experiment_id=f"{experiment_prefix}-i{input_index:02d}-s{seed:03d}",
                     input_text=input_text,
                     seed=seed,
                     profile_id=profile_id,
@@ -249,6 +251,20 @@ def render_structure_summary_markdown(summary: dict[str, Any]) -> str:
             f"failure_tags=`{record['failure_tags']}`"
         )
     return "\n".join(lines) + "\n"
+
+
+def _structure_inputs(input_set: str) -> tuple[str, ...]:
+    if input_set == "basic":
+        return DEFAULT_STRUCTURE_INPUTS
+    if input_set == "extended":
+        return EXTENDED_STRUCTURE_INPUTS
+    if input_set == "evaluation":
+        return EVALUATION_STRUCTURE_INPUTS
+    if input_set == "review":
+        return REVIEW_STRUCTURE_INPUTS
+    if input_set == "wide":
+        return WIDE_STRUCTURE_INPUTS
+    raise ValueError(f"unknown input set: {input_set}")
 
 
 def _ensure_paths() -> None:

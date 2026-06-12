@@ -6,11 +6,11 @@ from pathlib import Path
 
 from evaluation_harness.artifacts import ArtifactStore
 from evaluation_harness.baseline_outline import (
-    DEFAULT_EVALUATION_INPUTS,
     BaselineOutlineConfig,
     run_baseline_outline,
     run_baseline_outline_batch,
 )
+from evaluation_harness.evaluation_inputs import get_evaluation_inputs
 from evaluation_harness.compare import (
     compare_against_baseline,
     compare_fixed_input_set,
@@ -46,6 +46,10 @@ from evaluation_harness.human_feedback_loop import (
     build_human_feedback_loop,
     render_human_feedback_loop_markdown,
 )
+from evaluation_harness.human_abx import (
+    build_human_abx_packet,
+    render_human_abx_packet_markdown,
+)
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -63,6 +67,7 @@ from evaluation_harness.structure_uniform import (
     EVALUATION_STRUCTURE_INPUTS,
     EXTENDED_STRUCTURE_INPUTS,
     REVIEW_STRUCTURE_INPUTS,
+    WIDE_STRUCTURE_INPUTS,
     StructureUniformConfig,
     run_structure_uniform,
     run_structure_uniform_batch,
@@ -106,11 +111,18 @@ def build_parser() -> argparse.ArgumentParser:
     batch.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
     batch.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
     batch.add_argument("--profile-id", default="baseline-neat")
+    batch.add_argument("--experiment-prefix", default="exp-baseline")
     batch.add_argument("--font-size", type=float, default=7.0)
     batch.add_argument("--jitter", type=float, default=0.08)
     batch.add_argument("--wobble", type=float, default=0.04)
     batch.add_argument("--no-optimize", action="store_true")
     batch.add_argument("--no-vary-speed", action="store_true")
+    batch.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
 
     compare = sub.add_parser("compare", help="Compare registered experiments against a baseline")
     compare.add_argument("--root", default="runs/baseline-outline", help="Run output directory")
@@ -128,6 +140,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fixed_compare.add_argument("--baseline-generator", default="baseline-outline")
     fixed_compare.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    fixed_compare.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     fixed_compare.add_argument("--output", default="fixed_input_comparison.md")
     fixed_compare.add_argument("--json-output", default="fixed_input_comparison.json")
 
@@ -142,6 +160,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_compare.add_argument("--baseline-generator", default="baseline-outline")
     preview_compare.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_compare.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     preview_compare.add_argument("--output", default="preview_input_comparison.md")
     preview_compare.add_argument("--json-output", default="preview_input_comparison.json")
 
@@ -156,6 +180,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_recommend.add_argument("--baseline-generator", default="baseline-outline")
     preview_recommend.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_recommend.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     preview_recommend.add_argument("--output", default="preview_recommendation.md")
     preview_recommend.add_argument("--json-output", default="preview_recommendation.json")
 
@@ -170,6 +200,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_propose.add_argument("--baseline-generator", default="baseline-outline")
     preview_propose.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_propose.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     preview_propose.add_argument("--output", default="preview_revision_plan.md")
     preview_propose.add_argument("--json-output", default="preview_revision_plan.json")
 
@@ -184,6 +220,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_iteration.add_argument("--baseline-generator", default="baseline-outline")
     preview_iteration.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_iteration.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     preview_iteration.add_argument("--output", default="preview_iteration.md")
     preview_iteration.add_argument("--json-output", default="preview_iteration.json")
 
@@ -198,6 +240,12 @@ def build_parser() -> argparse.ArgumentParser:
     )
     preview_apply.add_argument("--baseline-generator", default="baseline-outline")
     preview_apply.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    preview_apply.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     preview_apply.add_argument("--output", default="preview_revision_loop.md")
     preview_apply.add_argument("--json-output", default="preview_revision_loop.json")
 
@@ -231,6 +279,12 @@ def build_parser() -> argparse.ArgumentParser:
     stable_profile_evaluation.add_argument("--root", required=True, help="Run output directory")
     stable_profile_evaluation.add_argument("--base-profile-id", default="baseline-neat")
     stable_profile_evaluation.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    stable_profile_evaluation.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     stable_profile_evaluation.add_argument("--output", default="stable_writer_profile_evaluation.md")
     stable_profile_evaluation.add_argument(
         "--json-output",
@@ -245,6 +299,12 @@ def build_parser() -> argparse.ArgumentParser:
     data_prior_evaluation.add_argument("--root", required=True, help="Run output directory")
     data_prior_evaluation.add_argument("--base-profile-id", default="baseline-neat")
     data_prior_evaluation.add_argument("--seeds", default="1,2,3", help="Comma-separated integer seeds")
+    data_prior_evaluation.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="fixed",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
     data_prior_evaluation.add_argument("--output", default="data_driven_prior_evaluation.md")
     data_prior_evaluation.add_argument(
         "--json-output",
@@ -295,6 +355,22 @@ def build_parser() -> argparse.ArgumentParser:
     preview_review.add_argument("--root", required=True, help="Run output directory")
     preview_review.add_argument("--output", default="preview_review_packet.md")
     preview_review.add_argument("--json-output", default="preview_review_packet.json")
+
+    human_abx = sub.add_parser(
+        "human-abx-packet",
+        help="Create an ABX packet from preview-selected candidate pairs",
+    )
+    human_abx.add_argument("--root", required=True, help="Run output directory")
+    human_abx.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="wide",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
+    human_abx.add_argument("--seeds", default="1", help="Comma-separated integer seeds")
+    human_abx.add_argument("--baseline-generator", default="baseline-outline")
+    human_abx.add_argument("--output", default="human_abx_packet.md")
+    human_abx.add_argument("--json-output", default="human_abx_packet.json")
 
     validate_human = sub.add_parser(
         "validate-human-review",
@@ -355,7 +431,12 @@ def build_parser() -> argparse.ArgumentParser:
     structure_batch.add_argument("--root", default="runs/structure-uniform")
     structure_batch.add_argument("--seeds", default="1,2,3")
     structure_batch.add_argument("--profile-id", default="baseline-neat")
-    structure_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation", "review"), default="review")
+    structure_batch.add_argument("--experiment-prefix", default="exp-structure")
+    structure_batch.add_argument(
+        "--input-set",
+        choices=("basic", "extended", "evaluation", "review", "wide"),
+        default="review",
+    )
 
     motion = sub.add_parser(
         "structure-motion",
@@ -376,9 +457,14 @@ def build_parser() -> argparse.ArgumentParser:
     motion_batch.add_argument("--root", default="runs/structure-motion")
     motion_batch.add_argument("--seeds", default="1,2,3")
     motion_batch.add_argument("--profile-id", default="baseline-neat")
+    motion_batch.add_argument("--experiment-prefix", default="exp-motion")
     motion_batch.add_argument("--shape-variation", type=float, default=0.0)
     motion_batch.add_argument("--layout-variation", type=float, default=0.0)
-    motion_batch.add_argument("--input-set", choices=("basic", "extended", "evaluation", "review"), default="review")
+    motion_batch.add_argument(
+        "--input-set",
+        choices=("basic", "extended", "evaluation", "review", "wide"),
+        default="review",
+    )
     return parser
 
 
@@ -407,9 +493,10 @@ def main() -> None:
     elif args.command == "baseline-outline-batch":
         records = run_baseline_outline_batch(
             root=Path(args.root),
-            input_texts=DEFAULT_EVALUATION_INPUTS,
+            input_texts=get_evaluation_inputs(args.input_set),
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
+            experiment_prefix=args.experiment_prefix,
             config=BaselineOutlineConfig(
                 font_size=args.font_size,
                 jitter=args.jitter,
@@ -437,6 +524,7 @@ def main() -> None:
         comparison = compare_fixed_input_set(
             registry.load_all(),
             baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -457,6 +545,7 @@ def main() -> None:
         comparison = compare_preview_fixed_input_set(
             registry.load_all(),
             baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -479,6 +568,7 @@ def main() -> None:
         recommendation = recommend_preview_fixed_input_set(
             registry.load_all(),
             baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -501,6 +591,7 @@ def main() -> None:
         proposal = propose_preview_fixed_input_set(
             registry.load_all(),
             baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -521,6 +612,7 @@ def main() -> None:
         iteration = preview_iteration_fixed_input_set(
             registry.load_all(),
             baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -540,7 +632,7 @@ def main() -> None:
         loop = run_preview_revision_loop_fixed_input_set(
             root,
             baseline_generator=args.baseline_generator,
-            expected_input_texts=DEFAULT_EVALUATION_INPUTS,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         markdown_path = root / args.output
@@ -604,6 +696,7 @@ def main() -> None:
         packet = evaluate_stable_writer_profile_candidates(
             root,
             summary,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             base_profile_id=args.base_profile_id,
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
@@ -627,6 +720,7 @@ def main() -> None:
             root,
             samples_jsonl=Path(args.samples_jsonl),
             base_profile_id=args.base_profile_id,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
         )
         output_path = root / args.output
@@ -721,6 +815,27 @@ def main() -> None:
         )
         print(f"record_count: {packet['record_count']}")
         print(f"representative_count: {packet['representative_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-abx-packet":
+        root = Path(args.root)
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        packet = build_human_abx_packet(
+            registry.load_all(),
+            expected_input_texts=get_evaluation_inputs(args.input_set),
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+            baseline_generator=args.baseline_generator,
+        )
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_human_abx_packet_markdown(packet), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"record_count: {packet['record_count']}")
+        print(f"selected_candidate_count: {packet['selected_candidate_count']}")
+        print(f"selected_profile_counts: {packet['selected_profile_counts']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "validate-human-review":
@@ -820,6 +935,7 @@ def main() -> None:
             input_texts=_structure_inputs(args.input_set),
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
+            experiment_prefix=args.experiment_prefix,
             config=StructureUniformConfig(),
         )
         print(f"registered {len(records)} experiments")
@@ -846,6 +962,7 @@ def main() -> None:
             input_texts=_structure_inputs(args.input_set),
             seeds=_parse_seeds(args.seeds),
             profile_id=args.profile_id,
+            experiment_prefix=args.experiment_prefix,
             config=StructureMotionConfig(
                 shape_variation=args.shape_variation,
                 layout_variation=args.layout_variation,
@@ -912,6 +1029,8 @@ def _structure_inputs(input_set: str) -> tuple[str, ...]:
         return EVALUATION_STRUCTURE_INPUTS
     if input_set == "review":
         return REVIEW_STRUCTURE_INPUTS
+    if input_set == "wide":
+        return WIDE_STRUCTURE_INPUTS
     raise ValueError(f"unknown input set: {input_set}")
 
 

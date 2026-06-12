@@ -9,6 +9,7 @@ from evaluation_harness.baseline_outline import (
     run_baseline_outline_batch,
     strokes_to_trajectory,
 )
+from evaluation_harness.evaluation_inputs import WIDE_EVALUATION_INPUTS
 from evaluation_harness.registry import ExperimentRegistry
 
 
@@ -105,6 +106,14 @@ def test_default_evaluation_inputs_cover_multiple_character_families() -> None:
     corpus = {char for text in DEFAULT_EVALUATION_INPUTS for char in text if not char.isspace()}
 
     assert {"あ", "ア", "0", "A", "a", "!", "?", "「", "」"} <= corpus
+
+
+def test_wide_evaluation_inputs_expand_beyond_fixed_corpus() -> None:
+    assert len(WIDE_EVALUATION_INPUTS) >= 100
+    assert set(DEFAULT_EVALUATION_INPUTS) <= set(WIDE_EVALUATION_INPUTS)
+    assert any(text == "永" for text in WIDE_EVALUATION_INPUTS)
+    assert any(text == "ABCDEFGHIJKLMNOPQRSTUVWXYZ" for text in WIDE_EVALUATION_INPUTS)
+    assert any("手書き" in text for text in WIDE_EVALUATION_INPUTS)
 
 
 def test_infer_baseline_failure_tags_marks_repeated_text() -> None:

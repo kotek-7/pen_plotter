@@ -1,9 +1,25 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 
-# The expanded corpus is designed to keep KanjiVG-backed Japanese scripts, ASCII,
-# digits, and punctuation in the fixed evaluation loop at the same time.
-DEFAULT_EVALUATION_INPUTS: tuple[str, ...] = (
+
+def _dedupe_inputs(*groups: Iterable[str]) -> tuple[str, ...]:
+    ordered: list[str] = []
+    seen: set[str] = set()
+    for group in groups:
+        for text in group:
+            if text in seen:
+                continue
+            seen.add(text)
+            ordered.append(text)
+    return tuple(ordered)
+
+
+def _single_char_inputs(characters: str) -> tuple[str, ...]:
+    return tuple(char for char in characters if not char.isspace())
+
+
+FIXED_EVALUATION_INPUTS: tuple[str, ...] = (
     "永",
     "あいうえお",
     "アイウエオ",
@@ -26,7 +42,6 @@ DEFAULT_EVALUATION_INPUTS: tuple[str, ...] = (
     "比較対象が増えても、同じ評価軸で差分が見えることを優先する。",
 )
 
-
 REVIEW_EVALUATION_INPUTS: tuple[str, ...] = (
     "永",
     "あいうえお",
@@ -39,3 +54,198 @@ REVIEW_EVALUATION_INPUTS: tuple[str, ...] = (
     "ASCII ABCDEFGH と abcdefgh も評価する。",
     "記号 ! ? , . : ; - ( ) [ ] { } 「」『』・ー も確認する。",
 )
+
+WIDE_EVALUATION_INPUTS: tuple[str, ...] = _dedupe_inputs(
+    FIXED_EVALUATION_INPUTS,
+    _single_char_inputs("あいうえおかきくけこさしすせそたちつてとなにぬねのはひふへほまみむめもやゆよらりるれろわをん"),
+    _single_char_inputs("アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン"),
+    _single_char_inputs("0123456789"),
+    _single_char_inputs("ABCDEFGHIJKLMNOPQRSTUVWXYZ"),
+    _single_char_inputs("abcdefghijklmnopqrstuvwxyz"),
+    _single_char_inputs("。、，．！？!?「」『』・ー,.;:-()[]{}"),
+    _single_char_inputs("永今日日本天気春川文字列品質評価比較改善実験記録変化速度終筆手書自然読見候補常用漢字行間空白確認観察継続選択抽出構造辞書設計仕様応答反復条件可読性"),
+    (
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+        "abcdefghijklmnopqrstuvwxyz",
+        "あ",
+        "い",
+        "う",
+        "え",
+        "お",
+        "かきくけこ",
+        "さしすせそ",
+        "たちつてと",
+        "なにぬねの",
+        "はひふへほ",
+        "まみむめも",
+        "やゆよ",
+        "らりるれろ",
+        "わをん",
+        "アイ",
+        "ウエオ",
+        "カキクケコ",
+        "サシスセソ",
+        "タチツテト",
+        "ナニヌネノ",
+        "ハヒフヘホ",
+        "マミムメモ",
+        "ヤユヨ",
+        "ラリルレロ",
+        "ワヲン",
+        "0123",
+        "4567",
+        "89",
+        "ABC",
+        "DEF",
+        "GHI",
+        "JKL",
+        "MNO",
+        "PQR",
+        "STU",
+        "VWXYZ",
+        "abc",
+        "def",
+        "ghi",
+        "jkl",
+        "mno",
+        "pqr",
+        "stu",
+        "vwxyz",
+        "日本",
+        "東京",
+        "学校",
+        "仕事",
+        "勉強",
+        "資料",
+        "文章",
+        "文字",
+        "速度",
+        "自然",
+        "比較",
+        "評価",
+        "確認",
+        "観察",
+        "改善",
+        "記録",
+        "実験",
+        "設計",
+        "仕様",
+        "構造",
+        "辞書",
+        "条件",
+        "候補",
+        "結果",
+        "対応",
+        "変更",
+        "選択",
+        "反復",
+        "継続",
+        "安定",
+        "読書",
+        "空白",
+        "余白",
+        "改行",
+        "行間",
+        "字間",
+        "終筆",
+        "筆順",
+        "手書き",
+        "文字列",
+        "文脈",
+        "長文",
+        "短文",
+        "単語",
+        "常用",
+        "漢字",
+        "かな",
+        "記号",
+        "数字",
+        "Latin",
+        "日常",
+        "挨拶",
+        "説明",
+        "依頼",
+        "確認",
+        "比較",
+        "提出",
+        "記述",
+        "出力",
+        "入力",
+        "評価",
+        "出力を確認する。",
+        "候補の差が読み取れる。",
+        "同じ文字を繰り返す。",
+        "改行と字間を確認する。",
+        "文章の自然さを比較する。",
+        "常用文字を広く含む。",
+        "短文と長文を混ぜる。",
+        "数字と記号も含める。",
+        "人間の目で見て判断する。",
+        "preview を先に見る。",
+        "口頭でフィードバックを返す。",
+        "一度で完成させない。",
+        "改善を何度も繰り返す。",
+        "baseline と比較して進める。",
+        "常用文字を広く網羅するための評価入力。",
+        "ひらがなとカタカナを混ぜて確認する。",
+        "漢字と Latin を混ぜて確認する。",
+        "記号を含む長めの文章を読む。",
+        "同じ seed で再現できるかを見る。",
+        "少し長い文章でも破綻しないかを見る。",
+        "余白の取り方を確認する。",
+        "行送りの自然さを確認する。",
+        "反復文字の差分を確認する。",
+        "終筆の抜きを確認する。",
+        "速度変化が自然かを確認する。",
+        "筆圧の写像を確認する。",
+        "文字の崩れがないかを確認する。",
+        "全体として読みやすいかを確認する。",
+        "見た目の機械感が強すぎないか確認する。",
+        "固定評価入力とは別に広い評価を回す。",
+        "常用範囲の確認を優先する。",
+        "100種類以上の入力を使う。",
+        "文章の長さを変えて観察する。",
+        "短い候補と長い候補を比較する。",
+        "同じ文字が続く箇所を観察する。",
+        "書き出しの安定性を確認する。",
+        "書き終わりの自然さを確認する。",
+        "文末の処理を確認する。",
+    ),
+    (
+        "今日はよい天気です。",
+        "春の川をゆっくり歩く。",
+        "本日はありがとうございました。",
+        "文字列の品質を評価するために、少し長めの文章を用意します。",
+        "同じ文字が続くときのばらつきと、字間の自然さを確認する。",
+        "評価器の人間レビューでは、候補ごとの差が読み取れることが重要です。",
+        "改行を含むケースも確認する。\n整列も見る。",
+        "この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。",
+        "長文の比較に十分な余白と字数を持たせるため、ここでは少しだけ冗長に書いています。",
+        "読みやすさと筆記の自然さは、字形の安定と変化の両方で判断する。",
+        "比較対象が増えても、同じ評価軸で差分が見えることを優先する。",
+        "常用文字を広く確認するために、意図的に入力を増やす。",
+        "ひらがな、カタカナ、漢字、数字、記号をまとめて見る。",
+        "Latin も含めて文字の表示品質を確認する。",
+        "人間のフィードバックで次の候補を決める。",
+        "同じ seed で再現性を確認する。",
+        "preview を見てから次の修正点を決める。",
+        "実機スキャンは最後に確認する。",
+        "まずは正常な文字を安定して出す。",
+        "その後で自然さを高める。",
+    ),
+)
+
+DEFAULT_EVALUATION_INPUTS: tuple[str, ...] = FIXED_EVALUATION_INPUTS
+
+EVALUATION_INPUT_SETS: dict[str, tuple[str, ...]] = {
+    "fixed": DEFAULT_EVALUATION_INPUTS,
+    "review": REVIEW_EVALUATION_INPUTS,
+    "wide": WIDE_EVALUATION_INPUTS,
+}
+
+
+def get_evaluation_inputs(input_set: str) -> tuple[str, ...]:
+    try:
+        return EVALUATION_INPUT_SETS[input_set]
+    except KeyError as exc:
+        raise ValueError(f"unknown evaluation input set: {input_set}") from exc
