@@ -18,6 +18,7 @@ def test_builtin_profile_order_is_stable() -> None:
         "baseline-neat",
         "glyph-neat",
         "kana-neat",
+        "latin-neat",
         "kanji-neat",
         "steady-neat",
         "fast-casual",
@@ -107,6 +108,18 @@ def test_kana_neat_profile_targets_single_glyph_variation() -> None:
     assert profile.params.timing_jitter_cv < get_profile("glyph-neat").params.timing_jitter_cv
     assert profile.params.tremor_mm < get_profile("glyph-neat").params.tremor_mm
     assert profile.params.shape_variation < get_profile("glyph-neat").params.shape_variation
+
+
+def test_latin_neat_profile_targets_ascii_and_symbols() -> None:
+    profile = get_profile("latin-neat")
+
+    assert profile.profile_id == "latin-neat"
+    assert profile.parent_profile == "kana-neat"
+    assert profile.params.spacing_mean_mm <= get_profile("kana-neat").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s >= get_profile("kana-neat").params.speed_mean_mm_s
+    assert profile.params.timing_jitter_cv <= get_profile("kana-neat").params.timing_jitter_cv
+    assert profile.params.tremor_mm <= get_profile("kana-neat").params.tremor_mm
+    assert profile.params.shape_variation <= get_profile("kana-neat").params.shape_variation
 
 
 def test_glyph_neat_profile_targets_single_glyph_variation() -> None:
