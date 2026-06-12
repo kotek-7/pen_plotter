@@ -18,6 +18,7 @@ def test_builtin_profile_order_is_stable() -> None:
         "baseline-neat",
         "fast-casual",
         "compact-casual",
+        "textured-casual",
         "shaky-slow",
     )
     assert BUILTIN_PROFILE_IDS == set(BUILTIN_PROFILE_ORDER)
@@ -73,6 +74,17 @@ def test_compact_casual_profile_targets_tighter_layout() -> None:
     assert profile.params.speed_mean_mm_s < get_profile("fast-casual").params.speed_mean_mm_s
     assert profile.params.baseline_drift_mm < get_profile("fast-casual").params.baseline_drift_mm
     assert profile.params.tremor_mm < get_profile("fast-casual").params.tremor_mm
+
+
+def test_textured_casual_profile_targets_more_motion_texture() -> None:
+    profile = get_profile("textured-casual")
+
+    assert profile.profile_id == "textured-casual"
+    assert profile.parent_profile == "compact-casual"
+    assert profile.params.spacing_mean_mm > get_profile("compact-casual").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s < get_profile("fast-casual").params.speed_mean_mm_s
+    assert profile.params.baseline_drift_mm > get_profile("compact-casual").params.baseline_drift_mm
+    assert profile.params.tremor_mm > get_profile("compact-casual").params.tremor_mm
 
 
 def test_get_profile_rejects_unknown_profile() -> None:

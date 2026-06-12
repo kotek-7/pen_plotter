@@ -9,7 +9,13 @@ from writer_profile.models import WriterProfile, WriterProfileParameters
 
 SCHEMA_VERSION = 1
 PROFILE_REGISTRY_ID = "writer-profile-manual-mvp"
-BUILTIN_PROFILE_ORDER = ("baseline-neat", "fast-casual", "compact-casual", "shaky-slow")
+BUILTIN_PROFILE_ORDER = (
+    "baseline-neat",
+    "fast-casual",
+    "compact-casual",
+    "textured-casual",
+    "shaky-slow",
+)
 BUILTIN_PROFILE_IDS = frozenset(BUILTIN_PROFILE_ORDER)
 
 _PROFILES = OrderedDict(
@@ -83,6 +89,30 @@ _PROFILES = OrderedDict(
                 ),
                 parent_profile="fast-casual",
                 notes="Compact casual profile for single-character and symbol-heavy comparisons.",
+            ),
+        ),
+        (
+            "textured-casual",
+            WriterProfile(
+                profile_id="textured-casual",
+                version=1,
+                source="manual",
+                allowed_use="research-baseline",
+                params=WriterProfileParameters(
+                    slant_deg=4.0,
+                    spacing_mean_mm=1.06,
+                    speed_mean_mm_s=42.5,
+                    harai_gain=1.1,
+                    hane_gain=1.06,
+                    tome_gain=0.95,
+                    timing_jitter_cv=0.15,
+                    tremor_mm=0.022,
+                    baseline_drift_mm=0.9,
+                    shape_variation=0.035,
+                    layout_variation=0.02,
+                ),
+                parent_profile="compact-casual",
+                notes="Textured casual profile for longer text and symbol-heavy comparison runs.",
             ),
         ),
         (
