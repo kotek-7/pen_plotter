@@ -53,7 +53,7 @@ from evaluation_harness.human_abx import (
     render_human_abx_packet_markdown,
 )
 from evaluation_harness.abx import AbxItem, load_abx_responses, render_abx_summary_markdown, summarize_abx_responses
-from evaluation_harness.abx import build_abx_revision_plan, build_abx_workbook, render_abx_revision_plan_markdown, render_abx_workbook_markdown
+from evaluation_harness.abx import build_abx_revision_plan, build_abx_responses_from_workbook, build_abx_workbook, render_abx_revision_plan_markdown, render_abx_workbook_markdown
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -403,6 +403,7 @@ def build_parser() -> argparse.ArgumentParser:
     abx_workbook.add_argument("--max-items", type=int, default=36)
     abx_workbook.add_argument("--output", default="abx_workbook.md")
     abx_workbook.add_argument("--json-output", default="abx_workbook.json")
+    abx_workbook.add_argument("--responses-output", default="abx_responses.json")
 
     abx_revision = sub.add_parser(
         "abx-revision-plan",
@@ -942,10 +943,17 @@ def main() -> None:
             json.dumps(workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        responses_path = Path(args.packet_json).parent / args.responses_output
+        responses_path.write_text(
+            json.dumps(build_abx_responses_from_workbook(workbook), ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
         print(f"loop_status: {workbook['loop_status']}")
         print(f"row_count: {len(workbook['rows'])}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
+        print(f"responses_json: {responses_path}")
     elif args.command == "validate-human-review":
         packet_path = Path(args.packet_json)
         responses_path = Path(args.responses_json)

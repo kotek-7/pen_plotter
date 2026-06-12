@@ -201,6 +201,8 @@ response template、次アクションを 1 つの束にする。responses が�
 `--template-json-output` で、埋め戻し用の response template を別ファイルに保存できる。
 `abx-workbook` は、候補ごとの表形式 workbook を出して、`choice` / `confidence` / `note`
 を埋めやすくする。
+`abx-workbook` の JSON を編集して `choice` と `confidence` を入れると、
+responses JSON としてそのまま戻せる。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

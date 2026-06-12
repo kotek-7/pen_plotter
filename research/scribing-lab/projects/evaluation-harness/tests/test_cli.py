@@ -204,6 +204,8 @@ def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
             "eval-1",
             "--max-items",
             "24",
+            "--responses-output",
+            "responses.json",
             "--output",
             "workbook.md",
             "--json-output",
@@ -216,6 +218,7 @@ def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     assert args.responses_json == "runs/test/human_abx_responses.json"
     assert args.evaluator_id == "eval-1"
     assert args.max_items == 24
+    assert args.responses_output == "responses.json"
     assert args.output == "workbook.md"
     assert args.json_output == "workbook.json"
 

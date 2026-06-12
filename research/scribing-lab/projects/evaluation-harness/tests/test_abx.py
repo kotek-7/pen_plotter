@@ -5,6 +5,7 @@ from evaluation_harness.abx import (
     AbxResponse,
     build_abx_revision_plan,
     build_abx_workbook,
+    build_abx_responses_from_workbook,
     build_abx_response_template,
     build_human_abx_feedback_loop,
     load_abx_responses,
@@ -285,3 +286,19 @@ def test_build_abx_workbook_renders_fillable_rows() -> None:
     assert workbook["loop_status"] == "pending"
     assert workbook["rows"][0]["choice"] == ""
     assert "ABX Workbook" in render_abx_workbook_markdown(workbook)
+
+
+def test_build_abx_responses_from_workbook_skips_blank_rows() -> None:
+    workbook = {
+        "evaluator_id": "eval-1",
+        "rows": [
+            {"item_id": "item-1", "choice": "A", "confidence": 4, "note": "ok"},
+            {"item_id": "item-2", "choice": "", "confidence": "", "note": ""},
+        ],
+    }
+
+    responses = build_abx_responses_from_workbook(workbook)
+
+    assert responses["evaluator_id"] == "eval-1"
+    assert len(responses["responses"]) == 1
+    assert responses["responses"][0]["choice"] == "A"

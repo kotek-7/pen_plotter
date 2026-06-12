@@ -379,6 +379,30 @@ def render_abx_workbook_markdown(workbook: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_abx_responses_from_workbook(workbook: dict[str, Any]) -> dict[str, Any]:
+    responses = []
+    for row in workbook.get("rows", []):
+        choice = str(row.get("choice", "")).strip()
+        confidence_raw = row.get("confidence", "")
+        if not choice:
+            continue
+        if confidence_raw in ("", None):
+            continue
+        responses.append(
+            AbxResponse(
+                item_id=str(row.get("item_id", "")),
+                evaluator_id=str(workbook.get("evaluator_id", "")),
+                choice=choice,
+                confidence=int(confidence_raw),
+                note=str(row.get("note", "")),
+            ).to_dict()
+        )
+    return {
+        "evaluator_id": workbook.get("evaluator_id", ""),
+        "responses": responses,
+    }
+
+
 def build_abx_revision_plan(loop: dict[str, Any]) -> dict[str, Any]:
     packet = loop["packet"]
     responses = _abx_responses_from_loop(loop)
