@@ -53,6 +53,7 @@ from evaluation_harness.human_abx import (
     render_human_abx_packet_markdown,
 )
 from evaluation_harness.abx import AbxItem, load_abx_responses, render_abx_summary_markdown, summarize_abx_responses
+from evaluation_harness.abx import build_abx_revision_plan, render_abx_revision_plan_markdown
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -391,6 +392,14 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_loop.add_argument("--template-json-output", default="human_abx_response_template.json")
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
     human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
+
+    abx_revision = sub.add_parser(
+        "abx-revision-plan",
+        help="Generate a preview revision plan from an ABX feedback loop",
+    )
+    abx_revision.add_argument("--feedback-loop-json", required=True)
+    abx_revision.add_argument("--output", default="abx_revision_plan.md")
+    abx_revision.add_argument("--json-output", default="abx_revision_plan.json")
 
     validate_human = sub.add_parser(
         "validate-human-review",
@@ -944,6 +953,20 @@ def main() -> None:
         )
         print(f"response_count: {summary['response_count']}")
         print(f"tie_rate: {summary['tie_rate']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "abx-revision-plan":
+        feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
+        plan = build_abx_revision_plan(feedback_loop)
+        output_path = Path(args.feedback_loop_json).parent / args.output
+        json_path = Path(args.feedback_loop_json).parent / args.json_output
+        output_path.write_text(render_abx_revision_plan_markdown(plan), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"response_count: {plan['response_count']}")
+        print(f"selected_item_count: {plan['selected_item_count']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "plot-ready-packet":

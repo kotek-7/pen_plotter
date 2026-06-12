@@ -214,6 +214,25 @@ def test_validate_abx_responses_parser_accepts_packet_and_response_paths() -> No
     assert args.json_output == "summary.json"
 
 
+def test_abx_revision_plan_parser_accepts_feedback_loop_path() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-revision-plan",
+            "--feedback-loop-json",
+            "runs/test/human_abx_feedback_loop.json",
+            "--output",
+            "revision.md",
+            "--json-output",
+            "revision.json",
+        ]
+    )
+
+    assert args.command == "abx-revision-plan"
+    assert args.feedback_loop_json == "runs/test/human_abx_feedback_loop.json"
+    assert args.output == "revision.md"
+    assert args.json_output == "revision.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [

@@ -3,10 +3,12 @@ import pytest
 from evaluation_harness.abx import (
     AbxItem,
     AbxResponse,
+    build_abx_revision_plan,
     build_abx_response_template,
     build_human_abx_feedback_loop,
     load_abx_responses,
     render_abx_summary_markdown,
+    render_abx_revision_plan_markdown,
     render_abx_feedback_loop_markdown,
     render_abx_response_template_markdown,
     summarize_abx_responses,
@@ -220,3 +222,39 @@ def test_build_human_abx_feedback_loop_summarizes_responses() -> None:
     assert loop["response_summary"]["response_count"] == 1
     assert loop["response_summary"]["choice_counts"] == {"A": 0, "B": 1, "tie": 0}
     assert loop["response_summary"]["bradley_terry_ranking"]
+
+
+def test_build_abx_revision_plan_uses_response_summary() -> None:
+    loop = {
+        "loop_status": "ready",
+        "packet": {
+            "abx_items": [
+                {
+                    "item_id": "item-1",
+                    "prompt": "永",
+                    "candidate_profile_id": "kanji-tight",
+                    "selected_failure_tags": ["over-jittered"],
+                    "selected_next_actions": ["motion-synthesis の tremor / timing jitter を下げる"],
+                },
+                {
+                    "item_id": "item-2",
+                    "prompt": "？",
+                    "candidate_profile_id": "symbol-neat",
+                    "selected_failure_tags": ["spacing-too-wide"],
+                    "selected_next_actions": ["character advance と line spacing を詰める"],
+                },
+            ]
+        },
+        "response_summary": {
+            "response_count": 1,
+            "by_item": {"item-2": {"A": 0, "B": 1, "tie": 0}},
+        },
+    }
+
+    plan = build_abx_revision_plan(loop)
+
+    assert plan["response_count"] == 1
+    assert plan["selected_item_count"] == 1
+    assert plan["items"][0]["item_id"] == "item-2"
+    assert plan["items"][0]["focus_area"] == "layout"
+    assert "ABX Revision Plan" in render_abx_revision_plan_markdown(plan)

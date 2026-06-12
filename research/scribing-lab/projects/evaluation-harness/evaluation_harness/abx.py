@@ -2,7 +2,10 @@ from __future__ import annotations
 
 from dataclasses import asdict, dataclass
 from collections import defaultdict
+from collections import Counter
 from typing import Any
+
+from evaluation_harness.compare import _focus_area_from_tags, _next_experiment_hint, _proposed_changes_for_tags
 
 
 @dataclass(frozen=True)
@@ -306,6 +309,108 @@ def render_abx_feedback_loop_markdown(loop: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_abx_revision_plan(loop: dict[str, Any]) -> dict[str, Any]:
+    packet = loop["packet"]
+    responses = _abx_responses_from_loop(loop)
+    response_by_item = {response.item_id: response for response in responses}
+    item_rows: list[dict[str, Any]] = []
+    focus_area_counts: Counter[str] = Counter()
+    next_experiment_hints: set[str] = set()
+
+    for item in packet.get("abx_items", []):
+        item_id = str(item.get("item_id", ""))
+        if responses and item_id not in response_by_item:
+            continue
+        tags = list(item.get("selected_failure_tags", []))
+        focus_area = _focus_area_from_actions(item.get("selected_next_actions", [])) or _focus_area_from_tags(tags)
+        proposed_changes = _proposed_changes_for_tags(tags, focus_area)
+        next_experiment_hint = _next_experiment_hint(focus_area, tags)
+        focus_area_counts[focus_area] += 1
+        next_experiment_hints.add(next_experiment_hint)
+        item_rows.append(
+            {
+                "item_id": item_id,
+                "prompt": item.get("prompt", ""),
+                "candidate_profile_id": item.get("candidate_profile_id", ""),
+                "focus_area": focus_area,
+                "selected_failure_tags": tags,
+                "selected_next_actions": list(item.get("selected_next_actions", [])),
+                "proposed_changes": proposed_changes,
+                "next_experiment_hint": next_experiment_hint,
+            }
+        )
+
+    if not item_rows:
+        item_rows.append(
+            {
+                "item_id": "",
+                "prompt": "",
+                "candidate_profile_id": "",
+                "focus_area": "preview",
+                "selected_failure_tags": [],
+                "selected_next_actions": [],
+                "proposed_changes": [],
+                "next_experiment_hint": "ABX responses を収集する",
+            }
+        )
+        next_experiment_hints.add("ABX responses を収集する")
+
+    return {
+        "loop_status": loop.get("loop_status", "pending"),
+        "response_count": len(responses),
+        "selected_item_count": len(item_rows),
+        "focus_area_counts": dict(sorted(focus_area_counts.items())),
+        "next_experiment_hints": sorted(next_experiment_hints),
+        "items": item_rows,
+    }
+
+
+def render_abx_revision_plan_markdown(plan: dict[str, Any]) -> str:
+    lines = [
+        "# ABX Revision Plan",
+        "",
+        f"- loop_status: `{plan['loop_status']}`",
+        f"- response_count: `{plan['response_count']}`",
+        f"- selected_item_count: `{plan['selected_item_count']}`",
+        f"- focus_area_counts: `{plan['focus_area_counts']}`",
+        f"- next_experiment_hints: `{plan['next_experiment_hints']}`",
+        "",
+        "## Items",
+        "",
+    ]
+    if not plan["items"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+    for item in plan["items"]:
+        lines.extend(
+            [
+                f"### {item['item_id'] or 'pending'}",
+                "",
+                f"- prompt: `{item['prompt']}`",
+                f"- candidate_profile_id: `{item['candidate_profile_id']}`",
+                f"- focus_area: `{item['focus_area']}`",
+                f"- selected_failure_tags: `{item['selected_failure_tags']}`",
+                f"- selected_next_actions: `{item['selected_next_actions']}`",
+                f"- next_experiment_hint: `{item['next_experiment_hint']}`",
+                "- proposed_changes:",
+            ]
+        )
+        if item["proposed_changes"]:
+            for change in item["proposed_changes"]:
+                lines.append(
+                    "  - "
+                    f"target=`{change['target']}` "
+                    f"parameter=`{change['parameter']}` "
+                    f"direction=`{change['direction']}` "
+                    f"amount_hint=`{change['amount_hint']}` "
+                    f"reason=`{change['reason']}`"
+                )
+        else:
+            lines.append("  - none")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def _abx_template_response_item(item: dict[str, Any], *, evaluator_id: str) -> dict[str, Any]:
     return {
         "item_id": item["item_id"],
@@ -347,6 +452,48 @@ def _abx_items_for_response_ids(
         for item_id in sorted(selected_item_ids)
         if item_id in packet_items
     ]
+
+
+def _abx_responses_from_loop(loop: dict[str, Any]) -> list[AbxResponse]:
+    response_summary = loop.get("response_summary")
+    if not response_summary:
+        return []
+    response_count = int(response_summary.get("response_count", 0))
+    if response_count <= 0:
+        return []
+    response_by_item = response_summary.get("by_item", {})
+    responses: list[AbxResponse] = []
+    for item_id, counts in response_by_item.items():
+        for choice, count in counts.items():
+            for _ in range(int(count)):
+                responses.append(
+                    AbxResponse(
+                        item_id=str(item_id),
+                        evaluator_id="",
+                        choice=str(choice),
+                        confidence=3,
+                    )
+                )
+    return responses
+
+
+def _focus_area_from_actions(actions: list[str] | tuple[str, ...] | Any) -> str:
+    text = " ".join(str(action) for action in actions)
+    if not text.strip():
+        return ""
+    if "安全" in text or "safety" in text:
+        return "safety"
+    if "line spacing" in text or "character advance" in text or "字間" in text:
+        return "layout"
+    if "tremor" in text or "timing jitter" in text or "motion" in text:
+        return "motion"
+    if "shape" in text or "dictionary" in text or "字形" in text:
+        return "dictionary"
+    if "terminal" in text or "終端" in text:
+        return "terminal"
+    if "preview" in text:
+        return "preview"
+    return ""
 
 
 def _abx_item_from_packet(item: dict[str, Any]) -> AbxItem:

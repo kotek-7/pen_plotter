@@ -861,6 +861,7 @@ def _focus_area_from_tags(tags: list[str]) -> str:
         ("too-uniform", "motion"),
         ("over-jittered", "motion"),
         ("line-too-mechanical", "layout"),
+        ("spacing-too-wide", "layout"),
         ("spacing-unnatural", "layout"),
         ("terminal-too-uniform", "terminal"),
         ("repeated-char-too-identical", "dictionary"),
