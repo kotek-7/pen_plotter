@@ -132,8 +132,8 @@ def test_textured_tight_profile_targets_spacing_sensitive_text() -> None:
     assert profile.parent_profile == "textured-steady"
     assert profile.params.spacing_mean_mm < get_profile("textured-steady").params.spacing_mean_mm
     assert profile.params.speed_mean_mm_s <= get_profile("textured-steady").params.speed_mean_mm_s
-    assert profile.params.timing_jitter_cv <= get_profile("textured-steady").params.timing_jitter_cv
-    assert profile.params.tremor_mm <= get_profile("textured-steady").params.tremor_mm
+    assert profile.params.timing_jitter_cv < get_profile("textured-steady").params.timing_jitter_cv
+    assert profile.params.tremor_mm < get_profile("textured-steady").params.tremor_mm
     assert profile.params.baseline_drift_mm < get_profile("textured-steady").params.baseline_drift_mm
 
 
