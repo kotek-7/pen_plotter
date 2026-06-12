@@ -12,22 +12,22 @@
 |---|---|---|---|
 | 1 | 仮説と条件を決める | `experiment_id`, `input_text`, `seed`, `profile_id`, `generator` | 比較条件の固定 |
 | 2 | 生成を実行する | `baseline-outline` / `structure-uniform` / `structure-motion` | `trajectory` / `gcode` / `preview` |
-| 3 | 数値評価を行う | `compute_trajectory_metrics` | `metrics` |
-| 4 | 失敗を分類する | `failure tags` | `failure_tags` |
-| 5 | レポートを書く | `render_markdown_report` | `report.md` |
+| 3 | preview を人間に見せる | `human-review-packet` / `human-feedback-ui` / `human-feedback-loop` | `review_packet.md` / `human_feedback_loop.md` |
+| 4 | 口頭フィードバックを整理する | `human_abx` 相当の比較結果とメモ | 次の修正候補 |
+| 5 | 補助評価を行う | `compute_trajectory_metrics` / `compare` | `metrics` / `comparison_report.md` |
 | 6 | 台帳へ登録する | `ExperimentRegistry.append()` | `registry.jsonl` |
-| 7 | baseline と比較する | `compare` | `comparison_report.md` |
-| 8 | 実機前レビューを行う | `offline-review` | `offline_review.md` / `offline_review.json` |
-| 9 | 必要なら実機スキャンを紐付ける | `attach-scan` | `plotted_scan.png` / `scan_metadata.json` |
+| 7 | レポートを書く | `render_markdown_report` | `report.md` |
+| 8 | 必要に応じて実機前レビューを行う | `offline-review` | `offline_review.md` / `offline_review.json` |
+| 9 | 必要時のみ実機スキャンを紐付ける | `attach-scan` | `plotted_scan.png` / `scan_metadata.json` |
 | 10 | 次の仮説へ進む | `next_action` | 次実験の設計 |
 
 ## 研究の回し方
 
 1. 仮説を 1 つだけ書く。
 2. 最小の変更で検証する。
-3. baseline か直前候補と比較する。
-4. failure tags を付ける。
-5. review packet を読む。
+3. preview を human_abx で確認する。
+4. baseline か直前候補と比較する。
+5. 必要な補助評価だけを追加する。
 6. 次の仮説を 1 つだけ決める。
 
 この 6 段を 1 サイクルとして回す。新しい実装が増えただけで比較が増えていない場合、その作業は研究ではなく基盤整備として扱う。
@@ -36,8 +36,8 @@
 
 | ループ | 流れ |
 |---|---|
-| baseline ループ | `baseline-outline` -> `registry + artifacts + report` -> `compare` / `offline-review` |
-| 構造・運動ループ | `structure-uniform` -> `structure-motion` -> `gcode_safety` -> `scan registration` |
+| baseline ループ | `baseline-outline` -> `preview / human_abx` -> `registry + report` -> `compare` |
+| 構造・運動ループ | `structure-uniform` -> `structure-motion` -> `preview review` -> `必要時の scan registration` |
 
 どちらのループも、最後は `next_action` が残ることを必須条件にする。`next_action` が書けない実験は、比較が足りないか、仮説が曖昧すぎる。
 
@@ -73,7 +73,7 @@
 
 ### offline-review
 
-`offline-review` は、実機スキャンがなくても、artifacts と metrics から次の調整候補を抽出する。
+`offline-review` は、必要に応じて preview / artifacts / metrics から次の調整候補を抽出する。
 
 これは「今ある成果物をどう読むか」の道具である。例えば、`too-uniform` なら運動変化を増やす、`plotter-unsafe` なら安全性を先に直す、という形で次の一手が決まる。
 
@@ -104,11 +104,12 @@
 ## 典型的な使い方
 
 1. `baseline-outline-batch` で基準線を固定する。
-2. `compare` で baseline と候補の差分を見る。
-3. `offline-review` で失敗タグと次の一手を整理する。
-4. `structure-uniform` で文字構造の効果を見る。
-5. `structure-motion` で時間軸と終端イベントを足す。
-6. 必要なら `attach-scan` で実機スキャンを紐付ける。
+2. `human-review-packet` か `human-feedback-ui` で preview を並べる。
+3. 口頭 FB を次の変更点に落とす。
+4. `compare` で baseline と候補の差分を見る。
+5. `structure-uniform` で文字構造の効果を見る。
+6. `structure-motion` で時間軸と終端イベントを足す。
+7. 必要なら `attach-scan` で実機スキャンを紐付ける。
 
 この順序は、研究を「比較可能な実験」に保つための順序でもある。先に実験基盤を固め、その上で自然さの要素を段階的に増やす。
 
@@ -155,7 +156,8 @@ baseline との差分を見る文書である。候補方式が何を改善し�
 - `baseline-outline` は基準線を作る
 - `structure-uniform` は構造制約の効果を見る
 - `structure-motion` は運動と終端の効果を見る
-- `compare` と `offline-review` は、次の仮説を作る
+- `human-review-packet` と `human-feedback-ui` は、次の仮説を作る
+- `compare` と `offline-review` は、補助的に次の仮説を強める
 - `attach-scan` は、机上評価を実機評価へ接続する
 
 どのコマンドも、次の仮説が書けなければ完了ではない。比較のない実装追加は、研究進行としては未完了である。

@@ -4,7 +4,7 @@
 
 研究を反復的に進めるため、最初に評価基盤と実験記録基盤を作る。生成モデル、writer adaptation、neural variation は、比較可能な実験単位で評価できる状態になってから進める。
 
-最終目標は、単文字ではなく文章をペンプロッタで出力したときに人間の手書きと判別されにくいことである。したがって、短文、字間、行方向の揺れ、反復文字の差分、実機スキャンを初期段階から評価対象に含める。
+最終目標は、単文字ではなく文章をペンプロッタで出力したときに人間の手書きと判別されにくいことである。したがって、短文、字間、行方向の揺れ、反復文字の差分を初期段階から評価対象に含める。評価は preview と human_abx を主軸にし、実機スキャンは後段の確認に回す。
 
 このロードマップは、実装順の一覧ではなく、検証すべき仮説の順序として読む。各 phase では「何を作るか」より先に「何が改善したら次へ進むか」を定義する。
 
@@ -19,13 +19,15 @@
 - 対象文字セットの決定。
 - baseline 生成方式の評価観点。
 - experiment registry の最小スキーマ。
+- preview 中心の review packet。
 - failure taxonomy。
 - 固定評価入力セット。
+- 100 種類以上の評価入力セット案。
 
 完了条件:
 
 - 最初の評価文字列が決まっている。
-- 自動評価と主観評価の最小設計がある。
+- preview と human_abx を使う最小設計がある。
 - 実験レポート形式が決まっている。
 - 各実験が baseline と比較され、次の仮説へ接続できる。
 
@@ -62,6 +64,8 @@
 
 - experiment registry。
 - artifact store。
+- preview review packet。
+- human_abx 用の比較束。
 - metric runner。
 - report template。
 - baseline runner。
@@ -72,10 +76,10 @@
 完了条件:
 
 - すべての実験が ID 付きで記録される。
-- trajectory、preview、G-code、metrics、実機スキャンを同じ ID で追跡できる。
+- preview、G-code、metrics、必要時の実機スキャンを同じ ID で追跡できる。
 - baseline と新方式を同じ手順で比較できる。
 - 成果物が評価結果とセットで登録される。
-- 単文字、短文、実機出力の失敗を同じ failure taxonomy で分類できる。
+- 単文字、短文、文章の失敗を同じ failure taxonomy で分類できる。
 - レポートから次の実験仮説を 1 つ以上抽出できる。
 
 ## Phase 2: Core Schemas And Profile Registry
@@ -200,9 +204,9 @@
 ## 優先順位
 
 1. `baseline-outline` を evaluation harness に接続する。
-2. 固定評価入力セットを確定する。
-3. failure taxonomy を文章・実機向けに拡張する。
-4. scan artifact 仕様を追加する。
+2. preview と human_abx を使う review packet を安定化する。
+3. 固定評価入力セットと 100 種類以上の補助評価セットを確定する。
+4. failure taxonomy を文章・実機向けに整える。
 5. 正準表現と profile registry を固める。
 6. KanjiVG small dictionary MVP を作る。
 7. terminal event mapping を exporter へ接続する。

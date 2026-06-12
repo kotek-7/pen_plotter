@@ -6,7 +6,7 @@
 
 既存のフォントアウトライン方式は、字形の輪郭をなぞる用途には有効だが、人間の筆記とは異なる。人間の筆記では、筆順、速度変化、ペンアップ移動、終筆の抜き、字間、行方向の揺れ、筆者固有の癖が同時に現れる。この研究では、静的字形ではなく時間軸付きのオンライン筆記として生成する。
 
-到達目標は、単文字サンプルの改善ではなく、短文や複数行の文章を実機で出力したときに自然に見えることである。したがって、研究初期から文字単位、短文単位、実機スキャン単位の評価を同じ experiment registry で扱う。
+到達目標は、単文字サンプルの改善ではなく、短文や複数行の文章を紙面上で自然に見せられることである。研究初期は preview と人間評価を主軸にし、必要時のみ実機スキャンを experiment registry に紐付ける。
 
 ## 中心仮説
 
@@ -52,7 +52,7 @@ text
   -> pressure event model
   -> trajectory x,y,t,pen_state,pressure
   -> SVG / AxiDraw / G-code exporter
-  -> preview / physical plotting / scan artifact
+  -> preview / optional physical plotting / scan artifact
   -> metrics and experiment report
 ```
 
@@ -86,7 +86,7 @@ text
 - ペンアップ移動が瞬間ジャンプではなく、機械制約内で自然に扱われる。
 - 同一 writer profile から生成した文同士に一貫した癖が出る。
 - 短文で字間、行方向、反復文字、終筆の不自然さが目立たない。
-- preview と実機スキャンの差分が experiment artifact として追跡できる。
+- preview と必要時の実機スキャンの差分が experiment artifact として追跡できる。
 - 人間評価で、現行方式より手書きらしいと判定される。
 - すべての主要実験が experiment registry に記録され、成果物と評価結果を追跡できる。
 
