@@ -173,6 +173,8 @@ def test_human_abx_feedback_loop_parser_accepts_packet_and_response_paths() -> N
             "eval-1",
             "--max-items",
             "24",
+            "--template-json-output",
+            "template.json",
             "--output",
             "loop.md",
             "--json-output",
@@ -185,6 +187,7 @@ def test_human_abx_feedback_loop_parser_accepts_packet_and_response_paths() -> N
     assert args.responses_json == "runs/test/human_abx_responses.json"
     assert args.evaluator_id == "eval-1"
     assert args.max_items == 24
+    assert args.template_json_output == "template.json"
     assert args.output == "loop.md"
     assert args.json_output == "loop.json"
 

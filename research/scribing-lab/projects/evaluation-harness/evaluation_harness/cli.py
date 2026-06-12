@@ -387,6 +387,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_loop.add_argument("--responses-json", default="")
     human_abx_loop.add_argument("--evaluator-id", default="")
     human_abx_loop.add_argument("--max-items", type=int, default=36)
+    human_abx_loop.add_argument("--template-json-output", default="human_abx_response_template.json")
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
     human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
 
@@ -873,15 +874,22 @@ def main() -> None:
         )
         output_path = Path(args.packet_json).parent / args.output
         json_path = Path(args.packet_json).parent / args.json_output
+        template_json_path = Path(args.packet_json).parent / args.template_json_output
         output_path.write_text(render_abx_feedback_loop_markdown(loop), encoding="utf-8")
         json_path.write_text(
             json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        template_json_path.write_text(
+            json.dumps(loop["response_template"], ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n",
             encoding="utf-8",
         )
         print(f"loop_status: {loop['loop_status']}")
         print(f"next_actions: {len(loop['next_actions'])}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
+        print(f"template_json: {template_json_path}")
     elif args.command == "validate-human-review":
         packet_path = Path(args.packet_json)
         responses_path = Path(args.responses_json)

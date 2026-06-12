@@ -198,6 +198,7 @@ python3 -m evaluation_harness human-feedback-loop \
 response template、次アクションを 1 つの束にする。responses がない場合は、
 そのまま記入用テンプレートとして使える。
 `--max-items` で代表項目数を絞れるので、口頭 FB 用には小さめの束を作る。
+`--template-json-output` で、埋め戻し用の response template を別ファイルに保存できる。
 
 ```sh
 python3 -m evaluation_harness human-feedback-ui \
