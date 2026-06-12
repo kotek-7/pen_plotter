@@ -11,6 +11,7 @@ SCHEMA_VERSION = 1
 PROFILE_REGISTRY_ID = "writer-profile-manual-mvp"
 BUILTIN_PROFILE_ORDER = (
     "baseline-neat",
+    "steady-neat",
     "fast-casual",
     "compact-casual",
     "micro-casual",
@@ -45,6 +46,30 @@ _PROFILES = OrderedDict(
                     layout_variation=0.0,
                 ),
                 notes="Balanced baseline profile for comparison runs.",
+            ),
+        ),
+        (
+            "steady-neat",
+            WriterProfile(
+                profile_id="steady-neat",
+                version=1,
+                source="manual",
+                allowed_use="research-baseline",
+                params=WriterProfileParameters(
+                    slant_deg=2.4,
+                    spacing_mean_mm=1.18,
+                    speed_mean_mm_s=40.5,
+                    harai_gain=1.02,
+                    hane_gain=1.01,
+                    tome_gain=0.99,
+                    timing_jitter_cv=0.09,
+                    tremor_mm=0.016,
+                    baseline_drift_mm=0.05,
+                    shape_variation=0.008,
+                    layout_variation=0.004,
+                ),
+                parent_profile="baseline-neat",
+                notes="Subtle neat profile for punctuation-heavy and short-kanji comparisons.",
             ),
         ),
         (
