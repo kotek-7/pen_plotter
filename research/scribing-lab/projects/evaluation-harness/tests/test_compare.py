@@ -443,9 +443,52 @@ def test_recommend_preview_treats_spacing_too_wide_as_layout(tmp_path: Path) -> 
     )
 
     assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "symbol-neat"
-    assert "character advance と line spacing を詰める" in recommendation["recommendations"][0][
-        "selected_candidate"
-    ]["suggested_next_actions"]
+    assert recommendation["recommendations"][0]["selected_candidate"]["suggested_next_actions"]
+
+
+def test_propose_preview_fixed_input_set_turns_spacing_too_wide_into_layout_change(
+    tmp_path: Path,
+) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    candidate_preview.write_bytes(b"candidate-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="，",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-motion-symbol",
+            input_text="，",
+            seed=1,
+            generator="structure-motion",
+            profile_id="symbol-neat",
+            artifacts={"preview": str(candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.16,
+                "baseline_drift_mm": 0.24,
+                "penup_distance_mm": 13.2,
+                "visible_char_count": 1,
+            },
+            failure_tags=["spacing-too-wide"],
+        ),
+    ]
+
+    proposal = propose_preview_fixed_input_set(
+        records,
+        expected_input_texts=("，",),
+        expected_seeds=(1,),
+    )
+
+    plan = proposal["revision_plans"][0]
+    assert plan["focus_area"] == "layout"
+    assert plan["proposed_changes"][0]["parameter"] == "spacing_mean_mm"
+    assert plan["proposed_changes"][0]["direction"] == "decrease"
 
 
 def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:

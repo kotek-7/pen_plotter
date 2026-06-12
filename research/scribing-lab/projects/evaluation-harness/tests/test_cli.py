@@ -1,4 +1,7 @@
+import json
+import subprocess
 from pathlib import Path
+import sys
 
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
@@ -290,6 +293,37 @@ def test_abx_revision_plan_parser_accepts_packet_and_responses_paths() -> None:
     assert args.evaluator_id == "eval-1"
     assert args.output == "revision.md"
     assert args.json_output == "revision.json"
+
+
+def test_abx_revision_run_parser_accepts_packet_and_responses_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-revision-run",
+            "--root",
+            "runs/test",
+            "--packet-json",
+            "runs/test/human_abx_packet.json",
+            "--responses-json",
+            "runs/test/human_abx_responses.json",
+            "--max-items",
+            "18",
+            "--evaluator-id",
+            "eval-1",
+            "--output",
+            "run.md",
+            "--json-output",
+            "run.json",
+        ]
+    )
+
+    assert args.command == "abx-revision-run"
+    assert args.root == "runs/test"
+    assert args.packet_json == "runs/test/human_abx_packet.json"
+    assert args.responses_json == "runs/test/human_abx_responses.json"
+    assert args.max_items == 18
+    assert args.evaluator_id == "eval-1"
+    assert args.output == "run.md"
+    assert args.json_output == "run.json"
 
 
 def test_validate_human_review_parser_accepts_response_paths() -> None:
@@ -1495,12 +1529,80 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
     assert '"representative_count": 1' in json_text
 
 
+def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-motion-symbol",
+            input_text="，",
+            seed=1,
+            generator="structure-motion",
+            profile_id="symbol-neat",
+            artifacts={"preview": str(tmp_path / "preview.png")},
+            metrics={
+                "draw_speed_cv": 0.16,
+                "baseline_drift_mm": 0.24,
+                "penup_distance_mm": 13.2,
+                "visible_char_count": 1,
+            },
+            failure_tags=["spacing-too-wide"],
+        )
+    )
+
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "，",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "symbol-neat",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-motion-symbol",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+            }
+        ]
+    }
+    packet_json = root / "human_abx_packet.json"
+    packet_json.write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evaluation_harness.cli",
+            "abx-revision-run",
+            "--root",
+            str(root),
+            "--packet-json",
+            str(packet_json),
+            "--output",
+            "abx_revision_run.md",
+            "--json-output",
+            "abx_revision_run.json",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    markdown = (root / "abx_revision_run.md").read_text(encoding="utf-8")
+    json_text = (root / "abx_revision_run.json").read_text(encoding="utf-8")
+    assert "ABX Revision Run" in markdown
+    assert '"rerun_count"' in json_text
+
+
 def _record(
     *,
     experiment_id: str,
     input_text: str,
     seed: int,
     generator: str,
+    profile_id: str = "baseline-neat",
     artifacts: dict[str, str] | None = None,
     metrics: dict[str, float | int | str] | None = None,
     failure_tags: list[str] | None = None,
@@ -1512,7 +1614,7 @@ def _record(
         experiment_id=experiment_id,
         hypothesis="test",
         input_text=input_text,
-        profile_id="baseline-neat",
+        profile_id=profile_id,
         seed=seed,
         generator=generator,
         exporter="xdraw-gcode",

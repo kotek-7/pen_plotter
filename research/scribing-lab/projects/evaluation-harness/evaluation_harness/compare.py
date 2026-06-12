@@ -286,7 +286,18 @@ def recommend_preview_fixed_input_set(
                 else _preview_preview_path_summary(preview_path)
             )
             inferred_tags = infer_offline_failure_tags(candidate)
-            candidate_actions = suggested_next_actions(inferred_tags)
+            candidate_failure_tags: list[str] = []
+            seen_tags: set[str] = set()
+            for tag in list(candidate.failure_tags) + list(inferred_tags):
+                if tag in seen_tags:
+                    continue
+                candidate_failure_tags.append(tag)
+                seen_tags.add(tag)
+            candidate_actions = suggested_next_actions(candidate_failure_tags)
+            explicit_focus_area = _focus_area_from_tags(list(candidate.failure_tags))
+            inferred_focus_area = _focus_area_from_tags(candidate_failure_tags)
+            action_focus_area = _focus_area_from_actions(candidate_actions)
+            focus_area = action_focus_area or explicit_focus_area or inferred_focus_area
             script_rank = _profile_script_rank(input_text, candidate.profile_id)
             quality_key = _preview_candidate_quality_key(candidate.metrics)
             preview_hash_changed = (
@@ -306,18 +317,19 @@ def recommend_preview_fixed_input_set(
                     "preview": preview_summary,
                     "preview_comparable": baseline_preview is not None and preview_summary is not None,
                     "preview_hash_changed": preview_hash_changed,
-                    "inferred_failure_tags": inferred_tags,
+                    "inferred_failure_tags": candidate_failure_tags,
                     "suggested_next_actions": candidate_actions,
                     "script_rank": script_rank,
                     "quality_key": quality_key,
                     "selection_key": _preview_candidate_selection_key(
                         preview_summary=preview_summary,
-                        inferred_failure_tags=inferred_tags,
+                        inferred_failure_tags=candidate_failure_tags,
                         preview_hash_changed=bool(preview_hash_changed),
                         script_rank=script_rank,
                         quality_key=quality_key,
                         experiment_id=candidate.experiment_id,
                     ),
+                    "focus_area": focus_area,
                 }
             )
 
@@ -332,7 +344,7 @@ def recommend_preview_fixed_input_set(
                     recommended_action_counts[action] += 1
             else:
                 recommended_action_counts["preview を基準に次の profile 比較を行う"] += 1
-            focus_area_counts[_focus_area_from_tags(selected["inferred_failure_tags"])] += 1
+            focus_area_counts[selected["focus_area"]] += 1
 
         recommendations.append(
             {
@@ -420,7 +432,7 @@ def propose_preview_fixed_input_set(
             )
             continue
 
-        focus_area = _focus_area_from_tags(selected["inferred_failure_tags"])
+        focus_area = selected.get("focus_area") or _focus_area_from_tags(selected["inferred_failure_tags"])
         proposed_changes = _proposed_changes_for_tags(selected["inferred_failure_tags"], focus_area)
         revision_area_counts[focus_area] += 1
         revision_plans.append(
@@ -873,6 +885,25 @@ def _focus_area_from_tags(tags: list[str]) -> str:
     return "preview"
 
 
+def _focus_area_from_actions(actions: list[str] | tuple[str, ...] | Any) -> str:
+    text = " ".join(str(action) for action in actions)
+    if not text.strip():
+        return ""
+    if "安全" in text or "safety" in text:
+        return "safety"
+    if "line spacing" in text or "character advance" in text or "字間" in text:
+        return "layout"
+    if "tremor" in text or "timing jitter" in text or "motion" in text:
+        return "motion"
+    if "shape" in text or "dictionary" in text or "字形" in text:
+        return "dictionary"
+    if "terminal" in text or "終端" in text:
+        return "terminal"
+    if "preview" in text:
+        return "preview"
+    return ""
+
+
 def _proposed_changes_for_tags(tags: list[str], focus_area: str) -> list[dict[str, Any]]:
     change_map = {
         "too-uniform": [
@@ -909,6 +940,15 @@ def _proposed_changes_for_tags(tags: list[str], focus_area: str) -> list[dict[st
                 "direction": "increase",
                 "amount_hint": 0.15,
                 "reason": "字間をわずかに広げる",
+            }
+        ],
+        "spacing-too-wide": [
+            {
+                "target": "layout",
+                "parameter": "spacing_mean_mm",
+                "direction": "decrease",
+                "amount_hint": 0.15,
+                "reason": "字間を詰めて広がりすぎを抑える",
             }
         ],
         "skeleton-too-rigid": [

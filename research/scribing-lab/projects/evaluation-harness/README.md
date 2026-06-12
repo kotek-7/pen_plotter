@@ -211,6 +211,10 @@ ABX feedback loop から preview 修正案へ戻す場合は `abx-revision-plan`
 feedback loop JSON を渡すか、packet JSON と responses JSON を渡すと、代表 item ごとの
 proposed_changes と次の実験ヒントをまとめる。
 
+`abx-revision-run` は、ABX revision plan をそのまま実行して、選ばれた候補を
+修正版 profile で再生成する。`feedback-loop-json` を渡すか、`packet-json` と
+`responses-json` を渡して、同じ流れで preview 再実行まで進められる。
+
 ```sh
 python3 -m evaluation_harness human-feedback-ui \
   --root runs/structure-motion

@@ -52,8 +52,19 @@ from evaluation_harness.human_abx import (
     render_abx_feedback_loop_markdown,
     render_human_abx_packet_markdown,
 )
-from evaluation_harness.abx import AbxItem, load_abx_responses, render_abx_summary_markdown, summarize_abx_responses
-from evaluation_harness.abx import build_abx_revision_plan, build_abx_responses_from_workbook, build_abx_workbook, render_abx_revision_plan_markdown, render_abx_workbook_markdown
+from evaluation_harness.abx import (
+    AbxItem,
+    build_abx_revision_plan,
+    build_abx_responses_from_workbook,
+    build_abx_workbook,
+    load_abx_responses,
+    render_abx_revision_plan_markdown,
+    render_abx_revision_run_markdown,
+    render_abx_summary_markdown,
+    render_abx_workbook_markdown,
+    run_abx_revision_loop,
+    summarize_abx_responses,
+)
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -416,6 +427,19 @@ def build_parser() -> argparse.ArgumentParser:
     abx_revision.add_argument("--evaluator-id", default="")
     abx_revision.add_argument("--output", default="abx_revision_plan.md")
     abx_revision.add_argument("--json-output", default="abx_revision_plan.json")
+
+    abx_run = sub.add_parser(
+        "abx-revision-run",
+        help="Apply an ABX revision plan and rerun the selected preview experiments",
+    )
+    abx_run.add_argument("--root", required=True, help="Run output directory")
+    abx_run.add_argument("--feedback-loop-json", default="")
+    abx_run.add_argument("--packet-json", default="")
+    abx_run.add_argument("--responses-json", default="")
+    abx_run.add_argument("--max-items", type=int, default=36)
+    abx_run.add_argument("--evaluator-id", default="")
+    abx_run.add_argument("--output", default="abx_revision_run.md")
+    abx_run.add_argument("--json-output", default="abx_revision_run.json")
 
     validate_human = sub.add_parser(
         "validate-human-review",
@@ -1031,6 +1055,33 @@ def main() -> None:
         print(f"response_count: {plan['response_count']}")
         print(f"selected_item_count: {plan['selected_item_count']}")
         print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "abx-revision-run":
+        root = Path(args.root)
+        if args.feedback_loop_json:
+            feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
+        else:
+            if not args.packet_json:
+                raise ValueError("--packet-json is required when --feedback-loop-json is not set")
+            packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+            responses_data = None
+            if args.responses_json:
+                responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+            feedback_loop = build_human_abx_feedback_loop(
+                packet,
+                responses_data=responses_data,
+                evaluator_id=args.evaluator_id,
+                max_items=args.max_items,
+            )
+        run = run_abx_revision_loop(root, feedback_loop=feedback_loop)
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_abx_revision_run_markdown(run), encoding="utf-8")
+        json_path.write_text(json.dumps(run, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print(f"rerun_count: {run['rerun_count']}")
+        print(f"before_record_count: {run['before_record_count']}")
+        print(f"after_record_count: {run['after_record_count']}")
+        print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "plot-ready-packet":
         root = Path(args.root)

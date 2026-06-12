@@ -3,9 +3,13 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from collections import defaultdict
 from collections import Counter
+from pathlib import Path
 from typing import Any
 
 from evaluation_harness.compare import _focus_area_from_tags, _next_experiment_hint, _proposed_changes_for_tags
+from evaluation_harness.structure_motion import run_structure_motion
+from evaluation_harness.writer_profile import build_revision_profile, resolve_writer_profile
+from evaluation_harness.registry import ExperimentRegistry
 
 
 @dataclass(frozen=True)
@@ -459,6 +463,159 @@ def build_abx_revision_plan(loop: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def run_abx_revision_loop(
+    root: str | Any,
+    *,
+    feedback_loop: dict[str, Any],
+    baseline_generator: str = "baseline-outline",
+) -> dict[str, Any]:
+    root_path = Path(root)
+    registry = ExperimentRegistry(root_path / "registry.jsonl")
+    before_records = registry.load_all()
+    before_by_id = {record.experiment_id: record for record in before_records}
+    plan = build_abx_revision_plan(feedback_loop)
+    applications: list[dict[str, Any]] = []
+    rerun_records = []
+
+    for item in plan["items"]:
+        if not item["proposed_changes"]:
+            applications.append(
+                {
+                    "item_id": item["item_id"],
+                    "status": "no-proposed-changes",
+                    "revision_experiment_id": "",
+                    "revision_profile_id": "",
+                    "applied_changes": [],
+                    "unapplied_changes": [],
+                }
+            )
+            continue
+
+        source_item = _find_packet_item(feedback_loop, item["item_id"])
+        if source_item is None:
+            applications.append(
+                {
+                    "item_id": item["item_id"],
+                    "status": "missing-source",
+                    "revision_experiment_id": "",
+                    "revision_profile_id": "",
+                    "applied_changes": [],
+                    "unapplied_changes": list(item["proposed_changes"]),
+                }
+            )
+            continue
+
+        candidate_experiment_id = str(source_item.get("candidate_experiment_id", ""))
+        candidate_record = before_by_id.get(candidate_experiment_id)
+        if candidate_record is None:
+            applications.append(
+                {
+                    "item_id": item["item_id"],
+                    "status": "missing-candidate-record",
+                    "revision_experiment_id": "",
+                    "revision_profile_id": "",
+                    "applied_changes": [],
+                    "unapplied_changes": list(item["proposed_changes"]),
+                }
+            )
+            continue
+
+        candidate_profile = resolve_writer_profile(candidate_record.profile_id)
+        revision_profile_id = f"{candidate_profile.profile_id}-abx-{candidate_record.seed:03d}"
+        revision = build_revision_profile(
+            candidate_profile,
+            list(item["proposed_changes"]),
+            revision_profile_id=revision_profile_id,
+            created_from_experiment=candidate_record.experiment_id,
+        )
+        if not revision["applied_changes"]:
+            applications.append(
+                {
+                    "item_id": item["item_id"],
+                    "status": "no-applicable-changes",
+                    "candidate_experiment_id": candidate_record.experiment_id,
+                    "revision_experiment_id": "",
+                    "revision_profile_id": revision["profile"].profile_id,
+                    "applied_changes": [],
+                    "unapplied_changes": list(revision["unapplied_changes"]),
+                }
+            )
+            continue
+
+        experiment_id = f"abx-{candidate_record.experiment_id}-rev"
+        record = run_structure_motion(
+            root=root_path,
+            experiment_id=experiment_id,
+            input_text=source_item.get("prompt", ""),
+            seed=candidate_record.seed,
+            writer_profile=revision["profile"],
+        )
+        rerun_records.append(record)
+        applications.append(
+            {
+                "item_id": item["item_id"],
+                "status": "rerun",
+                "candidate_experiment_id": candidate_record.experiment_id,
+                "revision_experiment_id": record.experiment_id,
+                "revision_profile_id": record.profile_id,
+                "applied_changes": list(revision["applied_changes"]),
+                "unapplied_changes": list(revision["unapplied_changes"]),
+                "preview": record.artifacts.get("preview", ""),
+                "report": record.artifacts.get("report", ""),
+            }
+        )
+
+    after_records = registry.load_all()
+    return {
+        "baseline_generator": baseline_generator,
+        "before_record_count": len(before_records),
+        "after_record_count": len(after_records),
+        "revision_plan": plan,
+        "applications": applications,
+        "rerun_count": len(rerun_records),
+    }
+
+
+def render_abx_revision_run_markdown(run: dict[str, Any]) -> str:
+    lines = [
+        "# ABX Revision Run",
+        "",
+        f"- baseline_generator: `{run['baseline_generator']}`",
+        f"- before_record_count: `{run['before_record_count']}`",
+        f"- after_record_count: `{run['after_record_count']}`",
+        f"- rerun_count: `{run['rerun_count']}`",
+        "",
+        "## Revision Plan",
+        "",
+        render_abx_revision_plan_markdown(run["revision_plan"]).rstrip(),
+        "",
+        "## Applications",
+        "",
+    ]
+    if not run["applications"]:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+    for item in run["applications"]:
+        lines.extend(
+            [
+                f"### {item.get('item_id', 'pending')}",
+                "",
+                f"- status: `{item.get('status', '')}`",
+                f"- candidate_experiment_id: `{item.get('candidate_experiment_id', '')}`",
+                f"- revision_experiment_id: `{item.get('revision_experiment_id', '')}`",
+                f"- revision_profile_id: `{item.get('revision_profile_id', '')}`",
+                f"- applied_changes: `{item.get('applied_changes', [])}`",
+                f"- unapplied_changes: `{item.get('unapplied_changes', [])}`",
+            ]
+        )
+        if item.get("preview"):
+            lines.append(f"- preview: `{item['preview']}`")
+        if item.get("report"):
+            lines.append(f"- report: `{item['report']}`")
+        lines.append("")
+    return "\n".join(lines) + "\n"
+
+
 def render_abx_revision_plan_markdown(plan: dict[str, Any]) -> str:
     lines = [
         "# ABX Revision Plan",
@@ -582,6 +739,13 @@ def _abx_responses_from_loop(loop: dict[str, Any]) -> list[AbxResponse]:
                     )
                 )
     return responses
+
+
+def _find_packet_item(loop: dict[str, Any], item_id: str) -> dict[str, Any] | None:
+    for item in loop.get("packet", {}).get("abx_items", []):
+        if str(item.get("item_id", "")) == item_id:
+            return item
+    return None
 
 
 def _focus_area_from_actions(actions: list[str] | tuple[str, ...] | Any) -> str:
