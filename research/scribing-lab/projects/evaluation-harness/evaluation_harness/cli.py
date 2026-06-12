@@ -53,7 +53,7 @@ from evaluation_harness.human_abx import (
     render_human_abx_packet_markdown,
 )
 from evaluation_harness.abx import AbxItem, load_abx_responses, render_abx_summary_markdown, summarize_abx_responses
-from evaluation_harness.abx import build_abx_revision_plan, render_abx_revision_plan_markdown
+from evaluation_harness.abx import build_abx_revision_plan, build_abx_workbook, render_abx_revision_plan_markdown, render_abx_workbook_markdown
 from evaluation_harness.human_review_response import (
     load_human_review_responses,
     render_human_review_response_markdown,
@@ -392,6 +392,17 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_loop.add_argument("--template-json-output", default="human_abx_response_template.json")
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
     human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
+
+    abx_workbook = sub.add_parser(
+        "abx-workbook",
+        help="Create a fillable ABX workbook from a packet",
+    )
+    abx_workbook.add_argument("--packet-json", required=True)
+    abx_workbook.add_argument("--responses-json", default="")
+    abx_workbook.add_argument("--evaluator-id", default="")
+    abx_workbook.add_argument("--max-items", type=int, default=36)
+    abx_workbook.add_argument("--output", default="abx_workbook.md")
+    abx_workbook.add_argument("--json-output", default="abx_workbook.json")
 
     abx_revision = sub.add_parser(
         "abx-revision-plan",
@@ -913,6 +924,28 @@ def main() -> None:
         print(f"report: {output_path}")
         print(f"json: {json_path}")
         print(f"template_json: {template_json_path}")
+    elif args.command == "abx-workbook":
+        packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+        responses_data = None
+        if args.responses_json:
+            responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+        workbook = build_abx_workbook(
+            packet,
+            responses_data=responses_data,
+            evaluator_id=args.evaluator_id,
+            max_items=args.max_items,
+        )
+        output_path = Path(args.packet_json).parent / args.output
+        json_path = Path(args.packet_json).parent / args.json_output
+        output_path.write_text(render_abx_workbook_markdown(workbook), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"loop_status: {workbook['loop_status']}")
+        print(f"row_count: {len(workbook['rows'])}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
     elif args.command == "validate-human-review":
         packet_path = Path(args.packet_json)
         responses_path = Path(args.responses_json)

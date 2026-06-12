@@ -199,6 +199,8 @@ response template、次アクションを 1 つの束にする。responses が�
 そのまま記入用テンプレートとして使える。
 `--max-items` で代表項目数を絞れるので、口頭 FB 用には小さめの束を作る。
 `--template-json-output` で、埋め戻し用の response template を別ファイルに保存できる。
+`abx-workbook` は、候補ごとの表形式 workbook を出して、`choice` / `confidence` / `note`
+を埋めやすくする。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

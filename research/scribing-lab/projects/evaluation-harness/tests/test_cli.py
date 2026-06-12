@@ -192,6 +192,34 @@ def test_human_abx_feedback_loop_parser_accepts_packet_and_response_paths() -> N
     assert args.json_output == "loop.json"
 
 
+def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-workbook",
+            "--packet-json",
+            "runs/test/human_abx_packet.json",
+            "--responses-json",
+            "runs/test/human_abx_responses.json",
+            "--evaluator-id",
+            "eval-1",
+            "--max-items",
+            "24",
+            "--output",
+            "workbook.md",
+            "--json-output",
+            "workbook.json",
+        ]
+    )
+
+    assert args.command == "abx-workbook"
+    assert args.packet_json == "runs/test/human_abx_packet.json"
+    assert args.responses_json == "runs/test/human_abx_responses.json"
+    assert args.evaluator_id == "eval-1"
+    assert args.max_items == 24
+    assert args.output == "workbook.md"
+    assert args.json_output == "workbook.json"
+
+
 def test_validate_abx_responses_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [

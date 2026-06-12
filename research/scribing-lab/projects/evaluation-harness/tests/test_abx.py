@@ -4,11 +4,13 @@ from evaluation_harness.abx import (
     AbxItem,
     AbxResponse,
     build_abx_revision_plan,
+    build_abx_workbook,
     build_abx_response_template,
     build_human_abx_feedback_loop,
     load_abx_responses,
     render_abx_summary_markdown,
     render_abx_revision_plan_markdown,
+    render_abx_workbook_markdown,
     render_abx_feedback_loop_markdown,
     render_abx_response_template_markdown,
     summarize_abx_responses,
@@ -258,3 +260,28 @@ def test_build_abx_revision_plan_uses_response_summary() -> None:
     assert plan["items"][0]["item_id"] == "item-2"
     assert plan["items"][0]["focus_area"] == "layout"
     assert "ABX Revision Plan" in render_abx_revision_plan_markdown(plan)
+
+
+def test_build_abx_workbook_renders_fillable_rows() -> None:
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "永",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "kanji-tight",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-candidate",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["over-jittered"],
+                "selected_next_actions": ["motion-synthesis の tremor / timing jitter を下げる"],
+            }
+        ]
+    }
+
+    workbook = build_abx_workbook(packet, max_items=1)
+
+    assert workbook["loop_status"] == "pending"
+    assert workbook["rows"][0]["choice"] == ""
+    assert "ABX Workbook" in render_abx_workbook_markdown(workbook)

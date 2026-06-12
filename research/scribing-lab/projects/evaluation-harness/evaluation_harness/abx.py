@@ -192,6 +192,34 @@ def build_human_abx_feedback_loop(
     }
 
 
+def build_abx_workbook(
+    packet: dict[str, Any],
+    *,
+    responses_data: Any | None = None,
+    evaluator_id: str = "",
+    max_items: int | None = None,
+) -> dict[str, Any]:
+    feedback_loop = build_human_abx_feedback_loop(
+        packet,
+        responses_data=responses_data,
+        evaluator_id=evaluator_id,
+        max_items=max_items,
+    )
+    responses = load_abx_responses(responses_data) if responses_data is not None else []
+    response_by_item = {response.item_id: response for response in responses}
+    rows = [
+        _abx_workbook_row(item, response_by_item.get(str(item.get("item_id", ""))))
+        for item in feedback_loop["packet"].get("abx_items", [])
+    ]
+    return {
+        "loop_status": feedback_loop["loop_status"],
+        "next_actions": list(feedback_loop["next_actions"]),
+        "packet": feedback_loop["packet"],
+        "response_template": feedback_loop["response_template"],
+        "rows": rows,
+    }
+
+
 def _limit_abx_packet(packet: dict[str, Any], *, max_items: int | None) -> dict[str, Any]:
     if max_items is None or max_items <= 0:
         return packet
@@ -306,6 +334,48 @@ def render_abx_feedback_loop_markdown(loop: dict[str, Any]) -> str:
         )
     else:
         lines.extend(["## Response Summary", "", "- pending", ""])
+    return "\n".join(lines) + "\n"
+
+
+def render_abx_workbook_markdown(workbook: dict[str, Any]) -> str:
+    lines = [
+        "# ABX Workbook",
+        "",
+        f"- loop_status: `{workbook['loop_status']}`",
+        f"- next_actions: `{workbook['next_actions']}`",
+        f"- row_count: `{len(workbook.get('rows', []))}`",
+        "",
+        "## Instructions",
+        "",
+        "- preview を先に見る。",
+        "- 各 row について、A/B/tie と confidence を埋める。",
+        "- note には、違和感の理由を短く書く。",
+        "",
+        "## Rows",
+        "",
+    ]
+    if not workbook.get("rows"):
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+
+    lines.extend(
+        [
+            "| item_id | prompt | candidate_profile_id | selected_failure_tags | selected_next_actions | choice | confidence | note |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for row in workbook["rows"]:
+        lines.append(
+            "| "
+            f"{_markdown_cell(row['item_id'])} | "
+            f"{_markdown_cell(row['prompt'])} | "
+            f"{_markdown_cell(row['candidate_profile_id'])} | "
+            f"{_markdown_cell(', '.join(row['selected_failure_tags']))} | "
+            f"{_markdown_cell(', '.join(row['selected_next_actions']))} | "
+            f"{_markdown_cell(row['choice'])} | "
+            f"{_markdown_cell(str(row['confidence']))} | "
+            f"{_markdown_cell(row['note'])} |"
+        )
     return "\n".join(lines) + "\n"
 
 
@@ -425,6 +495,19 @@ def _abx_template_response_item(item: dict[str, Any], *, evaluator_id: str) -> d
     }
 
 
+def _abx_workbook_row(item: dict[str, Any], response: AbxResponse | None) -> dict[str, Any]:
+    return {
+        "item_id": item.get("item_id", ""),
+        "prompt": item.get("prompt", ""),
+        "candidate_profile_id": item.get("candidate_profile_id", ""),
+        "selected_failure_tags": list(item.get("selected_failure_tags", [])),
+        "selected_next_actions": list(item.get("selected_next_actions", [])),
+        "choice": response.choice if response is not None else "",
+        "confidence": response.confidence if response is not None else "",
+        "note": response.note if response is not None else "",
+    }
+
+
 def _abx_items_from_packet(packet: dict[str, Any]) -> list[AbxItem]:
     return [
         AbxItem(
@@ -505,6 +588,11 @@ def _abx_item_from_packet(item: dict[str, Any]) -> AbxItem:
         question=str(item.get("question", "")),
         expected_preference=item.get("expected_preference"),
     )
+
+
+def _markdown_cell(value: Any) -> str:
+    text = "" if value is None else str(value)
+    return text.replace("|", "\\|").replace("\n", " ")
 
 
 def _abx_loop_status(response_summary: dict[str, Any] | None) -> str:
