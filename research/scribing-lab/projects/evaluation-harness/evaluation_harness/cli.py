@@ -369,6 +369,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_abx.add_argument("--seeds", default="1", help="Comma-separated integer seeds")
     human_abx.add_argument("--baseline-generator", default="baseline-outline")
+    human_abx.add_argument(
+        "--recommendation-json",
+        default="",
+        help="Reuse an existing preview recommendation JSON instead of recomputing it",
+    )
     human_abx.add_argument("--output", default="human_abx_packet.md")
     human_abx.add_argument("--json-output", default="human_abx_packet.json")
 
@@ -819,13 +824,17 @@ def main() -> None:
         print(f"json: {json_path}")
     elif args.command == "human-abx-packet":
         root = Path(args.root)
-        registry = ExperimentRegistry(root / "registry.jsonl")
-        packet = build_human_abx_packet(
-            registry.load_all(),
-            expected_input_texts=get_evaluation_inputs(args.input_set),
-            expected_seeds=tuple(_parse_seeds(args.seeds)),
-            baseline_generator=args.baseline_generator,
-        )
+        if args.recommendation_json:
+            recommendation = json.loads(Path(args.recommendation_json).read_text(encoding="utf-8"))
+            packet = build_human_abx_packet(recommendation=recommendation)
+        else:
+            registry = ExperimentRegistry(root / "registry.jsonl")
+            packet = build_human_abx_packet(
+                registry.load_all(),
+                expected_input_texts=get_evaluation_inputs(args.input_set),
+                expected_seeds=tuple(_parse_seeds(args.seeds)),
+                baseline_generator=args.baseline_generator,
+            )
         markdown_path = root / args.output
         json_path = root / args.json_output
         markdown_path.write_text(render_human_abx_packet_markdown(packet), encoding="utf-8")

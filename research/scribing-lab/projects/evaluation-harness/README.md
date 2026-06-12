@@ -190,6 +190,10 @@ python3 -m evaluation_harness human-feedback-loop \
 `human-feedback-loop` は response template 付きの統合束を `human_feedback_loop.md` / `.json`
 に保存する。responses を渡すと、検証結果と次アクションも同じ束に入る。
 
+`human-abx-packet` は preview 由来の候補を ABX 形式にまとめる。
+`--recommendation-json` を使うと、既存の `recommend_preview_fixed_inputs` 生成物を再利用して
+再計算を避けられる。
+
 ```sh
 python3 -m evaluation_harness human-feedback-ui \
   --root runs/structure-motion

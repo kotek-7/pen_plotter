@@ -8,33 +8,45 @@ from evaluation_harness.models import ExperimentRecord
 
 
 def build_human_abx_packet(
-    records: list[ExperimentRecord],
+    records: list[ExperimentRecord] | None = None,
     *,
-    expected_input_texts: tuple[str, ...],
-    expected_seeds: tuple[int, ...] = (1,),
+    expected_input_texts: tuple[str, ...] | None = None,
+    expected_seeds: tuple[int, ...] | None = None,
     baseline_generator: str = "baseline-outline",
     question: str = "どちらが人間の手書きに近いか",
+    recommendation: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    recommendation = recommend_preview_fixed_input_set(
-        records,
-        expected_input_texts=expected_input_texts,
-        expected_seeds=expected_seeds,
-        baseline_generator=baseline_generator,
-    )
+    if recommendation is None:
+        if records is None:
+            raise ValueError("records or recommendation is required")
+        if expected_input_texts is None:
+            raise ValueError("expected_input_texts is required when recommendation is not provided")
+        if expected_seeds is None:
+            expected_seeds = (1,)
+        recommendation = recommend_preview_fixed_input_set(
+            records,
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+        )
+        baseline_preview_by_group = _baseline_preview_paths_from_records(records, baseline_generator=baseline_generator)
+        record_count = len(records)
+        packet_baseline_generator = baseline_generator
+        packet_expected_input_texts = list(expected_input_texts)
+        packet_expected_seeds = list(expected_seeds)
+    else:
+        baseline_preview_by_group = _baseline_preview_paths_from_recommendation(recommendation)
+        record_count = _infer_record_count_from_recommendation(recommendation)
+        packet_baseline_generator = recommendation.get("baseline_generator", baseline_generator)
+        packet_expected_input_texts = list(recommendation.get("expected_input_texts", []))
+        packet_expected_seeds = list(recommendation.get("expected_seeds", []))
 
     items: list[dict[str, Any]] = []
     for item in recommendation["recommendations"]:
         selected = item["selected_candidate"]
         if selected is None:
             continue
-        baseline_preview = next(
-            (
-                record.artifacts.get("preview", "")
-                for record in records
-                if record.experiment_id == item["baseline_experiment_id"]
-            ),
-            "",
-        )
+        baseline_preview = baseline_preview_by_group.get((item["input_text"], item["seed"]), "")
         if not baseline_preview:
             continue
 
@@ -56,10 +68,10 @@ def build_human_abx_packet(
         )
 
     return {
-        "record_count": len(records),
-        "baseline_generator": baseline_generator,
-        "expected_input_texts": list(expected_input_texts),
-        "expected_seeds": list(expected_seeds),
+        "record_count": record_count,
+        "baseline_generator": packet_baseline_generator,
+        "expected_input_texts": packet_expected_input_texts,
+        "expected_seeds": packet_expected_seeds,
         "expected_group_count": recommendation["expected_group_count"],
         "selected_candidate_count": recommendation["selected_candidate_count"],
         "selected_coverage_ratio": recommendation["selected_coverage_ratio"],
@@ -143,3 +155,53 @@ def _build_item(
         "selected_next_actions": selected_next_actions,
         "selection_status": selection_status,
     }
+
+
+def _baseline_preview_paths_from_records(
+    records: list[ExperimentRecord],
+    *,
+    baseline_generator: str,
+) -> dict[tuple[str, int], str]:
+    baseline_preview_by_group: dict[tuple[str, int], str] = {}
+    for record in records:
+        if record.generator != baseline_generator:
+            continue
+        preview = record.artifacts.get("preview", "")
+        if not preview:
+            continue
+        baseline_preview_by_group[(record.input_text, record.seed)] = preview
+    return baseline_preview_by_group
+
+
+def _baseline_preview_paths_from_recommendation(
+    recommendation: dict[str, Any],
+) -> dict[tuple[str, int], str]:
+    baseline_preview_by_group: dict[tuple[str, int], str] = {}
+    for item in recommendation.get("preview_comparisons", []):
+        preview = item.get("baseline_preview", {})
+        path = preview.get("path", "")
+        if not path:
+            continue
+        key = (item.get("input_text", ""), item.get("seed", 0))
+        baseline_preview_by_group.setdefault(key, path)
+    return baseline_preview_by_group
+
+
+def _infer_record_count_from_recommendation(recommendation: dict[str, Any]) -> int:
+    experiment_ids: set[str] = set()
+    for item in recommendation.get("preview_comparisons", []):
+        baseline_id = item.get("baseline_experiment_id", "")
+        candidate_id = item.get("candidate_experiment_id", "")
+        if baseline_id:
+            experiment_ids.add(baseline_id)
+        if candidate_id:
+            experiment_ids.add(candidate_id)
+    for item in recommendation.get("recommendations", []):
+        baseline_id = item.get("baseline_experiment_id", "")
+        selected = item.get("selected_candidate") or {}
+        candidate_id = selected.get("experiment_id", "")
+        if baseline_id:
+            experiment_ids.add(baseline_id)
+        if candidate_id:
+            experiment_ids.add(candidate_id)
+    return len(experiment_ids)

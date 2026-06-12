@@ -139,6 +139,28 @@ def test_human_abx_packet_parser_accepts_input_set_and_output_paths() -> None:
     assert args.json_output == "abx.json"
 
 
+def test_human_abx_packet_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-packet",
+            "--root",
+            "runs/test",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--output",
+            "abx.md",
+            "--json-output",
+            "abx.json",
+        ]
+    )
+
+    assert args.command == "human-abx-packet"
+    assert args.root == "runs/test"
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.output == "abx.md"
+    assert args.json_output == "abx.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [
