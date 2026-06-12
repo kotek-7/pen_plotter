@@ -6,6 +6,8 @@
 
 最終目標は、単文字ではなく文章をペンプロッタで出力したときに人間の手書きと判別されにくいことである。したがって、短文、字間、行方向の揺れ、反復文字の差分、実機スキャンを初期段階から評価対象に含める。
 
+このロードマップは、実装順の一覧ではなく、検証すべき仮説の順序として読む。各 phase では「何を作るか」より先に「何が改善したら次へ進むか」を定義する。
+
 ## Phase 0: 調査と基準線
 
 期間: 1〜2 週間
@@ -25,6 +27,7 @@
 - 最初の評価文字列が決まっている。
 - 自動評価と主観評価の最小設計がある。
 - 実験レポート形式が決まっている。
+- 各実験が baseline と比較され、次の仮説へ接続できる。
 
 ## Phase 0.5: Baseline 固定
 
@@ -73,6 +76,7 @@
 - baseline と新方式を同じ手順で比較できる。
 - 成果物が評価結果とセットで登録される。
 - 単文字、短文、実機出力の失敗を同じ failure taxonomy で分類できる。
+- レポートから次の実験仮説を 1 つ以上抽出できる。
 
 ## Phase 2: Core Schemas And Profile Registry
 
@@ -92,6 +96,7 @@
 - `x,y,t,pen_state,pressure` を生成・保存・読み込みできる。
 - writer profile id、seed、generator version が experiment registry に記録される。
 - 実機出力条件を experiment artifact として保存できる。
+- profile を変えたときに、何が改善し何が悪化したかを比較できる。
 
 ## Phase 3: 文字構造辞書 MVP
 
@@ -112,6 +117,7 @@
 - 辞書生成の失敗が evaluation harness 上で分類できる。
 - `too-font-like` と `skeleton-too-rigid` を評価で検出できる。
 - terminal event を exporter へ渡せる。
+- 文字構造を増やす前に、既存文字での失敗タグ改善が確認できる。
 
 ## Phase 4: Motion MVP
 
@@ -132,6 +138,7 @@
 - harai/hane/tome の終端差が実機で観察できる。
 - 等速 baseline との差分が metrics とレビュー成果物で説明できる。
 - 短文で字間、行方向、反復文字が明らかに破綻しない。
+- 速度、筆圧、終端、字間のうち、どれを変えると自然さが改善するかが分かる。
 
 ## Phase 5: Writer Profile Expansion
 
@@ -150,6 +157,7 @@
 - profile を変えると、字間・傾き・速度・終端が一貫して変わる。
 - profile 変更ごとの評価結果を experiment registry で比較できる。
 - 既存 profile を破壊的に上書きせず、version または派生 profile として追跡できる。
+- profile パラメータの変更理由を `next_action` に書ける。
 
 ## Phase 6: Data-Driven Prior
 
@@ -164,6 +172,7 @@
 完了条件:
 
 - 手設計 prior より自然な速度・終端が得られる。
+- 改善が見えない場合は、データ拡張か特徴量設計のどちらを直すべきか分かる。
 
 ## Phase 7: Neural Variation
 
@@ -178,6 +187,7 @@
 完了条件:
 
 - 文字構造を壊さず、自然な形状変動が増える。
+- 既存のルールベースより良い点と悪い点を同じ report で説明できる。
 
 着手条件:
 

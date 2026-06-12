@@ -56,7 +56,8 @@
 7. 実験レポートを生成する。
 8. 次に試す最小変更を提案する。
 
-この workflow が未実装の間は、motion-synthesis や neural-variation の本格実装に進まない。
+評価基盤を前提に、motion-synthesis や neural-variation の本格実装を進める。
+また、レポートが次の `next_action` を 1 つ返せないなら、その実験は完了扱いにしない。
 
 ## 最小データ構造
 
@@ -220,6 +221,18 @@ JSONL 形式のオンライン筆記サンプルから推定した prior を、�
 - samples.jsonl から derived profile を作れる。
 - baseline profile と同じ fixed input set で再生成できる。
 - preview / metrics / failure tags の比較から、prior の改善点と副作用を記録できる。
+
+### Experiment 15: next-action quality
+
+各実験レポートが、次に何を変えるべきかを 1 つだけ具体的に返せるかを評価する。
+
+評価:
+
+- `next_action` が空でない。
+- `change_target` が `dictionary`、`layout`、`motion`、`profile`、`safety` のいずれかに分類できる。
+- `baseline` と `comparison` が同じレポート内で参照できる。
+- `failure_tags` から次の修正対象を 1 つに絞れる。
+- その `next_action` を次の registry entry にそのまま転記できる。
 
 ## 成果物
 
