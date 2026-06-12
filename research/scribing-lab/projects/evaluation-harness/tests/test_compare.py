@@ -234,6 +234,63 @@ def test_recommend_preview_prefers_higher_variation_profile(tmp_path: Path) -> N
     assert "selected_profile_counts" in report
 
 
+def test_recommend_preview_prefers_script_aligned_profile(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    latin_preview = tmp_path / "latin.png"
+    kana_preview = tmp_path / "kana.png"
+    baseline_preview.write_bytes(b"baseline-preview")
+    latin_preview.write_bytes(b"latin-preview")
+    kana_preview.write_bytes(b"kana-preview")
+
+    records = [
+        _record(
+            experiment_id="exp-baseline",
+            input_text="ABC",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        ),
+        _record(
+            experiment_id="exp-motion-baseline",
+            input_text="ABC",
+            seed=1,
+            generator="structure-motion",
+            profile_id="baseline-neat",
+            artifacts={"preview": str(kana_preview)},
+            metrics={
+                "draw_speed_cv": 0.54,
+                "baseline_drift_mm": 4.05,
+                "penup_distance_mm": 11.0,
+                "visible_char_count": 3,
+            },
+        ),
+        _record(
+            experiment_id="exp-motion-latin",
+            input_text="ABC",
+            seed=1,
+            generator="structure-motion",
+            profile_id="latin-neat",
+            artifacts={"preview": str(latin_preview)},
+            metrics={
+                "draw_speed_cv": 0.64,
+                "baseline_drift_mm": 4.3,
+                "penup_distance_mm": 13.0,
+                "visible_char_count": 3,
+            },
+        ),
+    ]
+
+    recommendation = recommend_preview_fixed_input_set(
+        records,
+        expected_input_texts=("ABC",),
+        expected_seeds=(1,),
+    )
+
+    assert recommendation["selected_candidate_count"] == 1
+    assert recommendation["selected_profile_counts"] == {"latin-neat": 1}
+    assert recommendation["recommendations"][0]["selected_candidate"]["profile_id"] == "latin-neat"
+
+
 def test_compare_preview_fixed_input_set_reports_missing_preview(tmp_path: Path) -> None:
     baseline_preview = tmp_path / "baseline.png"
     baseline_preview.write_bytes(b"baseline-preview")

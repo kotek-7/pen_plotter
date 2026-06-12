@@ -7,6 +7,7 @@ from typing import Any
 
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
+from evaluation_harness.human_review import _input_script_groups
 from evaluation_harness.offline_review import infer_offline_failure_tags, suggested_next_actions
 from evaluation_harness.preview_metrics import (
     compare_preview_artifacts,
@@ -25,6 +26,16 @@ DEFAULT_COMPARE_METRICS: tuple[str, ...] = (
     "baseline_drift_mm",
     "repeated_char_ratio",
 )
+
+SCRIPT_PROFILE_PREFERENCES: dict[str, tuple[str, ...]] = {
+    "kana": ("kana-neat", "glyph-neat", "steady-neat", "micro-casual", "compact-casual"),
+    "kanji": ("kanji-neat", "steady-neat", "glyph-neat", "textured-steady", "textured-casual"),
+    "latin": ("latin-neat", "kana-neat", "glyph-neat", "micro-casual", "compact-casual"),
+    "digit": ("latin-neat", "micro-casual", "kana-neat", "glyph-neat", "compact-casual"),
+    "punctuation": ("latin-neat", "kana-neat", "glyph-neat", "steady-neat", "micro-casual"),
+    "symbol": ("latin-neat", "kana-neat", "glyph-neat", "steady-neat", "micro-casual"),
+    "other": ("steady-neat", "glyph-neat", "kana-neat", "latin-neat", "micro-casual"),
+}
 
 
 def compare_against_baseline(
@@ -272,6 +283,7 @@ def recommend_preview_fixed_input_set(
             preview_summary = _preview_artifact_summary(candidate.artifacts.get("preview", ""))
             inferred_tags = infer_offline_failure_tags(candidate)
             candidate_actions = suggested_next_actions(inferred_tags)
+            script_rank = _profile_script_rank(input_text, candidate.profile_id)
             quality_key = _preview_candidate_quality_key(candidate.metrics)
             preview_hash_changed = (
                 None
@@ -288,11 +300,13 @@ def recommend_preview_fixed_input_set(
                     "preview_hash_changed": preview_hash_changed,
                     "inferred_failure_tags": inferred_tags,
                     "suggested_next_actions": candidate_actions,
+                    "script_rank": script_rank,
                     "quality_key": quality_key,
                     "selection_key": _preview_candidate_selection_key(
                         preview_summary=preview_summary,
                         inferred_failure_tags=inferred_tags,
                         preview_hash_changed=bool(preview_hash_changed),
+                        script_rank=script_rank,
                         quality_key=quality_key,
                         experiment_id=candidate.experiment_id,
                     ),
@@ -761,13 +775,15 @@ def _preview_candidate_selection_key(
     preview_summary: dict[str, Any] | None,
     inferred_failure_tags: list[str],
     preview_hash_changed: bool,
+    script_rank: int,
     quality_key: tuple[float, float, float],
     experiment_id: str,
-) -> tuple[int, int, int, float, float, float, str]:
+) -> tuple[int, int, int, int, float, float, float, str]:
     return (
         0 if preview_summary is not None else 1,
         len(inferred_failure_tags),
         0 if preview_hash_changed else 1,
+        script_rank,
         quality_key[0],
         quality_key[1],
         quality_key[2],
@@ -785,6 +801,18 @@ def _preview_candidate_quality_key(metrics: dict[str, Any]) -> tuple[float, floa
         abs(baseline_drift_mm - drift_target),
         float(metrics.get("penup_distance_mm", 0.0)),
     )
+
+
+def _profile_script_rank(input_text: str, profile_id: str) -> int:
+    groups = _input_script_groups(input_text)
+    if not groups:
+        return len(SCRIPT_PROFILE_PREFERENCES["other"])
+    dominant_group = groups[0]
+    preference = SCRIPT_PROFILE_PREFERENCES.get(dominant_group, SCRIPT_PROFILE_PREFERENCES["other"])
+    try:
+        return preference.index(profile_id)
+    except ValueError:
+        return len(preference)
 
 
 def _focus_area_from_tags(tags: list[str]) -> str:
