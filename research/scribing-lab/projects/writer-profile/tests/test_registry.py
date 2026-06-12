@@ -18,6 +18,8 @@ def test_builtin_profile_order_is_stable() -> None:
         "baseline-neat",
         "fast-casual",
         "compact-casual",
+        "micro-casual",
+        "flow-casual",
         "textured-casual",
         "shaky-slow",
     )
@@ -74,6 +76,28 @@ def test_compact_casual_profile_targets_tighter_layout() -> None:
     assert profile.params.speed_mean_mm_s < get_profile("fast-casual").params.speed_mean_mm_s
     assert profile.params.baseline_drift_mm < get_profile("fast-casual").params.baseline_drift_mm
     assert profile.params.tremor_mm < get_profile("fast-casual").params.tremor_mm
+
+
+def test_micro_casual_profile_targets_symbols_and_digits() -> None:
+    profile = get_profile("micro-casual")
+
+    assert profile.profile_id == "micro-casual"
+    assert profile.parent_profile == "compact-casual"
+    assert profile.params.spacing_mean_mm < get_profile("compact-casual").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s <= get_profile("compact-casual").params.speed_mean_mm_s
+    assert profile.params.baseline_drift_mm > get_profile("compact-casual").params.baseline_drift_mm
+    assert profile.params.tremor_mm > get_profile("compact-casual").params.tremor_mm
+
+
+def test_flow_casual_profile_targets_longer_text_flow() -> None:
+    profile = get_profile("flow-casual")
+
+    assert profile.profile_id == "flow-casual"
+    assert profile.parent_profile == "textured-casual"
+    assert profile.params.spacing_mean_mm >= get_profile("micro-casual").params.spacing_mean_mm
+    assert profile.params.speed_mean_mm_s < get_profile("fast-casual").params.speed_mean_mm_s
+    assert profile.params.baseline_drift_mm > get_profile("compact-casual").params.baseline_drift_mm
+    assert profile.params.tremor_mm > get_profile("compact-casual").params.tremor_mm
 
 
 def test_textured_casual_profile_targets_more_motion_texture() -> None:
