@@ -386,6 +386,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_loop.add_argument("--packet-json", required=True)
     human_abx_loop.add_argument("--responses-json", default="")
     human_abx_loop.add_argument("--evaluator-id", default="")
+    human_abx_loop.add_argument("--max-items", type=int, default=36)
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
     human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
 
@@ -868,6 +869,7 @@ def main() -> None:
             packet,
             responses_data=responses_data,
             evaluator_id=args.evaluator_id,
+            max_items=args.max_items,
         )
         output_path = Path(args.packet_json).parent / args.output
         json_path = Path(args.packet_json).parent / args.json_output

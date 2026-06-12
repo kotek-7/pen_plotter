@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from collections import defaultdict
 from typing import Any
 
 
@@ -164,7 +165,9 @@ def build_human_abx_feedback_loop(
     *,
     responses_data: Any | None = None,
     evaluator_id: str = "",
+    max_items: int | None = None,
 ) -> dict[str, Any]:
+    packet = _limit_abx_packet(packet, max_items=max_items)
     template = build_abx_response_template(packet, evaluator_id=evaluator_id)
     response_summary = None
     if responses_data is not None:
@@ -183,6 +186,36 @@ def build_human_abx_feedback_loop(
         "response_summary": response_summary,
         "next_actions": next_actions,
     }
+
+
+def _limit_abx_packet(packet: dict[str, Any], *, max_items: int | None) -> dict[str, Any]:
+    if max_items is None or max_items <= 0:
+        return packet
+
+    items = list(packet.get("abx_items", []))
+    if len(items) <= max_items:
+        return packet
+
+    grouped: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for item in items:
+        grouped[str(item.get("candidate_profile_id", ""))].append(item)
+
+    ordered_profiles = sorted(grouped, key=lambda profile_id: (-len(grouped[profile_id]), profile_id))
+    reduced: list[dict[str, Any]] = []
+    while len(reduced) < max_items:
+        progressed = False
+        for profile_id in ordered_profiles:
+            bucket = grouped[profile_id]
+            if not bucket:
+                continue
+            reduced.append(bucket.pop(0))
+            progressed = True
+            if len(reduced) >= max_items:
+                break
+        if not progressed:
+            break
+
+    return {**packet, "abx_items": reduced}
 
 
 def render_abx_response_template_markdown(template: dict[str, Any]) -> str:

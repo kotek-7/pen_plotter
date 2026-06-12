@@ -197,6 +197,7 @@ python3 -m evaluation_harness human-feedback-loop \
 `human-abx-feedback-loop` は ABX packet と response をまとめて、候補比較の集計、
 response template、次アクションを 1 つの束にする。responses がない場合は、
 そのまま記入用テンプレートとして使える。
+`--max-items` で代表項目数を絞れるので、口頭 FB 用には小さめの束を作る。
 
 ```sh
 python3 -m evaluation_harness human-feedback-ui \

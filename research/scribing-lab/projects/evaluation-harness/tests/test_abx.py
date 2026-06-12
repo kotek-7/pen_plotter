@@ -144,3 +144,31 @@ def test_load_abx_responses_supports_response_dict() -> None:
     assert len(responses) == 1
     assert responses[0].choice == "A"
     assert responses[0].note == "good"
+
+
+def test_build_human_abx_feedback_loop_limits_items_by_profile() -> None:
+    packet = {
+        "abx_items": [
+            {
+                "item_id": f"item-{index}",
+                "prompt": "永",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": profile_id,
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": f"exp-{profile_id}-{index}",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": [],
+                "selected_next_actions": [],
+            }
+            for index, profile_id in enumerate(
+                ["a", "a", "b", "b", "c", "c", "d", "d"],
+                start=1,
+            )
+        ]
+    }
+
+    loop = build_human_abx_feedback_loop(packet, max_items=3)
+
+    assert len(loop["packet"]["abx_items"]) == 3
+    assert {item["candidate_profile_id"] for item in loop["packet"]["abx_items"]} == {"a", "b", "c"}
