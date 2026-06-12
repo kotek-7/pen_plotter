@@ -50,6 +50,25 @@ def validate_abx_responses(responses: list[AbxResponse]) -> dict[str, list[str]]
     return {"duplicate_pairs": duplicates}
 
 
+def load_abx_responses(data: Any) -> list[AbxResponse]:
+    raw_responses = data.get("responses", []) if isinstance(data, dict) else data
+    if raw_responses is None:
+        raw_responses = []
+
+    responses: list[AbxResponse] = []
+    for item in raw_responses:
+        responses.append(
+            AbxResponse(
+                item_id=str(item.get("item_id", "")).strip(),
+                evaluator_id=str(item.get("evaluator_id", "")).strip(),
+                choice=str(item.get("choice", "")).strip(),
+                confidence=int(item.get("confidence", 0)),
+                note=str(item.get("note", "")),
+            )
+        )
+    return responses
+
+
 def summarize_abx_responses(
     responses: list[AbxResponse],
     *,
@@ -115,6 +134,197 @@ def summarize_abx_responses(
             reverse=True,
         ),
     }
+
+
+def build_abx_response_template(
+    packet: dict[str, Any],
+    *,
+    evaluator_id: str = "",
+) -> dict[str, Any]:
+    return {
+        "evaluator_id": evaluator_id,
+        "item_count": len(packet.get("abx_items", [])),
+        "allowed_choices": ["A", "B", "tie"],
+        "confidence_scale": [1, 2, 3, 4, 5],
+        "checklist": [
+            "preview を先に見る。",
+            "どちらが人間の手書きに近いかを 1 つ選ぶ。",
+            "迷う場合は tie を使う。",
+            "確信度は 1 から 5 で記録する。",
+        ],
+        "responses": [
+            _abx_template_response_item(item, evaluator_id=evaluator_id)
+            for item in packet.get("abx_items", [])
+        ],
+    }
+
+
+def build_human_abx_feedback_loop(
+    packet: dict[str, Any],
+    *,
+    responses_data: Any | None = None,
+    evaluator_id: str = "",
+) -> dict[str, Any]:
+    template = build_abx_response_template(packet, evaluator_id=evaluator_id)
+    response_summary = None
+    if responses_data is not None:
+        responses = load_abx_responses(responses_data)
+        response_summary = summarize_abx_responses(
+            responses,
+            items=_abx_items_from_packet(packet),
+        )
+
+    loop_status = _abx_loop_status(response_summary)
+    next_actions = _abx_next_actions(response_summary)
+    return {
+        "loop_status": loop_status,
+        "packet": packet,
+        "response_template": template,
+        "response_summary": response_summary,
+        "next_actions": next_actions,
+    }
+
+
+def render_abx_response_template_markdown(template: dict[str, Any]) -> str:
+    lines = [
+        "# ABX Response Template",
+        "",
+        f"- evaluator_id: `{template['evaluator_id']}`",
+        f"- item_count: `{template['item_count']}`",
+        f"- allowed_choices: `{template['allowed_choices']}`",
+        f"- confidence_scale: `{template['confidence_scale']}`",
+        "",
+        "## Checklist",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in template["checklist"])
+    lines.extend(["", "## Response Slots", ""])
+    if not template["responses"]:
+        lines.append("- none")
+    for item in template["responses"]:
+        lines.extend(
+            [
+                f"### {item['item_id']}",
+                "",
+                f"- prompt: `{item['prompt']}`",
+                f"- question: `{item['question']}`",
+                f"- candidate_profile_id: `{item['candidate_profile_id']}`",
+                f"- baseline_experiment_id: `{item['baseline_experiment_id']}`",
+                f"- candidate_experiment_id: `{item['candidate_experiment_id']}`",
+                f"- selected_failure_tags: `{item['selected_failure_tags']}`",
+                f"- selected_next_actions: `{item['selected_next_actions']}`",
+                f"- choice: `A / B / tie`",
+                f"- confidence: `1 .. 5`",
+                f"- note: `optional`",
+                "",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_abx_feedback_loop_markdown(loop: dict[str, Any]) -> str:
+    packet = loop["packet"]
+    lines = [
+        "# ABX Feedback Loop",
+        "",
+        f"- loop_status: `{loop['loop_status']}`",
+        f"- next_actions: `{loop['next_actions']}`",
+        "",
+        "## Packet",
+        "",
+        f"- item_count: `{len(packet.get('abx_items', []))}`",
+        f"- selected_candidate_count: `{packet.get('selected_candidate_count', 0)}`",
+        f"- selected_profile_counts: `{packet.get('selected_profile_counts', {})}`",
+        "",
+        "### Items",
+        "",
+    ]
+    if not packet.get("abx_items"):
+        lines.append("- none")
+    for item in packet.get("abx_items", []):
+        lines.append(
+            "- "
+            f"{item.get('item_id', '')}: "
+            f"prompt=`{item.get('prompt', '')}`, "
+            f"candidate_profile_id=`{item.get('candidate_profile_id', '')}`, "
+            f"selected_failure_tags=`{item.get('selected_failure_tags', [])}`"
+        )
+    lines.extend(
+        [
+            "",
+            "## Response Template",
+            "",
+            render_abx_response_template_markdown(loop["response_template"]).rstrip(),
+            "",
+        ]
+    )
+    if loop["response_summary"] is not None:
+        lines.extend(
+            [
+                "## Response Summary",
+                "",
+                render_abx_summary_markdown(loop["response_summary"]).rstrip(),
+                "",
+            ]
+        )
+    else:
+        lines.extend(["## Response Summary", "", "- pending", ""])
+    return "\n".join(lines) + "\n"
+
+
+def _abx_template_response_item(item: dict[str, Any], *, evaluator_id: str) -> dict[str, Any]:
+    return {
+        "item_id": item["item_id"],
+        "evaluator_id": evaluator_id,
+        "prompt": item["prompt"],
+        "question": item["question"],
+        "candidate_profile_id": item.get("candidate_profile_id", ""),
+        "baseline_experiment_id": item.get("baseline_experiment_id", ""),
+        "candidate_experiment_id": item.get("candidate_experiment_id", ""),
+        "selected_failure_tags": list(item.get("selected_failure_tags", [])),
+        "selected_next_actions": list(item.get("selected_next_actions", [])),
+    }
+
+
+def _abx_items_from_packet(packet: dict[str, Any]) -> list[AbxItem]:
+    return [
+        AbxItem(
+            item_id=str(item.get("item_id", "")),
+            prompt=str(item.get("prompt", "")),
+            option_a_artifact=str(item.get("option_a_artifact", "")),
+            option_b_artifact=str(item.get("option_b_artifact", "")),
+            question=str(item.get("question", "")),
+            expected_preference=item.get("expected_preference"),
+        )
+        for item in packet.get("abx_items", [])
+    ]
+
+
+def _abx_loop_status(response_summary: dict[str, Any] | None) -> str:
+    if response_summary is None:
+        return "pending"
+    if response_summary["duplicate_pairs"]:
+        return "needs_review"
+    if response_summary["tie_rate"] > 0.25:
+        return "needs_review"
+    if response_summary["response_count"] == 0:
+        return "pending"
+    return "ready"
+
+
+def _abx_next_actions(response_summary: dict[str, Any] | None) -> list[str]:
+    if response_summary is None:
+        return ["ABX responses を収集する"]
+    actions: list[str] = []
+    if response_summary["duplicate_pairs"]:
+        actions.append("重複応答を解消して再集計する")
+    if response_summary["uncertain_items"]:
+        actions.append("tie の多い item を個別に見直す")
+    if response_summary["tie_rate"] > 0.25:
+        actions.append("選定基準と候補差分を再確認する")
+    if not actions:
+        actions.append("次の preview 改善候補を選ぶ")
+    return actions
 
 
 def render_abx_summary_markdown(summary: dict[str, Any]) -> str:

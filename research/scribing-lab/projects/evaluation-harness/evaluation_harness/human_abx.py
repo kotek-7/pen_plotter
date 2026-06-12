@@ -2,7 +2,14 @@ from __future__ import annotations
 
 from typing import Any
 
-from evaluation_harness.abx import AbxItem
+from evaluation_harness.abx import (
+    AbxItem,
+    build_abx_response_template,
+    build_human_abx_feedback_loop,
+    load_abx_responses,
+    render_abx_feedback_loop_markdown,
+    render_abx_response_template_markdown,
+)
 from evaluation_harness.compare import recommend_preview_fixed_input_set
 from evaluation_harness.models import ExperimentRecord
 
@@ -207,3 +214,14 @@ def _infer_record_count_from_recommendation(recommendation: dict[str, Any]) -> i
         if candidate_id:
             experiment_ids.add(candidate_id)
     return len(experiment_ids)
+
+
+__all__ = [
+    "build_abx_response_template",
+    "build_human_abx_feedback_loop",
+    "build_human_abx_packet",
+    "load_abx_responses",
+    "render_abx_feedback_loop_markdown",
+    "render_abx_response_template_markdown",
+    "render_human_abx_packet_markdown",
+]

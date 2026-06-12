@@ -161,6 +161,31 @@ def test_human_abx_packet_parser_accepts_recommendation_json() -> None:
     assert args.json_output == "abx.json"
 
 
+def test_human_abx_feedback_loop_parser_accepts_packet_and_response_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-feedback-loop",
+            "--packet-json",
+            "runs/test/human_abx_packet.json",
+            "--responses-json",
+            "runs/test/human_abx_responses.json",
+            "--evaluator-id",
+            "eval-1",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+        ]
+    )
+
+    assert args.command == "human-abx-feedback-loop"
+    assert args.packet_json == "runs/test/human_abx_packet.json"
+    assert args.responses_json == "runs/test/human_abx_responses.json"
+    assert args.evaluator_id == "eval-1"
+    assert args.output == "loop.md"
+    assert args.json_output == "loop.json"
+
+
 def test_validate_human_review_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [

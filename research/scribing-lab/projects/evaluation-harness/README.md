@@ -194,6 +194,10 @@ python3 -m evaluation_harness human-feedback-loop \
 `--recommendation-json` を使うと、既存の `recommend_preview_fixed_inputs` 生成物を再利用して
 再計算を避けられる。
 
+`human-abx-feedback-loop` は ABX packet と response をまとめて、候補比較の集計、
+response template、次アクションを 1 つの束にする。responses がない場合は、
+そのまま記入用テンプレートとして使える。
+
 ```sh
 python3 -m evaluation_harness human-feedback-ui \
   --root runs/structure-motion

@@ -48,6 +48,8 @@ from evaluation_harness.human_feedback_loop import (
 )
 from evaluation_harness.human_abx import (
     build_human_abx_packet,
+    build_human_abx_feedback_loop,
+    render_abx_feedback_loop_markdown,
     render_human_abx_packet_markdown,
 )
 from evaluation_harness.human_review_response import (
@@ -376,6 +378,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_abx.add_argument("--output", default="human_abx_packet.md")
     human_abx.add_argument("--json-output", default="human_abx_packet.json")
+
+    human_abx_loop = sub.add_parser(
+        "human-abx-feedback-loop",
+        help="Summarize ABX responses and generate the next feedback loop packet",
+    )
+    human_abx_loop.add_argument("--packet-json", required=True)
+    human_abx_loop.add_argument("--responses-json", default="")
+    human_abx_loop.add_argument("--evaluator-id", default="")
+    human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
+    human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
 
     validate_human = sub.add_parser(
         "validate-human-review",
@@ -846,6 +858,27 @@ def main() -> None:
         print(f"selected_candidate_count: {packet['selected_candidate_count']}")
         print(f"selected_profile_counts: {packet['selected_profile_counts']}")
         print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-abx-feedback-loop":
+        packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+        responses_data = None
+        if args.responses_json:
+            responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+        loop = build_human_abx_feedback_loop(
+            packet,
+            responses_data=responses_data,
+            evaluator_id=args.evaluator_id,
+        )
+        output_path = Path(args.packet_json).parent / args.output
+        json_path = Path(args.packet_json).parent / args.json_output
+        output_path.write_text(render_abx_feedback_loop_markdown(loop), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"loop_status: {loop['loop_status']}")
+        print(f"next_actions: {len(loop['next_actions'])}")
+        print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "validate-human-review":
         packet_path = Path(args.packet_json)

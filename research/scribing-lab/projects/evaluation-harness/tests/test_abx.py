@@ -3,7 +3,12 @@ import pytest
 from evaluation_harness.abx import (
     AbxItem,
     AbxResponse,
+    build_abx_response_template,
+    build_human_abx_feedback_loop,
+    load_abx_responses,
     render_abx_summary_markdown,
+    render_abx_feedback_loop_markdown,
+    render_abx_response_template_markdown,
     summarize_abx_responses,
     validate_abx_response,
 )
@@ -89,3 +94,53 @@ def test_summarize_abx_responses_rejects_duplicate_pairs() -> None:
     )
 
     assert summary["duplicate_pairs"] == ["item-1:eval-1"]
+
+
+def test_build_abx_response_template_and_feedback_loop() -> None:
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "永",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "kanji-tight",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-candidate",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": [],
+                "selected_next_actions": [],
+            }
+        ]
+    }
+
+    template = build_abx_response_template(packet, evaluator_id="eval-1")
+    assert template["item_count"] == 1
+    assert template["allowed_choices"] == ["A", "B", "tie"]
+    assert template["responses"][0]["evaluator_id"] == "eval-1"
+    assert "Response Template" in render_abx_response_template_markdown(template)
+
+    loop = build_human_abx_feedback_loop(packet)
+    assert loop["loop_status"] == "pending"
+    assert loop["next_actions"] == ["ABX responses を収集する"]
+    assert "ABX Feedback Loop" in render_abx_feedback_loop_markdown(loop)
+
+
+def test_load_abx_responses_supports_response_dict() -> None:
+    responses = load_abx_responses(
+        {
+            "responses": [
+                {
+                    "item_id": "item-1",
+                    "evaluator_id": "eval-1",
+                    "choice": "A",
+                    "confidence": 4,
+                    "note": "good",
+                }
+            ]
+        }
+    )
+
+    assert len(responses) == 1
+    assert responses[0].choice == "A"
+    assert responses[0].note == "good"
