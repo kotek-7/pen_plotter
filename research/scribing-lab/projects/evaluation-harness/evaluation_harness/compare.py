@@ -251,14 +251,9 @@ def recommend_preview_fixed_input_set(
     expected_seeds: tuple[int, ...] = (1, 2, 3),
     baseline_generator: str = "baseline-outline",
     metrics: tuple[str, ...] = DEFAULT_COMPARE_METRICS,
+    include_preview_comparison_details: bool = True,
+    include_preview_artifact_details: bool = True,
 ) -> dict[str, Any]:
-    comparison = compare_preview_fixed_input_set(
-        records,
-        expected_input_texts=expected_input_texts,
-        expected_seeds=expected_seeds,
-        baseline_generator=baseline_generator,
-        metrics=metrics,
-    )
     record_list = list(records)
     grouped = _group_records_by_input_and_seed(record_list)
     expected_groups = [
@@ -276,11 +271,20 @@ def recommend_preview_fixed_input_set(
         group = grouped.get((input_text, seed), [])
         baseline = next((record for record in group if record.generator == baseline_generator), None)
         candidate_records = [record for record in group if record.generator != baseline_generator]
-        baseline_preview = _preview_artifact_summary(baseline.artifacts.get("preview", "")) if baseline else None
+        baseline_preview = (
+            _preview_artifact_summary(baseline.artifacts.get("preview", ""))
+            if baseline and include_preview_artifact_details
+            else _preview_preview_path_summary(baseline.artifacts.get("preview", "")) if baseline else None
+        )
         candidate_items: list[dict[str, Any]] = []
         for candidate in candidate_records:
             candidate_profile_counts[candidate.profile_id] += 1
-            preview_summary = _preview_artifact_summary(candidate.artifacts.get("preview", ""))
+            preview_path = candidate.artifacts.get("preview", "")
+            preview_summary = (
+                _preview_artifact_summary(preview_path)
+                if include_preview_artifact_details
+                else _preview_preview_path_summary(preview_path)
+            )
             inferred_tags = infer_offline_failure_tags(candidate)
             candidate_actions = suggested_next_actions(inferred_tags)
             script_rank = _profile_script_rank(input_text, candidate.profile_id)
@@ -288,7 +292,11 @@ def recommend_preview_fixed_input_set(
             preview_hash_changed = (
                 None
                 if baseline_preview is None or preview_summary is None
-                else baseline_preview["sha256"] != preview_summary["sha256"]
+                else (
+                    baseline_preview.get("sha256") != preview_summary.get("sha256")
+                    if include_preview_artifact_details
+                    else True
+                )
             )
             candidate_items.append(
                 {
@@ -339,7 +347,31 @@ def recommend_preview_fixed_input_set(
             }
         )
 
-    expected_group_count = comparison["expected_group_count"]
+    expected_group_count = len(expected_groups)
+    if include_preview_comparison_details:
+        comparison = compare_preview_fixed_input_set(
+            record_list,
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+            metrics=metrics,
+        )
+    else:
+        comparison = {
+            "baseline_generator": baseline_generator,
+            "metric_names": list(metrics),
+            "comparison_count": 0,
+            "missing_baseline": [],
+            "comparisons": [],
+            "expected_input_texts": list(expected_input_texts),
+            "expected_seeds": list(expected_seeds),
+            "expected_group_count": expected_group_count,
+            "preview_ready_count": 0,
+            "preview_hash_changed_count": 0,
+            "preview_group_summaries": [],
+            "preview_comparisons": [],
+            "preview_coverage_ratio": 0.0,
+        }
     return {
         **comparison,
         "selected_candidate_count": selected_candidate_count,
@@ -768,6 +800,12 @@ def _group_records_by_input_and_seed(
 
 def _preview_artifact_summary(path_text: str) -> dict[str, Any] | None:
     return summarize_preview_artifact(path_text)
+
+
+def _preview_preview_path_summary(path_text: str) -> dict[str, Any] | None:
+    if not path_text:
+        return None
+    return {"path": path_text}
 
 
 def _preview_candidate_selection_key(

@@ -28,6 +28,8 @@ def build_human_abx_packet(
             expected_input_texts=expected_input_texts,
             expected_seeds=expected_seeds,
             baseline_generator=baseline_generator,
+            include_preview_comparison_details=False,
+            include_preview_artifact_details=False,
         )
         baseline_preview_by_group = _baseline_preview_paths_from_records(records, baseline_generator=baseline_generator)
         record_count = len(records)
