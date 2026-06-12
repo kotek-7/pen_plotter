@@ -12,6 +12,7 @@ PROFILE_REGISTRY_ID = "writer-profile-manual-mvp"
 BUILTIN_PROFILE_ORDER = (
     "baseline-neat",
     "glyph-neat",
+    "kana-neat",
     "kanji-neat",
     "steady-neat",
     "fast-casual",
@@ -72,6 +73,30 @@ _PROFILES = OrderedDict(
                 ),
                 parent_profile="baseline-neat",
                 notes="Glyph-oriented neat profile for short kana, punctuation, and Latin comparisons.",
+            ),
+        ),
+        (
+            "kana-neat",
+            WriterProfile(
+                profile_id="kana-neat",
+                version=1,
+                source="manual",
+                allowed_use="research-baseline",
+                params=WriterProfileParameters(
+                    slant_deg=2.05,
+                    spacing_mean_mm=1.19,
+                    speed_mean_mm_s=40.7,
+                    harai_gain=1.02,
+                    hane_gain=1.01,
+                    tome_gain=0.99,
+                    timing_jitter_cv=0.09,
+                    tremor_mm=0.016,
+                    baseline_drift_mm=0.03,
+                    shape_variation=0.005,
+                    layout_variation=0.003,
+                ),
+                parent_profile="glyph-neat",
+                notes="Kana-oriented neat profile for single kana, punctuation, digits, and Latin comparisons.",
             ),
         ),
         (
