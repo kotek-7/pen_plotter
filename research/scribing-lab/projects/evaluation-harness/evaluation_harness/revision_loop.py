@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from evaluation_harness.compare import preview_iteration_fixed_input_set
+from evaluation_harness.compare import propose_preview_fixed_input_set
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -21,15 +22,25 @@ def run_preview_revision_loop_fixed_input_set(
     expected_input_texts: tuple[str, ...],
     expected_seeds: tuple[int, ...],
     baseline_generator: str = "baseline-outline",
+    revision_plans: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
     registry = ExperimentRegistry(root / "registry.jsonl")
     before_records = registry.load_all()
-    before_iteration = preview_iteration_fixed_input_set(
-        before_records,
-        expected_input_texts=expected_input_texts,
-        expected_seeds=expected_seeds,
-        baseline_generator=baseline_generator,
-    )
+    if revision_plans is None:
+        before_iteration = preview_iteration_fixed_input_set(
+            before_records,
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+        )
+    else:
+        before_iteration = _preview_iteration_from_revision_plans(
+            before_records,
+            revision_plans,
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+        )
 
     applications: list[dict[str, Any]] = []
     rerun_records = []
@@ -101,12 +112,21 @@ def run_preview_revision_loop_fixed_input_set(
             }
         )
 
-    after_iteration = preview_iteration_fixed_input_set(
-        registry.load_all(),
-        expected_input_texts=expected_input_texts,
-        expected_seeds=expected_seeds,
-        baseline_generator=baseline_generator,
-    )
+    if revision_plans is None:
+        after_iteration = preview_iteration_fixed_input_set(
+            registry.load_all(),
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+        )
+    else:
+        after_iteration = _preview_iteration_from_revision_plans(
+            registry.load_all(),
+            revision_plans,
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+            baseline_generator=baseline_generator,
+        )
     return {
         "baseline_generator": baseline_generator,
         "expected_input_texts": list(expected_input_texts),
@@ -125,6 +145,62 @@ def run_preview_revision_loop_fixed_input_set(
         ),
         "after_iteration": after_iteration,
     }
+
+
+def _preview_iteration_from_revision_plans(
+    records: list[ExperimentRecord],
+    revision_plans: list[dict[str, Any]],
+    *,
+    expected_input_texts: tuple[str, ...],
+    expected_seeds: tuple[int, ...],
+    baseline_generator: str,
+) -> dict[str, Any]:
+    proposal = propose_preview_fixed_input_set(
+        records,
+        expected_input_texts=expected_input_texts,
+        expected_seeds=expected_seeds,
+        baseline_generator=baseline_generator,
+    )
+    filtered_plans = []
+    wanted_keys = {
+        (str(plan.get("input_text", "")), int(plan.get("seed", 0)))
+        for plan in revision_plans
+    }
+    for plan in proposal["revision_plans"]:
+        key = (plan["input_text"], int(plan["seed"]))
+        if key in wanted_keys:
+            filtered_plans.append(plan)
+    proposal["revision_plans"] = filtered_plans
+    proposal["revision_area_counts"] = _count_revision_areas(filtered_plans)
+    proposal["selected_candidate_count"] = sum(1 for plan in filtered_plans if plan.get("status") == "selected")
+    proposal["selected_coverage_ratio"] = round(
+        proposal["selected_candidate_count"] / proposal["expected_group_count"],
+        4,
+    ) if proposal["expected_group_count"] else 0.0
+    proposal["iteration_status"] = (
+        "needs-more-preview-data"
+        if proposal["selected_candidate_count"] == 0
+        else "partial"
+        if proposal["selected_candidate_count"] < proposal["expected_group_count"]
+        else "ready"
+    )
+    proposal["iteration_next_experiment_hints"] = sorted(
+        {
+            plan["next_experiment_hint"]
+            for plan in filtered_plans
+            if plan.get("status") == "selected"
+        }
+    ) or ["preview artifact を持つ候補を追加して比較する"]
+    proposal["iteration_selected_area_count"] = len(proposal["revision_area_counts"])
+    return proposal
+
+
+def _count_revision_areas(revision_plans: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for plan in revision_plans:
+        area = str(plan.get("focus_area", "")) or "preview"
+        counts[area] = counts.get(area, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 def summarize_preview_revision_loops(packets: list[dict[str, Any]]) -> dict[str, Any]:

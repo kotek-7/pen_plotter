@@ -1144,6 +1144,22 @@ def test_apply_preview_revision_fixed_inputs_parser_accepts_seeds() -> None:
     assert args.json_output == "loop.json"
 
 
+def test_apply_preview_revision_fixed_inputs_parser_accepts_revision_plan_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "apply-preview-revision-fixed-inputs",
+            "--root",
+            "runs/test",
+            "--revision-plan-json",
+            "runs/test/plan.json",
+        ]
+    )
+
+    assert args.command == "apply-preview-revision-fixed-inputs"
+    assert args.root == "runs/test"
+    assert args.revision_plan_json == "runs/test/plan.json"
+
+
 def test_summarize_preview_revision_loops_parser_accepts_packets() -> None:
     args = build_parser().parse_args(
         [
@@ -1664,6 +1680,107 @@ def test_apply_preview_revision_fixed_inputs_command_writes_reports(
             str(root),
             "--seeds",
             "1",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "loop.md").read_text(encoding="utf-8")
+    json_text = (root / "loop.json").read_text(encoding="utf-8")
+
+    assert "Preview Revision Loop" in markdown
+    assert "rerun_count" in markdown
+    assert '"rerun_count": 1' in json_text
+
+
+def test_apply_preview_revision_fixed_inputs_command_accepts_revision_plan_json(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    candidate_preview = root / "candidate.png"
+    baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            metrics={
+                "point_count": 10,
+                "velocity_peak_count": 0,
+                "draw_speed_cv": 0.01,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(candidate_preview)},
+        )
+    )
+    revision_plan = root / "human_review_preview_revision_plan.json"
+    revision_plan.parent.mkdir(parents=True, exist_ok=True)
+    revision_plan.write_text(
+        json.dumps(
+            {
+                "plan_status": "ready",
+                "human_focus_area": "layout",
+                "human_next_experiment_hint": "同じ input / seed で layout spacing と baseline drift を調整する",
+                "preview_revision_plans": [
+                    {
+                        "input_text": "永",
+                        "seed": 1,
+                        "status": "selected",
+                        "focus_area": "layout",
+                        "candidate_experiment_id": "exp-candidate",
+                        "candidate_profile_id": "fast-casual",
+                        "selected_failure_tags": ["spacing-too-wide"],
+                        "selected_next_actions": ["character advance と line spacing を詰める"],
+                        "next_experiment_hint": "同じ input / seed で layout spacing と baseline drift を調整する",
+                        "proposed_changes": [
+                            {
+                                "target": "layout",
+                                "parameter": "spacing_mean_mm",
+                                "direction": "decrease",
+                                "amount_hint": 0.15,
+                                "reason": "字間を詰めて広がりすぎを抑える",
+                            }
+                        ],
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "apply-preview-revision-fixed-inputs",
+            "--root",
+            str(root),
+            "--revision-plan-json",
+            str(revision_plan),
             "--output",
             "loop.md",
             "--json-output",

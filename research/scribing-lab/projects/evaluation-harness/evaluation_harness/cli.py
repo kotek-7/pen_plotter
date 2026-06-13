@@ -270,6 +270,10 @@ def build_parser() -> argparse.ArgumentParser:
         default="fixed",
         help="Use the fixed, review, or wide evaluation corpus",
     )
+    preview_apply.add_argument(
+        "--revision-plan-json",
+        help="Use an explicit revision plan JSON instead of recomputing from the registry",
+    )
     preview_apply.add_argument("--output", default="preview_revision_loop.md")
     preview_apply.add_argument("--json-output", default="preview_revision_loop.json")
 
@@ -870,11 +874,20 @@ def main() -> None:
         print(f"json: {json_path}")
     elif args.command == "apply-preview-revision-fixed-inputs":
         root = Path(args.root)
+        revision_plans = None
+        if args.revision_plan_json:
+            revision_plan_data = json.loads(Path(args.revision_plan_json).read_text(encoding="utf-8"))
+            revision_plans = list(
+                revision_plan_data.get("preview_revision_plans")
+                or revision_plan_data.get("revision_plans")
+                or []
+            )
         loop = run_preview_revision_loop_fixed_input_set(
             root,
             baseline_generator=args.baseline_generator,
             expected_input_texts=get_evaluation_inputs(args.input_set),
             expected_seeds=tuple(_parse_seeds(args.seeds)),
+            revision_plans=revision_plans,
         )
         markdown_path = root / args.output
         json_path = root / args.json_output
