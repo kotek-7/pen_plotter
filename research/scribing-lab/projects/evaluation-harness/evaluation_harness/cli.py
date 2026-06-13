@@ -69,8 +69,10 @@ from evaluation_harness.abx import (
     summarize_abx_responses,
 )
 from evaluation_harness.human_review_response import (
+    build_human_review_revision_brief,
     load_human_review_responses,
     render_human_review_response_markdown,
+    render_human_review_revision_brief_markdown,
     summarize_human_review_responses,
 )
 from evaluation_harness.metrics import compute_trajectory_metrics
@@ -364,8 +366,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Target number of representative items to include in the packet",
     )
+    human_feedback.add_argument(
+        "--brief-only",
+        action="store_true",
+        help="Emit a revision brief focused on notes and top reason tags",
+    )
     human_feedback.add_argument("--output", default="human_feedback_loop.md")
     human_feedback.add_argument("--json-output", default="human_feedback_loop.json")
+    human_feedback.add_argument("--brief-output", default="human_review_revision_brief.md")
+    human_feedback.add_argument("--brief-json-output", default="human_review_revision_brief.json")
 
     human_feedback_ui = sub.add_parser(
         "human-feedback-ui",
@@ -984,16 +993,39 @@ def main() -> None:
         )
         markdown_path = root / args.output
         json_path = root / args.json_output
+        brief = build_human_review_revision_brief(
+            loop["response_summary"]
+            or {
+                "note_count": 0,
+                "reason_tag_counts": {},
+                "note_examples": [],
+            }
+        )
+        brief_md_path = root / args.brief_output
+        brief_json_path = root / args.brief_json_output
         markdown_path.write_text(render_human_feedback_loop_markdown(loop), encoding="utf-8")
         json_path.write_text(
             json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        print(f"loop_status: {loop['loop_status']}")
-        print(f"representative_count: {loop['packet']['representative_count']}")
-        print(f"next_actions: {len(loop['next_actions'])}")
-        print(f"report: {markdown_path}")
-        print(f"json: {json_path}")
+        brief_md_path.write_text(render_human_review_revision_brief_markdown(brief), encoding="utf-8")
+        brief_json_path.write_text(
+            json.dumps(brief, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        if args.brief_only:
+            print(f"brief_status: {brief['brief_status']}")
+            print(f"note_count: {brief['note_count']}")
+            print(f"brief_report: {brief_md_path}")
+            print(f"brief_json: {brief_json_path}")
+        else:
+            print(f"loop_status: {loop['loop_status']}")
+            print(f"representative_count: {loop['packet']['representative_count']}")
+            print(f"next_actions: {len(loop['next_actions'])}")
+            print(f"report: {markdown_path}")
+            print(f"json: {json_path}")
+            print(f"brief_report: {brief_md_path}")
+            print(f"brief_json: {brief_json_path}")
     elif args.command == "human-feedback-ui":
         from evaluation_harness.human_feedback_qt import launch_human_feedback_ui
 

@@ -196,6 +196,26 @@ def test_human_feedback_loop_parser_accepts_target_count() -> None:
     assert args.json_output == "loop.json"
 
 
+def test_human_feedback_loop_parser_accepts_brief_options() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-loop",
+            "--root",
+            "runs/test",
+            "--brief-only",
+            "--brief-output",
+            "brief.md",
+            "--brief-json-output",
+            "brief.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-loop"
+    assert args.brief_only is True
+    assert args.brief_output == "brief.md"
+    assert args.brief_json_output == "brief.json"
+
+
 def test_human_abx_packet_parser_accepts_input_set_and_output_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -2053,6 +2073,66 @@ def test_human_feedback_loop_command_supports_large_target_count(
     assert "Human Feedback Loop" in markdown
     assert "representative_count: `32`" in markdown
     assert '"representative_count": 32' in json_text
+
+
+def test_human_feedback_loop_command_writes_revision_brief(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-a",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+        )
+    )
+    responses_path = root / "human_review_responses.json"
+    responses_path.parent.mkdir(parents=True, exist_ok=True)
+    responses_path.write_text(
+        json.dumps(
+            {
+                "responses": [
+                    {
+                        "experiment_id": "exp-a",
+                        "decision": "needs-tuning",
+                        "reason_tags": ["spacing-too-wide"],
+                        "notes": "字間が広い",
+                        "reviewer_id": "reviewer-1",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-loop",
+            "--root",
+            str(root),
+            "--responses-json",
+            str(responses_path),
+            "--brief-only",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    brief_md = (root / "human_review_revision_brief.md").read_text(encoding="utf-8")
+    brief_json = (root / "human_review_revision_brief.json").read_text(encoding="utf-8")
+
+    assert "Human Review Revision Brief" in brief_md
+    assert "字間が広い" in brief_md
+    assert '"brief_status": "ready"' in brief_json
 
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
