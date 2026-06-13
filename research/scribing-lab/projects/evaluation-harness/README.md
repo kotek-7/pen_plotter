@@ -217,7 +217,8 @@ responses scaffold を 1 回でまとめて出力する。`layout` と `motion` 
 `--output-dir` と `--output-prefix` を指定すると、束の保存先と名前をそのまま揃えられる。
 responses を回収した後は `human-abx-bundle-followup` で、response summary / feedback loop /
 revision plan / revision run を bundle からまとめて生成できる。
-`--responses-json` を省略すると、bundle 内の `<prefix>_responses.json` を使う。
+`--workbook-json` を省略すると、bundle 内の `<prefix>_workbook.json` を使う。
+`--responses-json` を使う場合は、その JSON を直接読み込める。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

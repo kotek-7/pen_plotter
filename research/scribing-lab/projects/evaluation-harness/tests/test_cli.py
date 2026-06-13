@@ -263,6 +263,8 @@ def test_human_abx_bundle_followup_parser_accepts_bundle_paths() -> None:
             "layout_abx",
             "--responses-json",
             "runs/test/layout_bundle_v1/layout_abx_responses.json",
+            "--workbook-json",
+            "runs/test/layout_bundle_v1/layout_abx_workbook.json",
             "--output-prefix",
             "layout_abx_followup",
         ]
@@ -272,6 +274,7 @@ def test_human_abx_bundle_followup_parser_accepts_bundle_paths() -> None:
     assert args.root == "runs/test"
     assert args.bundle_dir == "runs/test/layout_bundle_v1"
     assert args.bundle_prefix == "layout_abx"
+    assert args.workbook_json == "runs/test/layout_bundle_v1/layout_abx_workbook.json"
     assert args.responses_json == "runs/test/layout_bundle_v1/layout_abx_responses.json"
     assert args.output_prefix == "layout_abx_followup"
 
@@ -290,6 +293,7 @@ def test_human_abx_bundle_followup_parser_defaults_responses_path() -> None:
     )
 
     assert args.command == "human-abx-bundle-followup"
+    assert args.workbook_json == ""
     assert args.responses_json == ""
     assert args.output_prefix == ""
 
@@ -1944,18 +1948,23 @@ def test_human_abx_bundle_followup_command_uses_bundle_defaults(tmp_path: Path) 
     }
     packet_json = bundle_dir / "layout_abx_packet.json"
     packet_json.write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    (bundle_dir / "layout_abx_responses.json").write_text(
+    workbook_json = bundle_dir / "layout_abx_workbook.json"
+    workbook_json.write_text(
         json.dumps(
             {
-                "responses": [
+                "evaluator_id": "eval-1",
+                "rows": [
                     {
                         "item_id": "item-1",
-                        "evaluator_id": "eval-1",
+                        "prompt": "，",
+                        "candidate_profile_id": "symbol-neat",
+                        "selected_failure_tags": ["spacing-too-wide"],
+                        "selected_next_actions": ["character advance と line spacing を詰める"],
                         "choice": "B",
                         "confidence": 4,
                         "note": "more natural",
                     }
-                ]
+                ],
             },
             ensure_ascii=False,
             indent=2,

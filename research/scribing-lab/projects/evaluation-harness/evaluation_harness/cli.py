@@ -454,6 +454,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--root", required=True, help="Run output directory")
     human_abx_bundle_followup.add_argument("--bundle-dir", required=True, help="Bundle directory")
     human_abx_bundle_followup.add_argument("--bundle-prefix", required=True)
+    human_abx_bundle_followup.add_argument("--workbook-json", default="")
     human_abx_bundle_followup.add_argument("--responses-json", default="")
     human_abx_bundle_followup.add_argument("--evaluator-id", default="")
     human_abx_bundle_followup.add_argument("--max-items", type=int, default=36)
@@ -1126,12 +1127,16 @@ def main() -> None:
         bundle_dir = Path(args.bundle_dir)
         packet_path = bundle_dir / f"{args.bundle_prefix}_packet.json"
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
-        responses_path = (
-            Path(args.responses_json)
-            if args.responses_json
-            else bundle_dir / f"{args.bundle_prefix}_responses.json"
-        )
-        responses_data = json.loads(responses_path.read_text(encoding="utf-8"))
+        workbook_path = Path(args.workbook_json) if args.workbook_json else None
+        responses_path = Path(args.responses_json) if args.responses_json else None
+        if workbook_path is not None:
+            workbook = json.loads(workbook_path.read_text(encoding="utf-8"))
+            responses_data = build_abx_responses_from_workbook(workbook)
+        elif responses_path is not None:
+            responses_data = json.loads(responses_path.read_text(encoding="utf-8"))
+        else:
+            workbook = json.loads((bundle_dir / f"{args.bundle_prefix}_workbook.json").read_text(encoding="utf-8"))
+            responses_data = build_abx_responses_from_workbook(workbook)
         responses = load_abx_responses(responses_data)
         packet_items = {
             str(item.get("item_id", "")): item for item in packet.get("abx_items", [])
