@@ -342,6 +342,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Create a compact preview and metrics packet for pre-plot human review",
     )
     human_review.add_argument("--root", required=True, help="Run output directory")
+    human_review.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
     human_review.add_argument("--output", default="human_review_packet.md")
     human_review.add_argument("--json-output", default="human_review_packet.json")
 
@@ -352,6 +358,12 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback.add_argument("--root", required=True, help="Run output directory")
     human_feedback.add_argument("--responses-json", help="Human review response JSON")
     human_feedback.add_argument("--reviewer-id", default="")
+    human_feedback.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
     human_feedback.add_argument("--output", default="human_feedback_loop.md")
     human_feedback.add_argument("--json-output", default="human_feedback_loop.json")
 
@@ -365,12 +377,24 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_ui.add_argument("--responses-json", help="Existing human responses JSON")
     human_feedback_ui.add_argument("--summary-json", help="Human review summary output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
+    human_feedback_ui.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
 
     preview_review = sub.add_parser(
         "preview-review-packet",
         help="Create a preview-centric packet for generated G-code review",
     )
     preview_review.add_argument("--root", required=True, help="Run output directory")
+    preview_review.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
     preview_review.add_argument("--output", default="preview_review_packet.md")
     preview_review.add_argument("--json-output", default="preview_review_packet.json")
 
@@ -931,7 +955,10 @@ def main() -> None:
     elif args.command == "human-review-packet":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")
-        packet = build_human_review_packet(registry.load_all())
+        packet = build_human_review_packet(
+            registry.load_all(),
+            target_count=args.target_count,
+        )
         markdown_path = root / args.output
         json_path = root / args.json_output
         markdown_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")
@@ -953,6 +980,7 @@ def main() -> None:
             registry.load_all(),
             responses_data=responses_data,
             reviewer_id=args.reviewer_id,
+            target_count=args.target_count,
         )
         markdown_path = root / args.output
         json_path = root / args.json_output
@@ -979,11 +1007,15 @@ def main() -> None:
             responses_json=responses_json,
             summary_json=summary_json,
             reviewer_id=args.reviewer_id,
+            target_count=args.target_count,
         )
     elif args.command == "preview-review-packet":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")
-        packet = build_human_review_packet(registry.load_all())
+        packet = build_human_review_packet(
+            registry.load_all(),
+            target_count=args.target_count,
+        )
         markdown_path = root / args.output
         json_path = root / args.json_output
         markdown_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")

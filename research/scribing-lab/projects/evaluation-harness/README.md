@@ -26,7 +26,7 @@
 - `propose-stable-writer-profiles`: 要約から安定候補 profile 群を生成。
 - `evaluate-stable-writer-profiles`: 安定候補 profile 群を固定入力セットで評価し、採択候補を選定。
 - `evaluate-data-driven-writer-prior`: JSONL のオンライン筆記サンプルから推定した prior を評価。
-- `offline-review`: 実機スキャン前の artifact / metrics ベースのレビュー。
+- `offline-review`: 人間レビュー前の artifact / metrics ベースの候補整理。
 - `human-review-packet`: 生成 preview / metrics の目視レビュー束。
 - `human-feedback-loop`: packet, response template, validation summary, calibration summary, next actions を 1 つにまとめた人間主観 FB ループ束。
 - `human-review-agreement`: reviewer 間の decision / reason tag の一致度集計。
@@ -40,6 +40,9 @@
 
 固定評価入力セットは、かな・漢字・数字・Latin・記号を含む拡張コーパスを使う。
 広い評価セットは、常用文字を広く含む 100 種類以上の文字・文章を扱う。
+人間レビューはこの広い評価セットを大きめの束にして、`human-feedback-ui` で連続的に確認する。
+`human-review-packet --target-count 72` のように束の大きさを調整できる。
+preview / ABX は人間レビューの前段で候補を絞る補助として使う。
 
 ## 採用した外部手法
 
@@ -181,6 +184,7 @@ python3 -m evaluation_harness human-review-packet \
 `human-review-packet` と `preview-review-packet` は、代表 seed の preview、主要 metrics、
 failure tags と、input ごとの全 preview path を `human_review_packet.md` / `.json`
 または `preview_review_packet.md` / `.json` に保存する。
+`--target-count` で代表項目数を増やせるので、大きめの人間レビュー束をそのまま作れる。
 
 ```sh
 python3 -m evaluation_harness human-feedback-loop \
@@ -189,6 +193,7 @@ python3 -m evaluation_harness human-feedback-loop \
 
 `human-feedback-loop` は response template 付きの統合束を `human_feedback_loop.md` / `.json`
 に保存する。responses を渡すと、検証結果と次アクションも同じ束に入る。
+`--target-count` を指定すると、UI で扱う人間レビュー束の大きさを増やせる。
 
 `human-abx-packet` は preview 由来の候補を ABX 形式にまとめる。
 `--recommendation-json` を使うと、既存の `recommend_preview_fixed_inputs` 生成物を再利用して
@@ -237,6 +242,7 @@ python3 -m evaluation_harness human-abx-bundle-chain-status \
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
+ABX は人間レビューの前段で候補を絞る補助として使う。
 
 ABX feedback loop から preview 修正案へ戻す場合は `abx-revision-plan` を使う。
 feedback loop JSON を渡すか、packet JSON と responses JSON を渡すと、代表 item ごとの
@@ -261,9 +267,11 @@ python3 -m evaluation_harness human-feedback-ui \
 `human_review_response_summary.json` を保存する。UI は Qt ベースなので、日本語と英字の
 表示品質が Tkinter 版より安定している。
 
+`--target-count` を指定すると、`root` から束を作る場合の代表項目数を増やせる。
+
 既存の review packet から開く場合は `--packet-json` を使う。既存の回答を読み込んで
 続きからレビューする場合は `--responses-json`、保存先を明示したい場合は
-`--summary-json` を併用する。
+ `--summary-json` を併用する。
 
 `human-feedback-loop` は、同じ review packet に加えて response template と validation summary を
 1 つの `human_feedback_loop.md` / `.json` にまとめる。responses を渡すと、

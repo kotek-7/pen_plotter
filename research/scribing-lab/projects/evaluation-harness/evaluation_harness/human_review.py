@@ -29,10 +29,18 @@ SCRIPT_GROUP_PRIORITY: tuple[str, ...] = (
 )
 
 
-def build_human_review_packet(records: list[ExperimentRecord]) -> dict[str, Any]:
+def build_human_review_packet(
+    records: list[ExperimentRecord],
+    *,
+    target_count: int | None = None,
+) -> dict[str, Any]:
     review = build_offline_review(records)
     by_id = {record.experiment_id: record for record in records}
-    representative_ids = _select_representative_ids(records, review)
+    representative_ids = _select_representative_ids(
+        records,
+        review,
+        target_count=target_count,
+    )
     representative_records = [by_id[experiment_id] for experiment_id in representative_ids]
     return {
         "record_count": len(records),
@@ -98,6 +106,8 @@ def render_human_review_packet_markdown(packet: dict[str, Any]) -> str:
 def _select_representative_ids(
     records: list[ExperimentRecord],
     review: dict[str, Any],
+    *,
+    target_count: int | None = None,
 ) -> list[str]:
     selected: list[str] = []
 
@@ -135,7 +145,7 @@ def _select_representative_ids(
         _append_unique(selected, candidate.experiment_id)
         selected_groups.update(_input_script_groups(candidate.input_text))
 
-    target_count = _target_representative_count(len(records))
+    target_count = _target_representative_count(len(records), target_count=target_count)
     if len(selected) < target_count:
         ranked_ids = [
             str(item["experiment_id"])
@@ -156,9 +166,11 @@ def _select_representative_ids(
     return selected[:target_count]
 
 
-def _target_representative_count(record_count: int) -> int:
+def _target_representative_count(record_count: int, *, target_count: int | None = None) -> int:
     if record_count <= 0:
         return 0
+    if target_count is not None:
+        return max(1, min(int(target_count), record_count))
     target = max(12, record_count // 2)
     target = min(target, 36)
     return target

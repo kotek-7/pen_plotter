@@ -781,11 +781,12 @@ def launch_human_feedback_ui(
     responses_json: Path | None = None,
     summary_json: Path | None = None,
     reviewer_id: str = "",
+    target_count: int | None = None,
 ) -> None:
     base_dir = root or (packet_json.parent if packet_json is not None else Path.cwd())
     responses_path = responses_json or (base_dir / "human_review_responses.json")
     summary_path = summary_json or (base_dir / "human_review_response_summary.json")
-    packet = load_feedback_packet(root=root, packet_json=packet_json)
+    packet = load_feedback_packet(root=root, packet_json=packet_json, target_count=target_count)
     drafts = load_response_drafts(
         packet=packet,
         responses_json=responses_path if responses_path.exists() else None,

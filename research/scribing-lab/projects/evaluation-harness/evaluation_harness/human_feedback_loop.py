@@ -90,8 +90,9 @@ def build_human_feedback_loop(
     *,
     responses_data: Any | None = None,
     reviewer_id: str = "",
+    target_count: int | None = None,
 ) -> dict[str, Any]:
-    packet = build_human_review_packet(records)
+    packet = build_human_review_packet(records, target_count=target_count)
     template = build_human_review_response_template(packet, reviewer_id=reviewer_id)
     response_summary = None
     calibration_summary = None

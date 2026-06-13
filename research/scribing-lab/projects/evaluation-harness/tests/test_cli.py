@@ -93,6 +93,23 @@ def test_human_feedback_ui_parser_accepts_packet_or_root() -> None:
     assert args.responses_json == "runs/test/human_review_responses.json"
     assert args.summary_json == "runs/test/human_review_response_summary.json"
     assert args.reviewer_id == "reviewer-1"
+    assert args.target_count is None
+
+
+def test_human_feedback_ui_parser_accepts_target_count() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--target-count",
+            "72",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.target_count == 72
 
 
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
@@ -112,6 +129,71 @@ def test_preview_review_packet_parser_accepts_output_paths() -> None:
     assert args.root == "runs/test"
     assert args.output == "preview.md"
     assert args.json_output == "preview.json"
+    assert args.target_count is None
+
+
+def test_preview_review_packet_parser_accepts_target_count() -> None:
+    args = build_parser().parse_args(
+        [
+            "preview-review-packet",
+            "--root",
+            "runs/test",
+            "--target-count",
+            "48",
+            "--output",
+            "preview.md",
+            "--json-output",
+            "preview.json",
+        ]
+    )
+
+    assert args.command == "preview-review-packet"
+    assert args.root == "runs/test"
+    assert args.target_count == 48
+
+
+def test_human_review_packet_parser_accepts_target_count() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-review-packet",
+            "--root",
+            "runs/test",
+            "--target-count",
+            "72",
+            "--output",
+            "review.md",
+            "--json-output",
+            "review.json",
+        ]
+    )
+
+    assert args.command == "human-review-packet"
+    assert args.root == "runs/test"
+    assert args.target_count == 72
+    assert args.output == "review.md"
+    assert args.json_output == "review.json"
+
+
+def test_human_feedback_loop_parser_accepts_target_count() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-loop",
+            "--root",
+            "runs/test",
+            "--target-count",
+            "60",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-loop"
+    assert args.root == "runs/test"
+    assert args.target_count == 60
+    assert args.output == "loop.md"
+    assert args.json_output == "loop.json"
 
 
 def test_human_abx_packet_parser_accepts_input_set_and_output_paths() -> None:
@@ -1867,6 +1949,110 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
     assert "Human Review Packet" in markdown
     assert "representative_count" in markdown
     assert '"representative_count": 1' in json_text
+
+
+def test_human_review_packet_command_supports_large_target_count(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for index in range(40):
+        registry.append(
+            _record(
+                experiment_id=f"exp-{index:02d}",
+                input_text="永",
+                seed=index,
+                generator="structure-motion",
+                metrics={
+                    "draw_speed_cv": 0.2 + index * 0.01,
+                    "mean_abs_jerk_mm_s3": 1000.0 + index * 10.0,
+                    "baseline_drift_mm": 0.2,
+                    "shape_variation_mm": 0.64,
+                    "layout_variation_mm": 0.96,
+                    "gcode_safety_ok": 1,
+                    "gcode_safety_violation_count": 0,
+                },
+            )
+        )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-review-packet",
+            "--root",
+            str(root),
+            "--target-count",
+            "32",
+            "--output",
+            "review.md",
+            "--json-output",
+            "review.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "review.md").read_text(encoding="utf-8")
+    json_text = (root / "review.json").read_text(encoding="utf-8")
+
+    assert "Human Review Packet" in markdown
+    assert "representative_count: `32`" in markdown
+    assert '"representative_count": 32' in json_text
+
+
+def test_human_feedback_loop_command_supports_large_target_count(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for index in range(40):
+        registry.append(
+            _record(
+                experiment_id=f"exp-{index:02d}",
+                input_text="永",
+                seed=index,
+                generator="structure-motion",
+                metrics={
+                    "draw_speed_cv": 0.2 + index * 0.01,
+                    "mean_abs_jerk_mm_s3": 1000.0 + index * 10.0,
+                    "baseline_drift_mm": 0.2,
+                    "shape_variation_mm": 0.64,
+                    "layout_variation_mm": 0.96,
+                    "gcode_safety_ok": 1,
+                    "gcode_safety_violation_count": 0,
+                },
+            )
+        )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-loop",
+            "--root",
+            str(root),
+            "--target-count",
+            "32",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "loop.md").read_text(encoding="utf-8")
+    json_text = (root / "loop.json").read_text(encoding="utf-8")
+
+    assert "Human Feedback Loop" in markdown
+    assert "representative_count: `32`" in markdown
+    assert '"representative_count": 32' in json_text
 
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:

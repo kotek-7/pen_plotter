@@ -51,10 +51,12 @@
 2. 実験設定を registry に登録する。
 3. generator/exporter を実行する。
 4. preview、trajectory、G-code、ログ、必要に応じて実機スキャンを artifact store に保存する。
-5. metric runner を実行する。
-6. failure tags を付与する。
-7. 実験レポートを生成する。
-8. 次に試す最小変更を提案する。
+5. 人間レビュー用の大きめの sample book を作り、`human-feedback-ui` で確認する。
+6. human response を保存して summary / calibration / agreement を更新する。
+7. 必要に応じて preview / ABX で候補を絞り込む。
+8. 実験レポートを生成し、次に試す最小変更を提案する。
+
+preview / ABX は人間レビューの前段で候補を整理する補助であり、最終判断は human review に置く。
 
 評価基盤を前提に、motion-synthesis や neural-variation の本格実装を進める。
 また、レポートが次の `next_action` を 1 つ返せないなら、その実験は完了扱いにしない。
@@ -121,9 +123,10 @@
 
 同一 profile と異 profile の区別を評価する。
 
-### Experiment 5: preview-centric review loop
+### Experiment 5: human-centric review loop
 
 生成 preview を主評価として人間レビューへ回し、必要時のみ実機監査を追加する。
+大きめの sample book を定期的に出力し、`human-feedback-ui` で連続レビューする。
 
 評価:
 
@@ -131,20 +134,24 @@
 - preview path、G-code、安全性、profile が metadata として残る。
 - `preview-shape-odd` と `plotter-line-quality-bad` を failure tags として記録できる。
 - Qt ベースの人間レビュー UI から response を入力し、summary を保存できる。
+- review bundle の代表数を任意に増やせる。
 
-### Experiment 6: preview recommendation loop
+### Experiment 6: human-guided recommendation loop
 
 preview 差分と failure tag から、各 input / seed で次に採る候補と改版案を選ぶ。
+ここで得た候補は人間レビューに持ち込み、主観判断を受ける前段として使う。
 
 評価:
 
 - 各 group に selected candidate が 1 つ決まる。
 - selected candidate から next action が自動生成される。
 - selected candidate の profile / layout / motion / dictionary のどこを直すかが説明できる。
+- human review へ流す候補数を絞れる。
 
 ### Experiment 7: revision plan export
 
 preview から選定した候補について、次実験で変えるべき parameter と再生成ヒントを出力する。
+人間のコメントを受けた後に、再生成ヒントを更新できる。
 
 評価:
 
@@ -155,6 +162,7 @@ preview から選定した候補について、次実験で変えるべき param
 ### Experiment 8: preview iteration loop
 
 preview 比較、候補選定、改版提案を 1 ラウンドに束ね、次の実験へそのまま渡せる形にする。
+human review のコメントを反映して、ラウンドの入口を更新する。
 
 評価:
 
