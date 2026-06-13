@@ -268,6 +268,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._preview_plan_button.clicked.connect(self._refresh_preview_plan)
         layout.addWidget(self._preview_plan_button, 0, Qt.AlignVCenter)
 
+        self._bundle_button = QPushButton("Export Review Bundle", header)
+        self._bundle_button.clicked.connect(self._export_review_bundle)
+        layout.addWidget(self._bundle_button, 0, Qt.AlignVCenter)
+
         self._preview_run_button = QPushButton("Export Preview Run", header)
         self._preview_run_button.clicked.connect(self._export_preview_revision_run)
         layout.addWidget(self._preview_run_button, 0, Qt.AlignVCenter)
@@ -924,6 +928,34 @@ class HumanFeedbackQtWindow(QMainWindow):
             f"Saved responses to {output_path} and summary to {summary_path}",
         )
 
+    def _export_review_bundle(self) -> None:
+        self._capture_current_draft()
+        summary = validate_response_drafts(self._packet, self._drafts)
+        if summary["validation_errors"]:
+            QMessageBox.warning(
+                self,
+                "Human Feedback Loop",
+                "Review bundle requires valid responses. Fix validation errors before exporting.",
+            )
+            return
+
+        responses = self._write_responses_and_summary(summary)
+        brief = self._write_revision_brief()
+        plan = self._write_revision_plan()
+        preview_payload = self._current_preview_revision_run(summary=summary)
+        preview_run = self._write_preview_revision_run(preview_payload)
+
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            "Saved review bundle:\n"
+            f"- responses: {responses['responses']}\n"
+            f"- summary: {responses['summary']}\n"
+            f"- brief: {brief['markdown']}\n"
+            f"- plan: {plan['markdown']}\n"
+            f"- preview run: {preview_run['markdown']}",
+        )
+
     def _export_revision_brief(self) -> None:
         self._write_revision_brief()
         self._write_revision_plan()
@@ -955,6 +987,56 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._write_revision_brief()
         self._write_revision_plan()
         payload = self._current_preview_revision_run(summary=summary)
+        self._write_preview_revision_run(payload)
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved preview revision run to {self._preview_run_markdown_path or self._default_preview_run_markdown_path()}",
+        )
+
+    def _write_responses_and_summary(self, summary: dict[str, Any]) -> dict[str, Path]:
+        output_path = self._responses_json_path or Path("human_review_responses.json")
+        summary_path = self._summary_json_path or output_path.with_name("human_review_response_summary.json")
+        response_payload = serialize_response_drafts(self._drafts)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(response_payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
+        summary_path.write_text(
+            json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"responses": output_path, "summary": summary_path}
+
+    def _write_revision_brief(self) -> dict[str, Path]:
+        brief = self._current_revision_brief()
+        markdown_path = self._brief_markdown_path or self._default_brief_markdown_path()
+        json_path = self._brief_json_path or self._default_brief_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_human_review_revision_brief_markdown(brief), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(brief, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _write_revision_plan(self) -> dict[str, Path]:
+        plan = self._current_revision_plan()
+        markdown_path = self._plan_markdown_path or self._default_plan_markdown_path()
+        json_path = self._plan_json_path or self._default_plan_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_human_review_revision_plan_markdown(plan), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _write_preview_revision_run(self, payload: dict[str, Any]) -> dict[str, Path]:
         run = payload["preview_revision_run"]
         markdown_path = self._preview_run_markdown_path or self._default_preview_run_markdown_path()
         json_path = self._preview_run_json_path or self._default_preview_run_json_path()
@@ -976,35 +1058,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             + "\n",
             encoding="utf-8",
         )
-        QMessageBox.information(
-            self,
-            "Human Feedback Loop",
-            f"Saved preview revision run to {markdown_path}",
-        )
-
-    def _write_revision_brief(self) -> None:
-        brief = self._current_revision_brief()
-        markdown_path = self._brief_markdown_path or self._default_brief_markdown_path()
-        json_path = self._brief_json_path or self._default_brief_json_path()
-        markdown_path.parent.mkdir(parents=True, exist_ok=True)
-        markdown_path.write_text(render_human_review_revision_brief_markdown(brief), encoding="utf-8")
-        json_path.parent.mkdir(parents=True, exist_ok=True)
-        json_path.write_text(
-            json.dumps(brief, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
-
-    def _write_revision_plan(self) -> None:
-        plan = self._current_revision_plan()
-        markdown_path = self._plan_markdown_path or self._default_plan_markdown_path()
-        json_path = self._plan_json_path or self._default_plan_json_path()
-        markdown_path.parent.mkdir(parents=True, exist_ok=True)
-        markdown_path.write_text(render_human_review_revision_plan_markdown(plan), encoding="utf-8")
-        json_path.parent.mkdir(parents=True, exist_ok=True)
-        json_path.write_text(
-            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
-            encoding="utf-8",
-        )
+        return {"markdown": markdown_path, "json": json_path}
 
     def _default_brief_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
