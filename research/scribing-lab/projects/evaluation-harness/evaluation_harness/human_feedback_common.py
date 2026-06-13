@@ -154,3 +154,19 @@ def build_common_failure_examples() -> list[str]:
         "よく見る欠陥: 「い」の形が崩れる。",
         "よく見る欠陥: 全体が機械的で均一すぎる。",
     ]
+
+
+def build_review_guide_lines() -> list[str]:
+    return [
+        "Review steps",
+        *build_review_instructions(),
+        "",
+        "Decision hints",
+        *build_decision_help(),
+        "",
+        *build_common_failure_examples(),
+    ]
+
+
+def render_review_guide_markdown() -> str:
+    return "\n".join(build_review_guide_lines()) + "\n"

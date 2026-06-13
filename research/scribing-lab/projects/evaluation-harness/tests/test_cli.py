@@ -2531,6 +2531,67 @@ def test_human_feedback_start_card_command_rejects_abx_packet(tmp_path: Path, mo
         main()
 
 
+def test_human_feedback_review_bundle_command_writes_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for index in range(3):
+        registry.append(
+            _record(
+                experiment_id=f"exp-{index:02d}",
+                input_text="長文の比較に十分な余白と字数を持たせるため、ここでは少しだけ冗長に書いています。",
+                seed=index,
+                generator="structure-motion",
+                profile_id="longform-first",
+                failure_tags=["too-font-like", "terminal-too-uniform"],
+                metrics={
+                    "draw_speed_cv": 0.15 + index * 0.01,
+                    "mean_abs_jerk_mm_s3": 1200.0 + index * 10.0,
+                    "baseline_drift_mm": 0.2,
+                    "shape_variation_mm": 0.64,
+                    "layout_variation_mm": 0.96,
+                    "gcode_safety_ok": 1,
+                    "gcode_safety_violation_count": 0,
+                },
+            )
+        )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-review-bundle",
+            "--root",
+            str(root),
+            "--target-count",
+            "3",
+            "--sort-order",
+            "longform-first",
+            "--output-dir",
+            "bundle",
+            "--output-prefix",
+            "longform_review",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    bundle_dir = root / "bundle"
+    packet_md = (bundle_dir / "longform_review_packet.md").read_text(encoding="utf-8")
+    start_card_md = (bundle_dir / "longform_review_start_card.md").read_text(encoding="utf-8")
+    guide_md = (bundle_dir / "longform_review_guide.md").read_text(encoding="utf-8")
+    guide_json = (bundle_dir / "longform_review_guide.json").read_text(encoding="utf-8")
+
+    assert "Human Review Packet" in packet_md
+    assert "Human Review Start Card" in start_card_md
+    assert "Review steps" in guide_md
+    assert '"packet_representative_count": 2' in guide_json
+    assert '"sort_order": "longform-first"' in (bundle_dir / "longform_review_start_card.json").read_text(encoding="utf-8")
+
+
 def test_human_feedback_loop_command_writes_revision_brief(
     tmp_path: Path, monkeypatch
 ) -> None:

@@ -35,12 +35,10 @@ from PySide6.QtWidgets import (
 
 from evaluation_harness.human_feedback_common import (
     HumanFeedbackDraft,
-    build_common_failure_examples,
-    build_decision_help,
-    build_review_instructions,
     choose_font_family,
     load_feedback_packet,
     load_response_drafts,
+    render_review_guide_markdown,
     serialize_response_drafts,
     validate_response_drafts,
 )
@@ -331,16 +329,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         dialog.exec()
 
     def _build_review_guide_text(self) -> str:
-        lines = [
-            "Review steps",
-            *build_review_instructions(),
-            "",
-            "Decision hints",
-            *build_decision_help(),
-            "",
-            *build_common_failure_examples(),
-        ]
-        return "\n".join(lines)
+        return render_review_guide_markdown()
 
     def _build_body(self) -> QWidget:
         body = QWidget(self)

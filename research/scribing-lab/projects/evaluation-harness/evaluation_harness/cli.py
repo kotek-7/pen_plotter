@@ -43,6 +43,7 @@ from evaluation_harness.human_feedback_common import (
     load_feedback_packet,
     load_response_drafts,
     validate_response_drafts,
+    render_review_guide_markdown,
 )
 from evaluation_harness.human_review import (
     build_human_review_packet,
@@ -438,6 +439,36 @@ def build_parser() -> argparse.ArgumentParser:
         default="default",
         help="Sort representative items and grouped inputs for review readability",
     )
+
+    human_feedback_bundle = sub.add_parser(
+        "human-feedback-review-bundle",
+        help="Create a human review packet, start card, and guide bundle",
+    )
+    bundle_target = human_feedback_bundle.add_mutually_exclusive_group(required=True)
+    bundle_target.add_argument("--root", help="Run output directory")
+    bundle_target.add_argument("--packet-json", help="Existing review packet or loop JSON")
+    human_feedback_bundle.add_argument("--responses-json", help="Existing human responses JSON")
+    human_feedback_bundle.add_argument("--reviewer-id", default="")
+    human_feedback_bundle.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
+    human_feedback_bundle.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
+    )
+    human_feedback_bundle.add_argument("--output-dir", default="")
+    human_feedback_bundle.add_argument("--output-prefix", default="human_review")
+    human_feedback_bundle.add_argument("--packet-output-json", default="human_review_packet.json")
+    human_feedback_bundle.add_argument("--packet-output-markdown", default="human_review_packet.md")
+    human_feedback_bundle.add_argument("--start-card-json", default="human_review_start_card.json")
+    human_feedback_bundle.add_argument("--start-card-markdown", default="human_review_start_card.md")
+    human_feedback_bundle.add_argument("--guide-json", default="human_review_guide.json")
+    human_feedback_bundle.add_argument("--guide-markdown", default="human_review_guide.md")
 
     human_feedback_start_card = sub.add_parser(
         "human-feedback-start-card",
@@ -1208,6 +1239,68 @@ def main() -> None:
             target_count=args.target_count,
             sort_order=args.sort_order,
         )
+    elif args.command == "human-feedback-review-bundle":
+        root = Path(args.root) if args.root else None
+        packet_json = Path(args.packet_json) if args.packet_json else None
+        responses_json = Path(args.responses_json) if args.responses_json else None
+        if root is None and packet_json is None:
+            raise ValueError("--root or --packet-json is required")
+        base_dir = root or (packet_json.parent if packet_json is not None else Path.cwd())
+        packet = load_feedback_packet(
+            root=root,
+            packet_json=packet_json,
+            target_count=args.target_count,
+            sort_order=args.sort_order,
+        )
+        drafts = load_response_drafts(
+            packet=packet,
+            responses_json=responses_json if responses_json and responses_json.exists() else None,
+            reviewer_id=args.reviewer_id,
+        )
+        summary = validate_response_drafts(packet, drafts)
+        card = build_human_review_start_card(
+            packet,
+            summary,
+            sort_order=str(packet.get("sort_order", args.sort_order) or "default"),
+        )
+        bundle_dir = _resolve_output_path(base_dir, args.output_dir) if args.output_dir else base_dir
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+        prefix = args.output_prefix or "human_review"
+        packet_md_path = bundle_dir / f"{prefix}_packet.md"
+        packet_json_path = bundle_dir / f"{prefix}_packet.json"
+        card_md_path = bundle_dir / f"{prefix}_start_card.md"
+        card_json_path = bundle_dir / f"{prefix}_start_card.json"
+        guide_md_path = bundle_dir / f"{prefix}_guide.md"
+        guide_json_path = bundle_dir / f"{prefix}_guide.json"
+        packet_md_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")
+        packet_json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        card_md_path.write_text(render_human_review_start_card_markdown(card), encoding="utf-8")
+        card_json_path.write_text(
+            json.dumps(card, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        guide_md_path.write_text(render_review_guide_markdown(), encoding="utf-8")
+        guide_json_path.write_text(
+            json.dumps(
+                {
+                    "review_steps": render_review_guide_markdown().splitlines(),
+                    "start_card": card,
+                    "packet_representative_count": packet.get("representative_count", 0),
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"sort_order: {card['sort_order']}")
+        print(f"representative_count: {card['representative_count']}")
+        print(f"bundle_dir: {bundle_dir}")
+        print(f"bundle_prefix: {prefix}")
     elif args.command == "human-feedback-start-card":
         root = Path(args.root) if args.root else None
         packet_json = Path(args.packet_json) if args.packet_json else None
