@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 from dataclasses import replace
 from pathlib import Path
@@ -35,7 +36,23 @@ BASELINE_PROFILE = get_profile(BASELINE_PROFILE_ID)
 
 
 def resolve_writer_profile(profile_id: str) -> WriterProfile:
-    return get_profile(profile_id)
+    try:
+        return get_profile(profile_id)
+    except Exception as exc:
+        alias = _canonical_profile_id(profile_id)
+        if alias != profile_id:
+            try:
+                return get_profile(alias)
+            except Exception:
+                pass
+        raise
+
+
+def _canonical_profile_id(profile_id: str) -> str:
+    match = re.match(r"^(?P<base>.+?)-abx-\d{3}(?:-r\d{3})?$", profile_id)
+    if match:
+        return match.group("base")
+    return profile_id
 
 
 def writer_profile_metrics(profile: WriterProfile) -> dict[str, float | int | str]:

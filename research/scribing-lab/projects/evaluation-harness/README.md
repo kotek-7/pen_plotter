@@ -215,11 +215,15 @@ packet と responses を渡すと、choice 集計、Bradley-Terry、次アクシ
 ABX feedback loop から preview 修正案へ戻す場合は `abx-revision-plan` を使う。
 feedback loop JSON を渡すか、packet JSON と responses JSON を渡すと、代表 item ごとの
 proposed_changes と次の実験ヒントをまとめる。
+`--recommendation-json` と `--focus-areas layout,motion` を使うと、packet を挟まずに
+focused な revision plan を作れる。
 
 `abx-revision-run` は、ABX revision plan をそのまま実行して、選ばれた候補を
 修正版 profile で再生成する。`feedback-loop-json` を渡すか、`packet-json` と
 `responses-json` を渡して、同じ流れで preview 再実行まで進められる。
 実行結果には `rerun_count` と `preview_changed_count` が出る。
+`--recommendation-json` と `--focus-areas layout,motion` を使うと、focused な packet
+から直接 rerun まで進められる。
 
 ```sh
 python3 -m evaluation_harness human-feedback-ui \

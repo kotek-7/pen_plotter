@@ -92,6 +92,12 @@ def test_run_structure_motion_batch_writes_summary(tmp_path: Path) -> None:
     assert "layout_variation_mm" in summary
 
 
+def test_resolve_writer_profile_falls_back_from_abx_alias() -> None:
+    profile = resolve_writer_profile("textured-casual-abx-001")
+
+    assert profile.profile_id == "textured-casual"
+
+
 def test_run_structure_motion_records_shape_variation_metrics(tmp_path: Path) -> None:
     root = tmp_path / "runs"
 

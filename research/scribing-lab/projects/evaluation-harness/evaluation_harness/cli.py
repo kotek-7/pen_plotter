@@ -439,7 +439,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     abx_revision.add_argument("--feedback-loop-json", default="")
     abx_revision.add_argument("--packet-json", default="")
+    abx_revision.add_argument("--recommendation-json", default="")
     abx_revision.add_argument("--responses-json", default="")
+    abx_revision.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep when building a packet from recommendation JSON",
+    )
     abx_revision.add_argument("--max-items", type=int, default=36)
     abx_revision.add_argument("--evaluator-id", default="")
     abx_revision.add_argument("--output", default="abx_revision_plan.md")
@@ -452,7 +458,13 @@ def build_parser() -> argparse.ArgumentParser:
     abx_run.add_argument("--root", required=True, help="Run output directory")
     abx_run.add_argument("--feedback-loop-json", default="")
     abx_run.add_argument("--packet-json", default="")
+    abx_run.add_argument("--recommendation-json", default="")
     abx_run.add_argument("--responses-json", default="")
+    abx_run.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep when building a packet from recommendation JSON",
+    )
     abx_run.add_argument("--max-items", type=int, default=36)
     abx_run.add_argument("--evaluator-id", default="")
     abx_run.add_argument("--output", default="abx_revision_run.md")
@@ -1063,12 +1075,8 @@ def main() -> None:
         if args.feedback_loop_json:
             feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
         else:
-            if not args.packet_json:
-                raise ValueError("--packet-json is required when --feedback-loop-json is not set")
-            packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
-            responses_data = None
-            if args.responses_json:
-                responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+            packet = _load_abx_packet_from_args(args)
+            responses_data = _load_json_if_present(args.responses_json)
             feedback_loop = build_human_abx_feedback_loop(
                 packet,
                 responses_data=responses_data,
@@ -1096,12 +1104,8 @@ def main() -> None:
         if args.feedback_loop_json:
             feedback_loop = json.loads(Path(args.feedback_loop_json).read_text(encoding="utf-8"))
         else:
-            if not args.packet_json:
-                raise ValueError("--packet-json is required when --feedback-loop-json is not set")
-            packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
-            responses_data = None
-            if args.responses_json:
-                responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+            packet = _load_abx_packet_from_args(args)
+            responses_data = _load_json_if_present(args.responses_json)
             feedback_loop = build_human_abx_feedback_loop(
                 packet,
                 responses_data=responses_data,
@@ -1283,6 +1287,26 @@ def _parse_seeds(raw: str) -> list[int]:
 
 def _parse_csv(raw: str) -> list[str]:
     return [part.strip() for part in raw.split(",") if part.strip()]
+
+
+def _load_json_if_present(path: str) -> dict[str, object] | None:
+    if not path:
+        return None
+    return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _load_abx_packet_from_args(args: argparse.Namespace) -> dict[str, object]:
+    focus_areas = tuple(_parse_csv(getattr(args, "focus_areas", "")))
+    if getattr(args, "recommendation_json", ""):
+        recommendation = json.loads(Path(args.recommendation_json).read_text(encoding="utf-8"))
+        return build_human_abx_packet(
+            recommendation=recommendation,
+            focus_areas=focus_areas,
+            max_items=getattr(args, "max_items", None) or None,
+        )
+    if not getattr(args, "packet_json", ""):
+        raise ValueError("--packet-json or --recommendation-json is required")
+    return json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
 
 
 def _abx_item_from_packet(item: dict[str, object]) -> AbxItem:

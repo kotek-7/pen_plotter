@@ -327,6 +327,32 @@ def test_abx_revision_plan_parser_accepts_packet_and_responses_paths() -> None:
     assert args.json_output == "revision.json"
 
 
+def test_abx_revision_plan_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-revision-plan",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout,motion",
+            "--max-items",
+            "18",
+            "--evaluator-id",
+            "eval-1",
+            "--output",
+            "revision.md",
+            "--json-output",
+            "revision.json",
+        ]
+    )
+
+    assert args.command == "abx-revision-plan"
+    assert args.feedback_loop_json == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 18
+
+
 def test_abx_revision_run_parser_accepts_packet_and_responses_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -356,6 +382,35 @@ def test_abx_revision_run_parser_accepts_packet_and_responses_paths() -> None:
     assert args.evaluator_id == "eval-1"
     assert args.output == "run.md"
     assert args.json_output == "run.json"
+
+
+def test_abx_revision_run_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-revision-run",
+            "--root",
+            "runs/test",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout,motion",
+            "--max-items",
+            "18",
+            "--evaluator-id",
+            "eval-1",
+            "--output",
+            "run.md",
+            "--json-output",
+            "run.json",
+        ]
+    )
+
+    assert args.command == "abx-revision-run"
+    assert args.root == "runs/test"
+    assert args.packet_json == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 18
 
 
 def test_validate_human_review_parser_accepts_response_paths() -> None:
