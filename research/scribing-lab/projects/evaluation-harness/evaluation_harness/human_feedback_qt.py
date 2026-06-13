@@ -47,7 +47,9 @@ from evaluation_harness.human_feedback_common import (
 from evaluation_harness.human_feedback_loop import ALLOWED_REASON_TAGS
 from evaluation_harness.human_review_response import (
     build_human_review_revision_brief,
+    build_human_review_revision_plan,
     render_human_review_revision_brief_markdown,
+    render_human_review_revision_plan_markdown,
 )
 from evaluation_harness.taxonomy import describe_failure_tag, failure_tag_group
 
@@ -144,6 +146,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         summary_json_path: Path | None = None,
         brief_json_path: Path | None = None,
         brief_markdown_path: Path | None = None,
+        plan_json_path: Path | None = None,
+        plan_markdown_path: Path | None = None,
         base_dir: Path | None = None,
     ) -> None:
         super().__init__()
@@ -154,6 +158,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._summary_json_path = summary_json_path
         self._brief_json_path = brief_json_path
         self._brief_markdown_path = brief_markdown_path
+        self._plan_json_path = plan_json_path
+        self._plan_markdown_path = plan_markdown_path
         self._base_dir = base_dir or Path.cwd()
         self._current_experiment_id = self._first_experiment_id()
         self._preview_pixmap: QPixmap | None = None
@@ -240,6 +246,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._brief_button = QPushButton("Export Brief", header)
         self._brief_button.clicked.connect(self._export_revision_brief)
         layout.addWidget(self._brief_button, 0, Qt.AlignVCenter)
+
+        self._plan_button = QPushButton("Export Plan", header)
+        self._plan_button.clicked.connect(self._export_revision_plan)
+        layout.addWidget(self._plan_button, 0, Qt.AlignVCenter)
 
         self._refresh_button = QPushButton("Refresh Summary", header)
         self._refresh_button.clicked.connect(self._refresh_summary)
@@ -390,6 +400,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         tabs.addTab(self._build_review_box(), "Review")
         tabs.addTab(self._build_notes_box(), "Notes")
         tabs.addTab(self._build_brief_box(), "Brief")
+        tabs.addTab(self._build_plan_box(), "Plan")
         return tabs
 
     def _build_review_box(self) -> QWidget:
@@ -478,6 +489,17 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._brief_text.setReadOnly(True)
         self._brief_text.setFont(self._body_font)
         layout.addWidget(self._brief_text)
+        return group
+
+    def _build_plan_box(self) -> QGroupBox:
+        group = QGroupBox("Revision Plan", self)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self._plan_text = QPlainTextEdit(group)
+        self._plan_text.setReadOnly(True)
+        self._plan_text.setFont(self._body_font)
+        layout.addWidget(self._plan_text)
         return group
 
     def _first_experiment_id(self) -> str:
@@ -600,9 +622,9 @@ class HumanFeedbackQtWindow(QMainWindow):
                 self._reason_tags_list.clearSelection()
                 selected = set(draft.reason_tags)
                 for index in range(self._reason_tags_list.count()):
-                    item = self._reason_tags_list.item(index)
-                    item_tag = str(item.data(Qt.ItemDataRole.UserRole) or item.text())
-                    item.setSelected(item_tag in selected)
+                    tag_item = self._reason_tags_list.item(index)
+                    item_tag = str(tag_item.data(Qt.ItemDataRole.UserRole) or tag_item.text())
+                    tag_item.setSelected(item_tag in selected)
             with QSignalBlocker(self._notes_text):
                 self._notes_text.setPlainText(draft.notes)
 
@@ -728,6 +750,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._capture_current_draft()
         self._refresh_summary()
         self._refresh_revision_brief()
+        self._refresh_revision_plan()
 
     def _apply_reviewer_id_to_all_drafts(self) -> None:
         reviewer_id = self._reviewer_edit.text().strip()
@@ -749,6 +772,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             self._refresh_summary()
         self._refresh_summary()
         self._refresh_revision_brief()
+        self._refresh_revision_plan()
 
     def _refresh_summary(self) -> None:
         self._capture_current_draft()
@@ -774,6 +798,16 @@ class HumanFeedbackQtWindow(QMainWindow):
             return
         brief = self._current_revision_brief()
         self._brief_text.setPlainText(render_human_review_revision_brief_markdown(brief))
+
+    def _current_revision_plan(self) -> dict[str, Any]:
+        brief = self._current_revision_brief()
+        return build_human_review_revision_plan(brief)
+
+    def _refresh_revision_plan(self) -> None:
+        if not hasattr(self, "_plan_text"):
+            return
+        plan = self._current_revision_plan()
+        self._plan_text.setPlainText(render_human_review_revision_plan_markdown(plan))
 
     def _validate_current(self) -> None:
         self._refresh_summary()
@@ -812,6 +846,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             encoding="utf-8",
         )
         self._write_revision_brief()
+        self._write_revision_plan()
         QMessageBox.information(
             self,
             "Human Feedback Loop",
@@ -820,10 +855,19 @@ class HumanFeedbackQtWindow(QMainWindow):
 
     def _export_revision_brief(self) -> None:
         self._write_revision_brief()
+        self._write_revision_plan()
         QMessageBox.information(
             self,
             "Human Feedback Loop",
             f"Saved revision brief to {self._brief_markdown_path or self._default_brief_markdown_path()}",
+        )
+
+    def _export_revision_plan(self) -> None:
+        self._write_revision_plan()
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved revision plan to {self._plan_markdown_path or self._default_plan_markdown_path()}",
         )
 
     def _write_revision_brief(self) -> None:
@@ -838,6 +882,18 @@ class HumanFeedbackQtWindow(QMainWindow):
             encoding="utf-8",
         )
 
+    def _write_revision_plan(self) -> None:
+        plan = self._current_revision_plan()
+        markdown_path = self._plan_markdown_path or self._default_plan_markdown_path()
+        json_path = self._plan_json_path or self._default_plan_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_human_review_revision_plan_markdown(plan), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
     def _default_brief_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_revision_brief.md")
@@ -848,6 +904,16 @@ class HumanFeedbackQtWindow(QMainWindow):
             return self._responses_json_path.with_name("human_review_revision_brief.json")
         return Path("human_review_revision_brief.json")
 
+    def _default_plan_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_revision_plan.md")
+        return Path("human_review_revision_plan.md")
+
+    def _default_plan_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_revision_plan.json")
+        return Path("human_review_revision_plan.json")
+
 
 def launch_human_feedback_ui(
     *,
@@ -857,6 +923,8 @@ def launch_human_feedback_ui(
     summary_json: Path | None = None,
     brief_json: Path | None = None,
     brief_markdown: Path | None = None,
+    plan_json: Path | None = None,
+    plan_markdown: Path | None = None,
     reviewer_id: str = "",
     target_count: int | None = None,
 ) -> None:
@@ -865,6 +933,8 @@ def launch_human_feedback_ui(
     summary_path = summary_json or (base_dir / "human_review_response_summary.json")
     brief_json_path = brief_json or (base_dir / "human_review_revision_brief.json")
     brief_markdown_path = brief_markdown or (base_dir / "human_review_revision_brief.md")
+    plan_json_path = plan_json or (base_dir / "human_review_revision_plan.json")
+    plan_markdown_path = plan_markdown or (base_dir / "human_review_revision_plan.md")
     packet = load_feedback_packet(root=root, packet_json=packet_json, target_count=target_count)
     drafts = load_response_drafts(
         packet=packet,
@@ -883,6 +953,8 @@ def launch_human_feedback_ui(
         summary_json_path=summary_path,
         brief_json_path=brief_json_path,
         brief_markdown_path=brief_markdown_path,
+        plan_json_path=plan_json_path,
+        plan_markdown_path=plan_markdown_path,
         base_dir=base_dir,
     )
     window.show()

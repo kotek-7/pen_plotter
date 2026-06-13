@@ -143,6 +143,59 @@ def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]
     }
 
 
+def build_human_review_revision_plan(brief: dict[str, Any]) -> dict[str, Any]:
+    note_examples = brief.get("selected_note_examples", [])
+    note_texts = [
+        str(item.get("notes", "")).strip()
+        for item in note_examples
+        if str(item.get("notes", "")).strip()
+    ]
+    reason_tags = [str(tag) for tag in brief.get("top_reason_tags", []) if str(tag).strip()]
+    focus_area_counts: dict[str, int] = {}
+    proposed_changes: list[dict[str, Any]] = []
+    for tag in reason_tags:
+        area = _revision_focus_area_from_tag(tag)
+        focus_area_counts[area] = focus_area_counts.get(area, 0) + 1
+        proposed_changes.extend(_revision_changes_for_tag(tag))
+
+    for note in note_texts:
+        area = _revision_focus_area_from_note(note)
+        if area:
+            focus_area_counts[area] = focus_area_counts.get(area, 0) + 1
+
+    if not focus_area_counts:
+        focus_area_counts["preview"] = 1
+
+    dominant_focus_area = sorted(
+        focus_area_counts.items(),
+        key=lambda item: (-item[1], item[0]),
+    )[0][0]
+    next_experiment_hint = _revision_next_experiment_hint(dominant_focus_area, reason_tags)
+    if not proposed_changes:
+        proposed_changes = [
+            {
+                "target": dominant_focus_area,
+                "parameter": "profile_id",
+                "direction": "keep-compare",
+                "amount_hint": None,
+                "reason": "明確な reason tag がないため、同条件で別 profile を比較する",
+            }
+        ]
+
+    return {
+        "plan_status": "ready" if focus_area_counts else "empty",
+        "brief_status": str(brief.get("brief_status", "empty")),
+        "note_count": int(brief.get("note_count", 0)),
+        "focus_area_counts": dict(sorted(focus_area_counts.items())),
+        "dominant_focus_area": dominant_focus_area,
+        "top_reason_tags": reason_tags,
+        "primary_notes": list(brief.get("primary_notes", [])),
+        "note_examples": note_examples[:8],
+        "proposed_changes": proposed_changes,
+        "next_experiment_hint": next_experiment_hint,
+    }
+
+
 def summarize_human_review_calibration(
     packet: dict[str, Any],
     responses: list[HumanReviewResponse],
@@ -427,3 +480,180 @@ def render_human_review_revision_brief_markdown(brief: dict[str, Any]) -> str:
             )
             lines.append(f"  - notes: {note['notes']}")
     return "\n".join(lines) + "\n"
+
+
+def render_human_review_revision_plan_markdown(plan: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Revision Plan",
+        "",
+        f"- plan_status: `{plan['plan_status']}`",
+        f"- brief_status: `{plan['brief_status']}`",
+        f"- note_count: `{plan['note_count']}`",
+        f"- dominant_focus_area: `{plan['dominant_focus_area']}`",
+        f"- focus_area_counts: `{plan['focus_area_counts']}`",
+        f"- next_experiment_hint: `{plan['next_experiment_hint']}`",
+        "",
+        "## Proposed Changes",
+        "",
+    ]
+    if not plan["proposed_changes"]:
+        lines.append("- none")
+    else:
+        for change in plan["proposed_changes"]:
+            lines.append(
+                "- "
+                f"target=`{change['target']}` "
+                f"parameter=`{change['parameter']}` "
+                f"direction=`{change['direction']}` "
+                f"amount_hint=`{change['amount_hint']}` "
+                f"reason=`{change['reason']}`"
+            )
+    lines.extend(["", "## Notes", ""])
+    if not plan["primary_notes"]:
+        lines.append("- none")
+    else:
+        for note in plan["primary_notes"]:
+            lines.append(f"- {note}")
+    return "\n".join(lines) + "\n"
+
+
+def _revision_focus_area_from_tag(tag: str) -> str:
+    tag = tag.strip()
+    if tag in {"plotter-unsafe"}:
+        return "safety"
+    if tag in {"too-font-like", "skeleton-too-rigid", "repeated-char-too-identical"}:
+        return "dictionary"
+    if tag in {"too-uniform", "over-jittered"}:
+        return "motion"
+    if tag in {"line-too-mechanical", "spacing-too-wide", "spacing-unnatural"}:
+        return "layout"
+    if tag in {"terminal-too-uniform"}:
+        return "terminal"
+    return "preview"
+
+
+def _revision_focus_area_from_note(note: str) -> str:
+    lowered = note.lower()
+    if any(token in lowered for token in ("安全", "unsafe", "danger")):
+        return "safety"
+    if any(token in lowered for token in ("字間", "間隔", "行間", "layout", "spacing", "余白")):
+        return "layout"
+    if any(token in lowered for token in ("揺れ", "速度", "等速", "jitter", "motion", "機械的", "終筆")):
+        return "motion"
+    if any(token in lowered for token in ("字形", "形", "崩れ", "フォント", "骨格", "dictionary")):
+        return "dictionary"
+    if any(token in lowered for token in ("終端", "払い", "はね", "とめ", "terminal")):
+        return "terminal"
+    if any(token in lowered for token in ("preview", "見た目", "印象", "見え")):
+        return "preview"
+    return ""
+
+
+def _revision_changes_for_tag(tag: str) -> list[dict[str, Any]]:
+    change_map = {
+        "too-uniform": [
+            {
+                "target": "motion",
+                "parameter": "timing_jitter_cv",
+                "direction": "increase",
+                "amount_hint": 0.03,
+                "reason": "等速感を減らし、速度ピークを作る",
+            }
+        ],
+        "over-jittered": [
+            {
+                "target": "motion",
+                "parameter": "timing_jitter_cv",
+                "direction": "decrease",
+                "amount_hint": 0.03,
+                "reason": "揺れが強すぎるので運動を落ち着かせる",
+            }
+        ],
+        "line-too-mechanical": [
+            {
+                "target": "layout",
+                "parameter": "baseline_drift_mm",
+                "direction": "increase",
+                "amount_hint": 0.4,
+                "reason": "行方向の機械的整列を崩す",
+            }
+        ],
+        "spacing-unnatural": [
+            {
+                "target": "layout",
+                "parameter": "spacing_mean_mm",
+                "direction": "increase",
+                "amount_hint": 0.15,
+                "reason": "字間をわずかに広げる",
+            }
+        ],
+        "spacing-too-wide": [
+            {
+                "target": "layout",
+                "parameter": "spacing_mean_mm",
+                "direction": "decrease",
+                "amount_hint": 0.15,
+                "reason": "字間を詰めて広がりすぎを抑える",
+            }
+        ],
+        "skeleton-too-rigid": [
+            {
+                "target": "dictionary",
+                "parameter": "shape_variation",
+                "direction": "increase",
+                "amount_hint": 0.02,
+                "reason": "字形の剛直さを和らげる",
+            }
+        ],
+        "repeated-char-too-identical": [
+            {
+                "target": "dictionary",
+                "parameter": "shape_variation",
+                "direction": "increase",
+                "amount_hint": 0.02,
+                "reason": "同一文字の見え方の差を増やす",
+            }
+        ],
+        "terminal-too-uniform": [
+            {
+                "target": "profile",
+                "parameter": "terminal_gains",
+                "direction": "increase-contrast",
+                "amount_hint": 0.1,
+                "reason": "払い、はね、とめの終端差を強める",
+            }
+        ],
+        "too-font-like": [
+            {
+                "target": "profile",
+                "parameter": "slant_deg",
+                "direction": "adjust",
+                "amount_hint": 2.0,
+                "reason": "字体から離して筆者寄りに寄せる",
+            }
+        ],
+        "plotter-unsafe": [
+            {
+                "target": "safety",
+                "parameter": "gcode_safety",
+                "direction": "fix",
+                "amount_hint": None,
+                "reason": "安全性違反を解消してから再比較する",
+            }
+        ],
+    }
+    return list(change_map.get(tag, []))
+
+
+def _revision_next_experiment_hint(focus_area: str, tags: list[str]) -> str:
+    if "plotter-unsafe" in tags:
+        return "G-code safety を直してから同じ input / seed で再評価する"
+    if focus_area == "motion":
+        return "同じ input / seed で motion profile を上げて再生成する"
+    if focus_area == "layout":
+        return "同じ input / seed で layout spacing と baseline drift を調整する"
+    if focus_area == "dictionary":
+        return "同じ input / seed で dictionary の shape variation を増やして再生成する"
+    if focus_area == "profile":
+        return "同じ input / seed で別 profile を適用して再生成する"
+    return "同じ input / seed で preview 比較を継続する"

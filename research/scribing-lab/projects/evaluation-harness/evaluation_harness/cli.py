@@ -70,9 +70,11 @@ from evaluation_harness.abx import (
 )
 from evaluation_harness.human_review_response import (
     build_human_review_revision_brief,
+    build_human_review_revision_plan,
     load_human_review_responses,
     render_human_review_response_markdown,
     render_human_review_revision_brief_markdown,
+    render_human_review_revision_plan_markdown,
     summarize_human_review_responses,
 )
 from evaluation_harness.metrics import compute_trajectory_metrics
@@ -387,6 +389,8 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_ui.add_argument("--summary-json", help="Human review summary output path")
     human_feedback_ui.add_argument("--brief-json", help="Human review revision brief JSON output path")
     human_feedback_ui.add_argument("--brief-markdown", help="Human review revision brief markdown output path")
+    human_feedback_ui.add_argument("--plan-json", help="Human review revision plan JSON output path")
+    human_feedback_ui.add_argument("--plan-markdown", help="Human review revision plan markdown output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
     human_feedback_ui.add_argument(
         "--target-count",
@@ -394,6 +398,15 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Target number of representative items to include in the packet",
     )
+
+    human_feedback_plan = sub.add_parser(
+        "human-feedback-revision-plan",
+        help="Generate a preview revision plan from a human feedback brief",
+    )
+    human_feedback_plan.add_argument("--brief-json", help="Human review revision brief JSON")
+    human_feedback_plan.add_argument("--loop-json", help="Human feedback loop JSON")
+    human_feedback_plan.add_argument("--output", default="human_review_revision_plan.md")
+    human_feedback_plan.add_argument("--json-output", default="human_review_revision_plan.json")
 
     preview_review = sub.add_parser(
         "preview-review-packet",
@@ -1015,11 +1028,22 @@ def main() -> None:
             json.dumps(brief, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        plan = build_human_review_revision_plan(brief)
+        plan_md_path = root / "human_review_revision_plan.md"
+        plan_json_path = root / "human_review_revision_plan.json"
+        plan_md_path.write_text(render_human_review_revision_plan_markdown(plan), encoding="utf-8")
+        plan_json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         if args.brief_only:
             print(f"brief_status: {brief['brief_status']}")
             print(f"note_count: {brief['note_count']}")
             print(f"brief_report: {brief_md_path}")
             print(f"brief_json: {brief_json_path}")
+            print(f"plan_status: {plan['plan_status']}")
+            print(f"plan_report: {plan_md_path}")
+            print(f"plan_json: {plan_json_path}")
         else:
             print(f"loop_status: {loop['loop_status']}")
             print(f"representative_count: {loop['packet']['representative_count']}")
@@ -1028,6 +1052,8 @@ def main() -> None:
             print(f"json: {json_path}")
             print(f"brief_report: {brief_md_path}")
             print(f"brief_json: {brief_json_path}")
+            print(f"plan_report: {plan_md_path}")
+            print(f"plan_json: {plan_json_path}")
     elif args.command == "human-feedback-ui":
         from evaluation_harness.human_feedback_qt import launch_human_feedback_ui
 
@@ -1037,6 +1063,8 @@ def main() -> None:
         summary_json = Path(args.summary_json) if args.summary_json else None
         brief_json = Path(args.brief_json) if args.brief_json else None
         brief_markdown = Path(args.brief_markdown) if args.brief_markdown else None
+        plan_json = Path(args.plan_json) if args.plan_json else None
+        plan_markdown = Path(args.plan_markdown) if args.plan_markdown else None
         launch_human_feedback_ui(
             root=root,
             packet_json=packet_json,
@@ -1044,9 +1072,42 @@ def main() -> None:
             summary_json=summary_json,
             brief_json=brief_json,
             brief_markdown=brief_markdown,
+            plan_json=plan_json,
+            plan_markdown=plan_markdown,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
         )
+    elif args.command == "human-feedback-revision-plan":
+        if args.loop_json:
+            loop = json.loads(Path(args.loop_json).read_text(encoding="utf-8"))
+            brief = loop.get("revision_brief")
+            if brief is None:
+                brief = build_human_review_revision_brief(
+                    loop.get(
+                        "response_summary",
+                        {"note_count": 0, "reason_tag_counts": {}, "note_examples": []},
+                    )
+                )
+        elif args.brief_json:
+            brief = json.loads(Path(args.brief_json).read_text(encoding="utf-8"))
+        else:
+            raise ValueError("--brief-json or --loop-json is required")
+        plan = build_human_review_revision_plan(brief)
+        if args.loop_json:
+            base_dir = Path(args.loop_json).parent
+        else:
+            base_dir = Path(args.brief_json).parent
+        output_path = _resolve_output_path(base_dir, args.output)
+        json_path = _resolve_output_path(base_dir, args.json_output)
+        output_path.write_text(render_human_review_revision_plan_markdown(plan), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"plan_status: {plan['plan_status']}")
+        print(f"dominant_focus_area: {plan['dominant_focus_area']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
     elif args.command == "preview-review-packet":
         root = Path(args.root)
         registry = ExperimentRegistry(root / "registry.jsonl")

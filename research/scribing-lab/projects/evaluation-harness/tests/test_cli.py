@@ -122,12 +122,37 @@ def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
             "runs/test/brief.json",
             "--brief-markdown",
             "runs/test/brief.md",
+            "--plan-json",
+            "runs/test/plan.json",
+            "--plan-markdown",
+            "runs/test/plan.md",
         ]
     )
 
     assert args.command == "human-feedback-ui"
     assert args.brief_json == "runs/test/brief.json"
     assert args.brief_markdown == "runs/test/brief.md"
+    assert args.plan_json == "runs/test/plan.json"
+    assert args.plan_markdown == "runs/test/plan.md"
+
+
+def test_human_feedback_revision_plan_parser_accepts_brief_and_loop_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-revision-plan",
+            "--brief-json",
+            "runs/test/brief.json",
+            "--output",
+            "plan.md",
+            "--json-output",
+            "plan.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-revision-plan"
+    assert args.brief_json == "runs/test/brief.json"
+    assert args.output == "plan.md"
+    assert args.json_output == "plan.json"
 
 
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
@@ -2147,10 +2172,70 @@ def test_human_feedback_loop_command_writes_revision_brief(
 
     brief_md = (root / "human_review_revision_brief.md").read_text(encoding="utf-8")
     brief_json = (root / "human_review_revision_brief.json").read_text(encoding="utf-8")
+    plan_md = (root / "human_review_revision_plan.md").read_text(encoding="utf-8")
+    plan_json = (root / "human_review_revision_plan.json").read_text(encoding="utf-8")
 
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
     assert '"brief_status": "ready"' in brief_json
+    assert "Human Review Revision Plan" in plan_md
+    assert '"plan_status": "ready"' in plan_json
+
+
+def test_human_feedback_revision_plan_command_writes_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    brief_path = tmp_path / "brief.json"
+    brief_path.write_text(
+        json.dumps(
+            {
+                "brief_status": "ready",
+                "note_count": 1,
+                "reason_tag_counts": {"spacing-too-wide": 1},
+                "primary_notes": ["字間が広い"],
+                "selected_note_examples": [
+                    {
+                        "experiment_id": "exp-a",
+                        "decision": "needs-tuning",
+                        "reason_tags": ["spacing-too-wide"],
+                        "notes": "字間が広い",
+                        "reviewer_id": "reviewer-1",
+                    }
+                ],
+                "top_reason_tags": ["spacing-too-wide"],
+                "focus_lines": ["notes の指摘をそのまま次回の修正に反映する"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-revision-plan",
+            "--brief-json",
+            str(brief_path),
+            "--output",
+            "plan.md",
+            "--json-output",
+            "plan.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    plan_md = (tmp_path / "plan.md").read_text(encoding="utf-8")
+    plan_json = (tmp_path / "plan.json").read_text(encoding="utf-8")
+
+    assert "Human Review Revision Plan" in plan_md
+    assert "字間が広い" in plan_md
+    assert '"plan_status": "ready"' in plan_json
 
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:

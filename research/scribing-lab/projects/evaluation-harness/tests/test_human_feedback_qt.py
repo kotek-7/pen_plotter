@@ -100,17 +100,22 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
-    assert window._detail_tabs.count() == 4
+    assert window._detail_tabs.count() == 5
     assert "Revision Brief" in window._brief_text.toPlainText()
+    assert "Revision Plan" in window._plan_text.toPlainText()
 
     window._export_revision_brief()
 
     brief_md = (tmp_path / "human_review_revision_brief.md").read_text(encoding="utf-8")
     brief_json = (tmp_path / "human_review_revision_brief.json").read_text(encoding="utf-8")
+    plan_md = (tmp_path / "human_review_revision_plan.md").read_text(encoding="utf-8")
+    plan_json = (tmp_path / "human_review_revision_plan.json").read_text(encoding="utf-8")
 
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
     assert '"brief_status": "ready"' in brief_json
+    assert "Human Review Revision Plan" in plan_md
+    assert '"plan_status": "ready"' in plan_json
 
 
 def test_qt_feedback_ui_defaults_to_zoomed_preview() -> None:
@@ -190,7 +195,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 4
+    assert window._detail_tabs.count() == 5
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820
