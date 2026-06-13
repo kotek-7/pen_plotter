@@ -1305,7 +1305,7 @@ def main() -> None:
             prompt_json=prompt_json if prompt_json.exists() else None,
             reviewer_id=args.reviewer_id,
             sort_order="longform-first",
-            initial_detail_tab="comparison-sheet",
+            initial_detail_tab="review-prompt",
         )
     elif args.command == "human-feedback-review-bundle":
         root = Path(args.root) if args.root else None

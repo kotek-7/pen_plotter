@@ -1468,8 +1468,13 @@ def launch_human_feedback_ui(
         target_count=target_count,
         sort_order=sort_order,
     )
-    if initial_detail_tab == "start-card" and packet_json is not None and root is not None and packet_json.name.endswith("_packet.json"):
-        initial_detail_tab = "comparison-sheet"
+    if (
+        initial_detail_tab == "start-card"
+        and packet_json is not None
+        and root is not None
+        and packet_json.name.endswith("_packet.json")
+    ):
+        initial_detail_tab = "review-prompt"
     sort_order = str(packet.get("sort_order", sort_order) or "default")
     drafts = load_response_drafts(
         packet=packet,
