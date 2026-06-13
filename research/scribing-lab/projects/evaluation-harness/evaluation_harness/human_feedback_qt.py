@@ -1109,6 +1109,8 @@ def launch_human_feedback_ui(
     brief_markdown: Path | None = None,
     plan_json: Path | None = None,
     plan_markdown: Path | None = None,
+    preview_run_json: Path | None = None,
+    preview_run_markdown: Path | None = None,
     reviewer_id: str = "",
     target_count: int | None = None,
 ) -> None:
@@ -1119,6 +1121,8 @@ def launch_human_feedback_ui(
     brief_markdown_path = brief_markdown or (base_dir / "human_review_revision_brief.md")
     plan_json_path = plan_json or (base_dir / "human_review_revision_plan.json")
     plan_markdown_path = plan_markdown or (base_dir / "human_review_revision_plan.md")
+    preview_run_json_path = preview_run_json or (base_dir / "human_review_preview_revision_run.json")
+    preview_run_markdown_path = preview_run_markdown or (base_dir / "human_review_preview_revision_run.md")
     packet = load_feedback_packet(root=root, packet_json=packet_json, target_count=target_count)
     drafts = load_response_drafts(
         packet=packet,
@@ -1139,6 +1143,8 @@ def launch_human_feedback_ui(
         brief_markdown_path=brief_markdown_path,
         plan_json_path=plan_json_path,
         plan_markdown_path=plan_markdown_path,
+        preview_run_json_path=preview_run_json_path,
+        preview_run_markdown_path=preview_run_markdown_path,
         base_dir=base_dir,
     )
     window.show()

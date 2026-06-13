@@ -270,6 +270,7 @@ python3 -m evaluation_harness human-feedback-ui \
 まとめて preview rerun まで出力できる。UI は Qt ベースなので、日本語と英字の表示品質が
 Tkinter 版より安定している。`Preview Run` タブでは、現在の brief から作った preview
 revision plan をその場で確認できる。
+起動時に保存先を明示したい場合は `--preview-run-json` と `--preview-run-markdown` を指定する。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。
 

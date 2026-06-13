@@ -397,6 +397,8 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_ui.add_argument("--brief-markdown", help="Human review revision brief markdown output path")
     human_feedback_ui.add_argument("--plan-json", help="Human review revision plan JSON output path")
     human_feedback_ui.add_argument("--plan-markdown", help="Human review revision plan markdown output path")
+    human_feedback_ui.add_argument("--preview-run-json", help="Human review preview revision run JSON output path")
+    human_feedback_ui.add_argument("--preview-run-markdown", help="Human review preview revision run markdown output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
     human_feedback_ui.add_argument(
         "--target-count",
@@ -1117,6 +1119,8 @@ def main() -> None:
         brief_markdown = Path(args.brief_markdown) if args.brief_markdown else None
         plan_json = Path(args.plan_json) if args.plan_json else None
         plan_markdown = Path(args.plan_markdown) if args.plan_markdown else None
+        preview_run_json = Path(args.preview_run_json) if args.preview_run_json else None
+        preview_run_markdown = Path(args.preview_run_markdown) if args.preview_run_markdown else None
         launch_human_feedback_ui(
             root=root,
             packet_json=packet_json,
@@ -1126,6 +1130,8 @@ def main() -> None:
             brief_markdown=brief_markdown,
             plan_json=plan_json,
             plan_markdown=plan_markdown,
+            preview_run_json=preview_run_json,
+            preview_run_markdown=preview_run_markdown,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
         )

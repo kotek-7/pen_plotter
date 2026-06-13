@@ -233,6 +233,36 @@ def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> N
     assert "Human Review Revision Plan" in plan_md
 
 
+def test_qt_feedback_ui_accepts_preview_run_output_paths(tmp_path) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": [],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+
+    window = HumanFeedbackQtWindow(
+        packet=packet,
+        drafts=drafts,
+        preview_run_json_path=tmp_path / "preview_run.json",
+        preview_run_markdown_path=tmp_path / "preview_run.md",
+    )
+
+    assert window._preview_run_json_path == tmp_path / "preview_run.json"
+    assert window._preview_run_markdown_path == tmp_path / "preview_run.md"
+
+
 def test_qt_feedback_ui_defaults_to_zoomed_preview() -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None

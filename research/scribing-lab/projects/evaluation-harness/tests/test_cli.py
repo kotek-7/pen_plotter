@@ -134,6 +134,46 @@ def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
     assert args.brief_markdown == "runs/test/brief.md"
     assert args.plan_json == "runs/test/plan.json"
     assert args.plan_markdown == "runs/test/plan.md"
+    assert args.preview_run_json is None
+    assert args.preview_run_markdown is None
+
+
+def test_human_feedback_ui_parser_accepts_preview_run_outputs() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--preview-run-json",
+            "runs/test/preview-run.json",
+            "--preview-run-markdown",
+            "runs/test/preview-run.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.preview_run_json == "runs/test/preview-run.json"
+    assert args.preview_run_markdown == "runs/test/preview-run.md"
+
+
+def test_human_feedback_ui_parser_accepts_preview_run_output_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--preview-run-json",
+            "runs/test/preview-run.json",
+            "--preview-run-markdown",
+            "runs/test/preview-run.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.preview_run_json == "runs/test/preview-run.json"
+    assert args.preview_run_markdown == "runs/test/preview-run.md"
 
 
 def test_human_feedback_revision_plan_parser_accepts_brief_and_loop_paths() -> None:
