@@ -177,6 +177,34 @@ def test_human_feedback_preview_revision_plan_parser_accepts_paths() -> None:
     assert args.json_output == "preview-plan.json"
 
 
+def test_human_feedback_preview_revision_run_parser_accepts_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-preview-revision-run",
+            "--root",
+            "runs/test",
+            "--brief-json",
+            "runs/test/brief.json",
+            "--focus-areas",
+            "layout,motion",
+            "--max-items",
+            "2",
+            "--output",
+            "preview-run.md",
+            "--json-output",
+            "preview-run.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-preview-revision-run"
+    assert args.root == "runs/test"
+    assert args.brief_json == "runs/test/brief.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 2
+    assert args.output == "preview-run.md"
+    assert args.json_output == "preview-run.json"
+
+
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -2464,6 +2492,194 @@ def test_human_feedback_preview_revision_plan_command_writes_outputs(
     assert "Human Review Revision Plan" in plan_md
     assert "Preview Revision Proposal" in plan_md
     assert '"human_focus_area": "layout"' in plan_json
+
+
+def test_human_feedback_preview_revision_run_command_writes_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    candidate_preview = root / "candidate.png"
+    baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            profile_id="fast-casual",
+            failure_tags=["spacing-too-wide"],
+            metrics={
+                "point_count": 10,
+                "velocity_peak_count": 0,
+                "draw_speed_cv": 0.01,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(candidate_preview)},
+        )
+    )
+    brief_path = root / "brief.json"
+    brief_path.parent.mkdir(parents=True, exist_ok=True)
+    brief_path.write_text(
+        json.dumps(
+            {
+                "brief_status": "ready",
+                "note_count": 1,
+                "reason_tag_counts": {"spacing-too-wide": 1},
+                "primary_notes": ["字間が広い"],
+                "selected_note_examples": [
+                    {
+                        "experiment_id": "exp-a",
+                        "decision": "needs-tuning",
+                        "reason_tags": ["spacing-too-wide"],
+                        "notes": "字間が広い",
+                        "reviewer_id": "reviewer-1",
+                    }
+                ],
+                "top_reason_tags": ["spacing-too-wide"],
+                "focus_lines": ["notes の指摘をそのまま次回の修正に反映する"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-preview-revision-run",
+            "--root",
+            str(root),
+            "--brief-json",
+            str(brief_path),
+            "--output",
+            "preview-run.md",
+            "--json-output",
+            "preview-run.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "preview-run.md").read_text(encoding="utf-8")
+    json_text = (root / "preview-run.json").read_text(encoding="utf-8")
+
+    assert "Preview Revision Loop" in markdown
+    assert "human_revision_plan" in json_text
+    assert "preview_revision_run" in json_text
+
+
+def test_human_feedback_preview_revision_run_command_honors_focus_area_and_max_items(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    candidate_preview = root / "candidate.png"
+    baseline_preview.parent.mkdir(parents=True, exist_ok=True)
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+            artifacts={"preview": str(baseline_preview)},
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            profile_id="fast-casual",
+            failure_tags=["spacing-too-wide"],
+            metrics={
+                "point_count": 10,
+                "velocity_peak_count": 0,
+                "draw_speed_cv": 0.01,
+                "shape_variation_mm": 0.6,
+                "layout_variation_mm": 0.6,
+            },
+            artifacts={"preview": str(candidate_preview)},
+        )
+    )
+    brief_path = root / "brief.json"
+    brief_path.parent.mkdir(parents=True, exist_ok=True)
+    brief_path.write_text(
+        json.dumps(
+            {
+                "brief_status": "ready",
+                "note_count": 1,
+                "reason_tag_counts": {"spacing-too-wide": 1},
+                "primary_notes": ["字間が広い"],
+                "selected_note_examples": [
+                    {
+                        "experiment_id": "exp-a",
+                        "decision": "needs-tuning",
+                        "reason_tags": ["spacing-too-wide"],
+                        "notes": "字間が広い",
+                        "reviewer_id": "reviewer-1",
+                    }
+                ],
+                "top_reason_tags": ["spacing-too-wide"],
+                "focus_lines": ["notes の指摘をそのまま次回の修正に反映する"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-preview-revision-run",
+            "--root",
+            str(root),
+            "--brief-json",
+            str(brief_path),
+            "--focus-areas",
+            "layout",
+            "--max-items",
+            "1",
+            "--output",
+            "preview-run.md",
+            "--json-output",
+            "preview-run.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    json_text = (root / "preview-run.json").read_text(encoding="utf-8")
+
+    assert '"rerun_count": 1' in json_text
+    assert '"rerun_plan_count": 1' in json_text
 
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:

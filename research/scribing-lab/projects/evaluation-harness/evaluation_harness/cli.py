@@ -427,6 +427,30 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_preview_plan.add_argument("--output", default="human_review_preview_revision_plan.md")
     human_feedback_preview_plan.add_argument("--json-output", default="human_review_preview_revision_plan.json")
 
+    human_feedback_preview_run = sub.add_parser(
+        "human-feedback-preview-revision-run",
+        help="Generate a preview revision plan from human feedback and rerun it",
+    )
+    human_feedback_preview_run.add_argument("--root", required=True, help="Run output directory")
+    human_feedback_preview_run.add_argument("--brief-json", help="Human review revision brief JSON")
+    human_feedback_preview_run.add_argument("--loop-json", help="Human feedback loop JSON")
+    human_feedback_preview_run.add_argument("--input-set", choices=("fixed", "review", "wide"), default="wide")
+    human_feedback_preview_run.add_argument("--seeds", default="1,2,3")
+    human_feedback_preview_run.add_argument("--baseline-generator", default="baseline-outline")
+    human_feedback_preview_run.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep when selecting preview revision plans",
+    )
+    human_feedback_preview_run.add_argument(
+        "--max-items",
+        type=int,
+        default=0,
+        help="Limit the number of preview revision plans to rerun",
+    )
+    human_feedback_preview_run.add_argument("--output", default="human_review_preview_revision_run.md")
+    human_feedback_preview_run.add_argument("--json-output", default="human_review_preview_revision_run.json")
+
     preview_review = sub.add_parser(
         "preview-review-packet",
         help="Create a preview-centric packet for generated G-code review",
@@ -1172,6 +1196,71 @@ def main() -> None:
         print(f"plan_status: {combined['plan_status']}")
         print(f"human_focus_area: {combined['human_focus_area']}")
         print(f"preview_selected_candidate_count: {combined['preview_selected_candidate_count']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-feedback-preview-revision-run":
+        root = Path(args.root)
+        focus_areas = {item for item in _parse_csv(args.focus_areas)}
+        if args.loop_json:
+            loop = json.loads(Path(args.loop_json).read_text(encoding="utf-8"))
+            brief = loop.get("revision_brief")
+            if brief is None:
+                brief = build_human_review_revision_brief(
+                    loop.get(
+                        "response_summary",
+                        {"note_count": 0, "reason_tag_counts": {}, "note_examples": []},
+                    )
+                )
+        elif args.brief_json:
+            brief = json.loads(Path(args.brief_json).read_text(encoding="utf-8"))
+        else:
+            raise ValueError("--brief-json or --loop-json is required")
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        preview_proposal = propose_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        combined = build_human_review_preview_revision_plan(brief, preview_proposal)
+        preview_revision_plans = list(combined.get("preview_revision_plans", []))
+        if focus_areas:
+            preview_revision_plans = [
+                plan for plan in preview_revision_plans if plan.get("focus_area") in focus_areas
+            ]
+        if args.max_items > 0:
+            preview_revision_plans = preview_revision_plans[: args.max_items]
+        run = run_preview_revision_loop_fixed_input_set(
+            root,
+            expected_input_texts=tuple(get_evaluation_inputs(args.input_set)),
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+            baseline_generator=args.baseline_generator,
+            revision_plans=preview_revision_plans,
+        )
+        output_path = _resolve_output_path(root, args.output)
+        json_path = _resolve_output_path(root, args.json_output)
+        output_path.write_text(
+            render_preview_revision_loop_markdown(run), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(
+                {
+                    "human_revision_plan": combined,
+                    "preview_revision_run": run,
+                    "rerun_plan_count": len(preview_revision_plans),
+                    "focus_areas": sorted(focus_areas),
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"human_focus_area: {combined['human_focus_area']}")
+        print(f"preview_selected_candidate_count: {combined['preview_selected_candidate_count']}")
+        print(f"rerun_plan_count: {len(preview_revision_plans)}")
+        print(f"rerun_count: {run['rerun_count']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "preview-review-packet":
