@@ -41,6 +41,7 @@ def build_human_review_packet(
         records,
         review,
         target_count=target_count,
+        sort_order=sort_order,
     )
     representative_ids = _sort_representative_ids(
         representative_ids,
@@ -116,6 +117,7 @@ def _select_representative_ids(
     review: dict[str, Any],
     *,
     target_count: int | None = None,
+    sort_order: str = "default",
 ) -> list[str]:
     selected: list[str] = []
 
@@ -154,18 +156,48 @@ def _select_representative_ids(
         selected_groups.update(_input_script_groups(candidate.input_text))
 
     target_count = _target_representative_count(len(records), target_count=target_count)
-    if len(selected) < target_count:
-        ranked_ids = [
-            str(item["experiment_id"])
-            for item in sorted(
-                review.get("items", []),
-                key=lambda item: (
-                    -float(item.get("risk_score", 0.0)),
-                    float(item.get("confidence", 0.0)),
-                    str(item.get("experiment_id", "")),
+    if sort_order == "longform-first":
+        selected = _dedupe_selected_by_input_text(selected, records)
+        if len(selected) < target_count:
+            input_groups = _records_grouped_by_input_text(records)
+            ranked_input_texts = sorted(
+                input_groups,
+                key=lambda input_text: (
+                    -len(input_text),
+                    -len(_input_script_groups(input_text)),
+                    input_text,
                 ),
             )
-        ]
+            for input_text in ranked_input_texts:
+                best_record = _best_record_for_input_group(input_groups[input_text], review)
+                if best_record is None:
+                    continue
+                _append_unique(selected, best_record.experiment_id)
+                if len(selected) >= target_count:
+                    break
+        return selected[:target_count]
+
+    if len(selected) < target_count:
+        if sort_order == "longform-first":
+            ranked_ids = [
+                record.experiment_id
+                for record in sorted(
+                    records,
+                    key=lambda record: _record_sort_key(record, sort_order=sort_order),
+                )
+            ]
+        else:
+            ranked_ids = [
+                str(item["experiment_id"])
+                for item in sorted(
+                    review.get("items", []),
+                    key=lambda item: (
+                        -float(item.get("risk_score", 0.0)),
+                        float(item.get("confidence", 0.0)),
+                        str(item.get("experiment_id", "")),
+                    ),
+                )
+            ]
         for experiment_id in ranked_ids:
             _append_unique(selected, experiment_id)
             if len(selected) >= target_count:
@@ -208,6 +240,43 @@ def _records_by_input(
     for record in ordered_records:
         grouped.setdefault(record.input_text, []).append(_packet_item(record, reason="input-group"))
     return grouped
+
+
+def _records_grouped_by_input_text(
+    records: list[ExperimentRecord],
+) -> dict[str, list[ExperimentRecord]]:
+    grouped: dict[str, list[ExperimentRecord]] = {}
+    for record in records:
+        grouped.setdefault(record.input_text, []).append(record)
+    return grouped
+
+
+def _best_record_for_input_group(
+    records: list[ExperimentRecord],
+    review: dict[str, Any],
+) -> ExperimentRecord | None:
+    if not records:
+        return None
+    review_by_id = {str(item["experiment_id"]): item for item in review.get("items", [])}
+    return max(records, key=lambda record: _script_group_rank_key(record, review_by_id))
+
+
+def _dedupe_selected_by_input_text(
+    selected: list[str],
+    records: list[ExperimentRecord],
+) -> list[str]:
+    by_id = {record.experiment_id: record for record in records}
+    seen_input_texts: set[str] = set()
+    deduped: list[str] = []
+    for experiment_id in selected:
+        record = by_id.get(experiment_id)
+        if record is None:
+            continue
+        if record.input_text in seen_input_texts:
+            continue
+        seen_input_texts.add(record.input_text)
+        deduped.append(experiment_id)
+    return deduped
 
 
 def _sort_representative_ids(
