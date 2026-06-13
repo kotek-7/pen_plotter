@@ -177,6 +177,22 @@ def test_human_feedback_ui_parser_accepts_start_card_outputs() -> None:
     assert args.start_card_markdown == "runs/test/start-card.md"
 
 
+def test_human_feedback_start_card_parser_accepts_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-start-card",
+            "--root",
+            "runs/test",
+            "--json-output",
+            "runs/test/start-card.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-start-card"
+    assert args.root == "runs/test"
+    assert args.json_output == "runs/test/start-card.json"
+
+
 def test_human_feedback_ui_parser_accepts_preview_run_outputs() -> None:
     args = build_parser().parse_args(
         [
@@ -2418,6 +2434,63 @@ def test_human_feedback_loop_command_supports_large_target_count(
     assert "Human Feedback Loop" in markdown
     assert "representative_count: `32`" in markdown
     assert '"representative_count": 32' in json_text
+
+
+def test_human_feedback_start_card_command_writes_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    for index in range(2):
+        registry.append(
+            _record(
+                experiment_id=f"exp-{index:02d}",
+                input_text="ASCII ABCDEFGH と abcdefgh も評価する。",
+                seed=index,
+                generator="structure-motion",
+                profile_id="longform-first",
+                failure_tags=["spacing-too-wide"],
+                metrics={
+                    "draw_speed_cv": 0.2 + index * 0.01,
+                    "mean_abs_jerk_mm_s3": 1000.0 + index * 10.0,
+                    "baseline_drift_mm": 0.2,
+                    "shape_variation_mm": 0.64,
+                    "layout_variation_mm": 0.96,
+                    "gcode_safety_ok": 1,
+                    "gcode_safety_violation_count": 0,
+                },
+            )
+        )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-start-card",
+            "--root",
+            str(root),
+            "--target-count",
+            "2",
+            "--sort-order",
+            "longform-first",
+            "--output",
+            "start-card.md",
+            "--json-output",
+            "start-card.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "start-card.md").read_text(encoding="utf-8")
+    json_text = (root / "start-card.json").read_text(encoding="utf-8")
+
+    assert "Human Review Start Card" in markdown
+    assert "sort_order: `longform-first`" in markdown
+    assert '"sort_order": "longform-first"' in json_text
+    assert '"representative_count": 2' in json_text
 
 
 def test_human_feedback_loop_command_writes_revision_brief(

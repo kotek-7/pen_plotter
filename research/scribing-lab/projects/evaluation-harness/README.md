@@ -278,6 +278,7 @@ revision plan をその場で確認できる。
 `Start Card` も同じ束に含まれるので、見せた内容と保存物が一致する。
 起動時に保存先を明示したい場合は `--preview-run-json` と `--preview-run-markdown` を指定する。
 `--sort-order longform-first` を使うと、長文や混在入力を先頭にした packet を UI で直接開ける。
+`human-feedback-start-card` を使うと、同じ Start Card を CLI から markdown / JSON で書き出せる。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。
 

@@ -39,6 +39,11 @@ from evaluation_harness.revision_loop import (
     summarize_preview_revision_loops,
 )
 from evaluation_harness.self_check import render_self_check_markdown, run_self_check
+from evaluation_harness.human_feedback_common import (
+    load_feedback_packet,
+    load_response_drafts,
+    validate_response_drafts,
+)
 from evaluation_harness.human_review import (
     build_human_review_packet,
     render_human_review_packet_markdown,
@@ -69,10 +74,12 @@ from evaluation_harness.abx import (
     summarize_abx_responses,
 )
 from evaluation_harness.human_review_response import (
+    build_human_review_start_card,
     build_human_review_revision_brief,
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     load_human_review_responses,
+    render_human_review_start_card_markdown,
     render_human_review_response_markdown,
     render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_brief_markdown,
@@ -431,6 +438,30 @@ def build_parser() -> argparse.ArgumentParser:
         default="default",
         help="Sort representative items and grouped inputs for review readability",
     )
+
+    human_feedback_start_card = sub.add_parser(
+        "human-feedback-start-card",
+        help="Render a human review start card from a packet or root",
+    )
+    start_target = human_feedback_start_card.add_mutually_exclusive_group(required=True)
+    start_target.add_argument("--root", help="Run output directory")
+    start_target.add_argument("--packet-json", help="Existing review packet or loop JSON")
+    human_feedback_start_card.add_argument("--responses-json", help="Existing human responses JSON")
+    human_feedback_start_card.add_argument("--reviewer-id", default="")
+    human_feedback_start_card.add_argument(
+        "--target-count",
+        type=int,
+        default=None,
+        help="Target number of representative items to include in the packet",
+    )
+    human_feedback_start_card.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
+    )
+    human_feedback_start_card.add_argument("--output", default="human_review_start_card.md")
+    human_feedback_start_card.add_argument("--json-output", default="human_review_start_card.json")
 
     human_feedback_plan = sub.add_parser(
         "human-feedback-revision-plan",
@@ -1177,6 +1208,41 @@ def main() -> None:
             target_count=args.target_count,
             sort_order=args.sort_order,
         )
+    elif args.command == "human-feedback-start-card":
+        root = Path(args.root) if args.root else None
+        packet_json = Path(args.packet_json) if args.packet_json else None
+        responses_json = Path(args.responses_json) if args.responses_json else None
+        base_dir = root or (packet_json.parent if packet_json is not None else Path.cwd())
+        packet = load_feedback_packet(
+            root=root,
+            packet_json=packet_json,
+            target_count=args.target_count,
+            sort_order=args.sort_order,
+        )
+        drafts = load_response_drafts(
+            packet=packet,
+            responses_json=responses_json if responses_json and responses_json.exists() else None,
+            reviewer_id=args.reviewer_id,
+        )
+        summary = validate_response_drafts(packet, drafts)
+        card = build_human_review_start_card(
+            packet,
+            summary,
+            sort_order=str(packet.get("sort_order", args.sort_order) or "default"),
+        )
+        output_path = _resolve_output_path(base_dir, args.output)
+        json_path = _resolve_output_path(base_dir, args.json_output)
+        output_path.write_text(render_human_review_start_card_markdown(card), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(card, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"sort_order: {card['sort_order']}")
+        print(f"representative_count: {card['representative_count']}")
+        print(f"loop_status: {card['loop_status']}")
+        print(f"brief_status: {card['brief_status']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
     elif args.command == "human-feedback-revision-plan":
         if args.loop_json:
             loop = json.loads(Path(args.loop_json).read_text(encoding="utf-8"))

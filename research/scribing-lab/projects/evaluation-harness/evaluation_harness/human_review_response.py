@@ -113,6 +113,137 @@ def summarize_human_review_responses(
     }
 
 
+def build_human_review_start_card(
+    packet: dict[str, Any],
+    summary: dict[str, Any],
+    *,
+    sort_order: str = "default",
+) -> dict[str, Any]:
+    representatives = list(packet.get("representatives", []))
+    note_count = int(summary.get("note_count", 0))
+    response_count = int(sum(summary.get("decision_counts", {}).values()))
+
+    if summary.get("can_proceed_to_plot"):
+        loop_status = "ready"
+    elif response_count == 0:
+        loop_status = "awaiting_response"
+    elif summary.get("validation_errors"):
+        loop_status = "needs_fix"
+    else:
+        loop_status = "in_progress"
+
+    brief_status = "ready" if (response_count > 0 or note_count > 0) else "empty"
+
+    failure_tag_counts: Counter[str] = Counter()
+    script_group_counts: Counter[str] = Counter()
+    for item in representatives:
+        failure_tag_counts.update(str(tag) for tag in item.get("failure_tags", []))
+        script_group_counts.update(str(group) for group in item.get("input_script_groups", []))
+
+    first_things_to_watch = _start_card_watch_items(failure_tag_counts)
+    if not first_things_to_watch:
+        first_things_to_watch = [
+            "字間が広すぎるか",
+            "長文で行全体が機械的に揃いすぎていないか",
+            "Latin / digit / punctuation の混在で崩れないか",
+            "反復文字が同じ形に寄りすぎていないか",
+        ]
+
+    top_representatives = [
+        {
+            "experiment_id": str(item.get("experiment_id", "unknown")),
+            "input_text": str(item.get("input_text", "")),
+            "reason": str(item.get("reason", "")),
+            "marker": "failure-tag" if item.get("failure_tags") else "metric-extreme",
+        }
+        for item in representatives[:8]
+    ]
+
+    return {
+        "sort_order": sort_order,
+        "record_count": int(packet.get("record_count", len(representatives))),
+        "representative_count": int(packet.get("representative_count", len(representatives))),
+        "loop_status": loop_status,
+        "brief_status": brief_status,
+        "note_count": note_count,
+        "response_count": response_count,
+        "first_things_to_watch": first_things_to_watch,
+        "top_failure_tags": dict(failure_tag_counts.most_common(6)),
+        "top_script_groups": dict(script_group_counts.most_common(6)),
+        "top_representatives": top_representatives,
+        "preview_head": top_representatives,
+    }
+
+
+def render_human_review_start_card_markdown(card: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Start Card",
+        "",
+        f"- sort_order: `{card.get('sort_order', 'default')}`",
+        f"- record_count: `{card.get('record_count', 0)}`",
+        f"- representative_count: `{card.get('representative_count', 0)}`",
+        f"- loop_status: `{card.get('loop_status', 'awaiting_response')}`",
+        f"- brief_status: `{card.get('brief_status', 'empty')}`",
+        "",
+        "## First Things To Watch",
+    ]
+    for item in card.get("first_things_to_watch", []):
+        lines.append(f"- {item}")
+
+    top_failure_tags = card.get("top_failure_tags", {})
+    if top_failure_tags:
+        lines.extend(["", "## Top Failure Tags"])
+        for tag, count in top_failure_tags.items():
+            lines.append(f"- {tag}: `{count}`")
+
+    top_script_groups = card.get("top_script_groups", {})
+    if top_script_groups:
+        lines.extend(["", "## Script Groups"])
+        for group, count in top_script_groups.items():
+            lines.append(f"- {group}: `{count}`")
+
+    representatives = list(card.get("top_representatives", []))
+    if representatives:
+        lines.extend(["", "## Top Representatives"])
+        for item in representatives:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            marker = item.get("marker", "metric-extreme")
+            lines.append(f"- {experiment_id}: {input_text} ({marker})")
+            if reason:
+                lines.append(f"  - reason: `{reason}`")
+
+    preview_head = list(card.get("preview_head", []))
+    if preview_head:
+        lines.extend(["", "## Preview Representative Head"])
+        for item in preview_head:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            marker = item.get("marker", "metric-extreme")
+            lines.append(f"- {experiment_id}: {input_text} ({marker})")
+            if reason:
+                lines.append(f"  - reason: `{reason}`")
+
+    return "\n".join(lines) + "\n"
+
+
+def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
+    candidates = [
+        ("spacing-too-wide", "字間が広すぎるか"),
+        ("over-jittered", "揺れが情報ではなくノイズになっていないか"),
+        ("terminal-too-uniform", "終筆が機械的に揃いすぎていないか"),
+        ("too-font-like", "骨格がフォントの焼き直しに寄りすぎていないか"),
+        ("spacing-unnatural", "文字間のリズムが日本語として不自然でないか"),
+        ("line-too-mechanical", "行全体の流れが硬すぎないか"),
+    ]
+    watched = [label for tag, label in candidates if failure_tag_counts.get(tag, 0) > 0]
+    if watched:
+        return watched[:4]
+    return [label for _tag, label in candidates[:4]]
+
+
 def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]:
     note_examples = summary.get("note_examples", [])
     note_snippets = [str(item.get("notes", "")).strip() for item in note_examples if str(item.get("notes", "")).strip()]
