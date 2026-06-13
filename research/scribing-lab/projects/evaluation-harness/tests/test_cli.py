@@ -2637,29 +2637,12 @@ def test_human_feedback_review_bundle_command_writes_outputs(
             )
         )
 
-    monkeypatch.setattr(
-        "sys.argv",
-        [
-            "evaluation_harness",
-            "human-feedback-review-bundle",
-            "--root",
-            str(root),
-            "--target-count",
-            "3",
-            "--sort-order",
-            "longform-first",
-            "--output-dir",
-            "bundle",
-            "--output-prefix",
-            "longform_review",
-        ],
-    )
-
     from evaluation_harness.cli import main
 
     bundle_dir = root / "bundle"
     bundle_dir.mkdir(parents=True, exist_ok=True)
-    (bundle_dir / "longform_review_session_feedback.json").write_text(
+    source_session_feedback_json = root / "existing_session_feedback.json"
+    source_session_feedback_json.write_text(
         json.dumps(
             {
                 "sort_order": "longform-first",
@@ -2676,6 +2659,25 @@ def test_human_feedback_review_bundle_command_writes_outputs(
         )
         + "\n",
         encoding="utf-8",
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-review-bundle",
+            "--root",
+            str(root),
+            "--target-count",
+            "3",
+            "--sort-order",
+            "longform-first",
+            "--output-dir",
+            "bundle",
+            "--output-prefix",
+            "longform_review",
+            "--session-feedback-source-json",
+            str(source_session_feedback_json),
+        ],
     )
 
     main()
@@ -2708,6 +2710,22 @@ def test_human_feedback_review_bundle_command_writes_outputs(
     assert "Human Review Bundle Index" in index_md
     assert "human-feedback-review-ui" in index_md
     assert '"bundle_prefix": "longform_review"' in index_json
+
+
+def test_human_feedback_review_bundle_parser_accepts_session_feedback_source_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-review-bundle",
+            "--root",
+            "runs/test",
+            "--session-feedback-source-json",
+            "runs/test/session-feedback-source.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-review-bundle"
+    assert args.root == "runs/test"
+    assert args.session_feedback_source_json == "runs/test/session-feedback-source.json"
 
 
 def test_human_feedback_review_ui_command_opens_bundle_packet(

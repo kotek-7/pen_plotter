@@ -282,6 +282,7 @@ revision plan をその場で確認できる。
 `human-feedback-review-bundle` を使うと、packet / Start Card / comparison sheet / review prompt / session feedback / review guide をまとめて出せる。
 `human-feedback-review-ui` を使うと、その bundle をそのまま Qt UI で開けて、session feedback を最初に確認できる。
 保存済みの session feedback は再オープン時に復元されるので、前回の bundle 全体への FB を続きから編集できる。
+`human-feedback-review-bundle --session-feedback-source-json ...` を使うと、前回の session feedback を新しい bundle に持ち出せる。
 bundle には `index.md/json` も出るので、見せる束と開き方が 1 枚で分かる。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。

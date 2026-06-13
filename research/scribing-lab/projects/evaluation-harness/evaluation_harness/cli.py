@@ -505,6 +505,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_feedback_bundle.add_argument("--prompt-json", default="human_review_prompt.json")
     human_feedback_bundle.add_argument("--prompt-markdown", default="human_review_prompt.md")
+    human_feedback_bundle.add_argument("--session-feedback-source-json", default="")
     human_feedback_bundle.add_argument("--session-feedback-json", default="human_review_session_feedback.json")
     human_feedback_bundle.add_argument(
         "--session-feedback-markdown",
@@ -1371,9 +1372,19 @@ def main() -> None:
         prompt_json_path = bundle_dir / f"{prefix}_prompt.json"
         session_feedback_md_path = bundle_dir / f"{prefix}_session_feedback.md"
         session_feedback_json_path = bundle_dir / f"{prefix}_session_feedback.json"
-        if session_feedback_json_path.exists():
+        session_feedback_source_json = (
+            Path(args.session_feedback_source_json) if args.session_feedback_source_json else None
+        )
+        session_feedback_source_path = (
+            session_feedback_source_json
+            if session_feedback_source_json is not None
+            else session_feedback_json_path
+        )
+        if session_feedback_source_path.exists():
             try:
-                existing_session_feedback = json.loads(session_feedback_json_path.read_text(encoding="utf-8"))
+                existing_session_feedback = json.loads(
+                    session_feedback_source_path.read_text(encoding="utf-8")
+                )
             except (OSError, ValueError, TypeError):
                 existing_session_feedback = None
             if isinstance(existing_session_feedback, dict):
