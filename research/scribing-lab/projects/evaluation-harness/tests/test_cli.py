@@ -2645,6 +2645,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
     bundle_dir = tmp_path / "bundle"
     bundle_dir.mkdir(parents=True, exist_ok=True)
     packet_json = bundle_dir / "longform_review_packet.json"
+    comparison_sheet_json = bundle_dir / "longform_review_comparison_sheet.json"
     responses_json = bundle_dir / "longform_review_responses.json"
     packet_json.write_text(
         json.dumps(
@@ -2661,6 +2662,21 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
                     }
                 ],
                 "sort_order": "longform-first",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    comparison_sheet_json.write_text(
+        json.dumps(
+            {
+                "record_count": 1,
+                "representative_count": 1,
+                "high_priority_tags": ["spacing-too-wide"],
+                "what_to_compare": ["字間が広すぎないか"],
+                "tagged_anchors": [],
             },
             ensure_ascii=False,
             indent=2,
@@ -2697,6 +2713,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
 
     assert captured["packet_json"] == packet_json
     assert captured["responses_json"] == responses_json
+    assert captured["comparison_sheet_json"] == comparison_sheet_json
     assert captured["sort_order"] == "longform-first"
     assert captured["root"] == bundle_dir.parent
 

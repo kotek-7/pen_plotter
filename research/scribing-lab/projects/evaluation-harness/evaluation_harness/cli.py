@@ -1276,6 +1276,11 @@ def main() -> None:
         bundle_dir = Path(args.bundle_dir)
         root = Path(args.root) if args.root else bundle_dir.parent
         packet_json = _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "packet.json")
+        comparison_sheet_json = _find_bundle_artifact_path(
+            bundle_dir,
+            args.bundle_prefix,
+            "comparison_sheet.json",
+        )
         responses_json = (
             Path(args.responses_json)
             if args.responses_json
@@ -1285,6 +1290,7 @@ def main() -> None:
             root=root,
             packet_json=packet_json,
             responses_json=responses_json if responses_json.exists() else None,
+            comparison_sheet_json=comparison_sheet_json if comparison_sheet_json.exists() else None,
             reviewer_id=args.reviewer_id,
             sort_order="longform-first",
         )
