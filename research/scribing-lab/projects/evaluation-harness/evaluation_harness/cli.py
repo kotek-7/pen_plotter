@@ -381,6 +381,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Target number of representative items to include in the packet",
     )
     human_feedback.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
+    )
+    human_feedback.add_argument(
         "--brief-only",
         action="store_true",
         help="Emit a revision brief focused on notes and top reason tags",
@@ -413,6 +419,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Target number of representative items to include in the packet",
+    )
+    human_feedback_ui.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
     )
 
     human_feedback_plan = sub.add_parser(
@@ -1074,6 +1086,7 @@ def main() -> None:
             responses_data=responses_data,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
+            sort_order=args.sort_order,
         )
         markdown_path = root / args.output
         json_path = root / args.json_output
@@ -1153,6 +1166,7 @@ def main() -> None:
             preview_run_markdown=preview_run_markdown,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
+            sort_order=args.sort_order,
         )
     elif args.command == "human-feedback-revision-plan":
         if args.loop_json:

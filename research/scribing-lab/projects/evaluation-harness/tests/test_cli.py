@@ -119,12 +119,15 @@ def test_human_feedback_ui_parser_accepts_target_count() -> None:
             "runs/test",
             "--target-count",
             "72",
+            "--sort-order",
+            "longform-first",
         ]
     )
 
     assert args.command == "human-feedback-ui"
     assert args.root == "runs/test"
     assert args.target_count == 72
+    assert args.sort_order == "longform-first"
 
 
 def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
@@ -366,6 +369,8 @@ def test_human_feedback_loop_parser_accepts_brief_options() -> None:
             "--root",
             "runs/test",
             "--brief-only",
+            "--sort-order",
+            "longform-first",
             "--brief-output",
             "brief.md",
             "--brief-json-output",
@@ -375,6 +380,7 @@ def test_human_feedback_loop_parser_accepts_brief_options() -> None:
 
     assert args.command == "human-feedback-loop"
     assert args.brief_only is True
+    assert args.sort_order == "longform-first"
     assert args.brief_output == "brief.md"
     assert args.brief_json_output == "brief.json"
 
@@ -2461,6 +2467,8 @@ def test_human_feedback_loop_command_writes_revision_brief(
             "--responses-json",
             str(responses_path),
             "--brief-only",
+            "--sort-order",
+            "longform-first",
         ],
     )
 
@@ -2475,6 +2483,7 @@ def test_human_feedback_loop_command_writes_revision_brief(
 
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
+    assert "sort_order: `longform-first`" in (root / "human_feedback_loop.md").read_text(encoding="utf-8")
     assert '"brief_status": "ready"' in brief_json
     assert "Human Review Revision Plan" in plan_md
     assert '"plan_status": "ready"' in plan_json

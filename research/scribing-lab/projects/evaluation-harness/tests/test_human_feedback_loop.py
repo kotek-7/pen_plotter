@@ -21,6 +21,19 @@ def test_build_human_feedback_loop_without_responses_returns_template() -> None:
     assert "response_template を埋めて" in loop["next_actions"][0]
 
 
+def test_build_human_feedback_loop_supports_longform_sort_order() -> None:
+    records = [
+        _record("exp-short", input_text="永", generator="baseline-outline"),
+        _record("exp-long", input_text="ASCII ABCDEFGH と abcdefgh も評価する。", generator="baseline-outline"),
+    ]
+
+    loop = build_human_feedback_loop(records, reviewer_id="reviewer-1", sort_order="longform-first")
+
+    assert loop["packet"]["sort_order"] == "longform-first"
+    assert loop["packet"]["representatives"][0]["experiment_id"] == "exp-long"
+    assert loop["response_template"]["responses"][0]["experiment_id"] == "exp-long"
+
+
 def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> None:
     record = _record("exp-a", generator="structure-motion")
 
@@ -147,13 +160,19 @@ def test_summarize_human_review_draft_rows_allows_negative_decision_with_reason_
     assert summary["can_proceed_to_plot"] is False
 
 
-def _record(experiment_id: str, *, generator: str) -> ExperimentRecord:
+def _record(
+    experiment_id: str,
+    *,
+    generator: str,
+    input_text: str = "永",
+    seed: int = 1,
+) -> ExperimentRecord:
     return ExperimentRecord(
         experiment_id=experiment_id,
         hypothesis="test",
-        input_text="永",
+        input_text=input_text,
         profile_id="baseline-neat",
-        seed=1,
+        seed=seed,
         generator=generator,
         exporter="xdraw-gcode",
         artifacts={"preview": f"artifacts/{experiment_id}/preview.png"},

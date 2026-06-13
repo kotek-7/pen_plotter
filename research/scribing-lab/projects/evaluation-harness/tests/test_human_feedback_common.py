@@ -6,6 +6,7 @@ from evaluation_harness.human_feedback_common import (
     build_decision_help,
     build_review_instructions,
     choose_font_family,
+    load_feedback_packet,
     load_response_drafts,
     serialize_response_drafts,
     validate_response_drafts,
@@ -96,6 +97,31 @@ def test_load_response_drafts_round_trip(tmp_path: Path) -> None:
 
     payload = serialize_response_drafts(drafts)
     assert payload["responses"][0]["experiment_id"] == "exp-a"
+
+
+def test_load_feedback_packet_supports_longform_sort_order(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    registry_path = root / "registry.jsonl"
+    registry_path.parent.mkdir(parents=True, exist_ok=True)
+    registry_path.write_text(
+        "\n".join(
+            [
+                """
+                {"experiment_id":"exp-short","hypothesis":"test","input_text":"永","profile_id":"baseline-neat","seed":1,"generator":"baseline-outline","exporter":"preview","artifacts":{"preview":"artifacts/exp-short/preview.png"},"metrics":{"draw_speed_cv":0.01,"mean_abs_jerk_mm_s3":50.0,"stroke_start_spacing_cv":0.02,"baseline_drift_mm":0.2,"repeated_char_ratio":0.0,"shape_variation_mm":0.1,"layout_variation_mm":0.1,"gcode_safety_ok":1,"gcode_safety_violation_count":0,"visible_char_count":1,"ink_bbox_width_mm":8.0,"ink_bbox_height_mm":10.0,"mean_stroke_start_gap_mm":1.0},"failure_tags":[],"next_action":"keep baseline comparison","notes":""}
+                """.strip(),
+                """
+                {"experiment_id":"exp-long","hypothesis":"test","input_text":"ASCII ABCDEFGH と abcdefgh も評価する。","profile_id":"baseline-neat","seed":1,"generator":"baseline-outline","exporter":"preview","artifacts":{"preview":"artifacts/exp-long/preview.png"},"metrics":{"draw_speed_cv":0.01,"mean_abs_jerk_mm_s3":50.0,"stroke_start_spacing_cv":0.02,"baseline_drift_mm":0.2,"repeated_char_ratio":0.0,"shape_variation_mm":0.1,"layout_variation_mm":0.1,"gcode_safety_ok":1,"gcode_safety_violation_count":0,"visible_char_count":1,"ink_bbox_width_mm":8.0,"ink_bbox_height_mm":10.0,"mean_stroke_start_gap_mm":1.0},"failure_tags":[],"next_action":"keep baseline comparison","notes":""}
+                """.strip(),
+            ]
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    packet = load_feedback_packet(root=root, sort_order="longform-first")
+
+    assert packet["sort_order"] == "longform-first"
+    assert packet["representatives"][0]["experiment_id"] == "exp-long"
 
 
 def test_validate_response_drafts_reports_missing_entries() -> None:

@@ -195,6 +195,7 @@ python3 -m evaluation_harness human-feedback-loop \
 `human-feedback-loop` は response template 付きの統合束を `human_feedback_loop.md` / `.json`
 に保存する。responses を渡すと、検証結果と次アクションも同じ束に入る。
 `--target-count` を指定すると、UI で扱う人間レビュー束の大きさを増やせる。
+`--sort-order longform-first` を使うと、長文や混在入力を先頭にした人間レビュー束を作れる。
 
 `human-abx-packet` は preview 由来の候補を ABX 形式にまとめる。
 `--recommendation-json` を使うと、既存の `recommend_preview_fixed_inputs` 生成物を再利用して
@@ -273,6 +274,7 @@ Tkinter 版より安定している。`Preview Run` タブでは、現在の bri
 revision plan をその場で確認できる。
 `Export Review Bundle` は、responses / brief / plan / preview run をまとめて保存する。
 起動時に保存先を明示したい場合は `--preview-run-json` と `--preview-run-markdown` を指定する。
+`--sort-order longform-first` を使うと、長文や混在入力を先頭にした packet を UI で直接開ける。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。
 

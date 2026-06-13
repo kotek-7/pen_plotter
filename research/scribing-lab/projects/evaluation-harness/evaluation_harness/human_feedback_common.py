@@ -43,6 +43,7 @@ def load_feedback_packet(
     root: Path | None = None,
     packet_json: Path | None = None,
     target_count: int | None = None,
+    sort_order: str = "default",
 ) -> dict[str, Any]:
     if packet_json is not None:
         packet_data = json.loads(packet_json.read_text(encoding="utf-8"))
@@ -50,7 +51,11 @@ def load_feedback_packet(
     if root is None:
         raise ValueError("root or packet_json is required")
     registry = ExperimentRegistry(root / "registry.jsonl")
-    return build_human_feedback_loop(registry.load_all(), target_count=target_count)["packet"]
+    return build_human_feedback_loop(
+        registry.load_all(),
+        target_count=target_count,
+        sort_order=sort_order,
+    )["packet"]
 
 
 def load_response_drafts(
