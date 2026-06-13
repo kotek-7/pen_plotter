@@ -33,11 +33,12 @@ def test_qt_feedback_ui_uses_regular_weight_fonts() -> None:
     }
     drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
 
-    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
+    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts, sort_order="longform-first")
 
     assert window._body_font.bold() is False
     assert window._body_bold_font.bold() is False
     assert window._heading_font.bold() is False
+    assert window.windowTitle() == "Human Feedback Loop [longform-first]"
 
 
 def test_qt_feedback_ui_uses_separate_review_guide_and_status_summary() -> None:
@@ -59,10 +60,11 @@ def test_qt_feedback_ui_uses_separate_review_guide_and_status_summary() -> None:
     }
     drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
 
-    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
+    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts, sort_order="longform-first")
 
     assert window._guide_button.text() == "Review Guide"
     assert "missing=" in window.statusBar().currentMessage()
+    assert "sort_order=longform-first" in window.statusBar().currentMessage()
 
 
 def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
@@ -95,6 +97,7 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     window = HumanFeedbackQtWindow(
         packet=packet,
         drafts=drafts,
+        sort_order="longform-first",
         responses_json_path=tmp_path / "human_review_responses.json",
         summary_json_path=tmp_path / "human_review_response_summary.json",
         brief_json_path=tmp_path / "human_review_revision_brief.json",
@@ -192,6 +195,7 @@ def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> N
     window = HumanFeedbackQtWindow(
         packet=packet,
         drafts=drafts,
+        sort_order="longform-first",
         responses_json_path=root / "human_review_responses.json",
         summary_json_path=root / "human_review_response_summary.json",
         brief_json_path=root / "human_review_revision_brief.json",

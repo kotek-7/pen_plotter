@@ -152,6 +152,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         packet: dict[str, Any],
         drafts: dict[str, HumanFeedbackDraft],
         reviewer_id: str = "",
+        sort_order: str = "default",
         responses_json_path: Path | None = None,
         summary_json_path: Path | None = None,
         brief_json_path: Path | None = None,
@@ -168,6 +169,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._packet = packet
         self._drafts = drafts
         self._reviewer_id = reviewer_id.strip()
+        self._sort_order = sort_order
         self._responses_json_path = responses_json_path
         self._summary_json_path = summary_json_path
         self._brief_json_path = brief_json_path
@@ -187,7 +189,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._preview_dragging = False
         self._preview_last_pan_pos = None
 
-        self.setWindowTitle("Human Feedback Loop")
+        self.setWindowTitle(f"Human Feedback Loop [{self._sort_order}]")
         self.resize(*DEFAULT_WINDOW_SIZE)
         self.setMinimumSize(1380, 900)
 
@@ -229,7 +231,9 @@ class HumanFeedbackQtWindow(QMainWindow):
         root.addWidget(self._build_body(), 1)
 
         self.setCentralWidget(central)
-        self.statusBar().showMessage("Select a representative to begin review.")
+        self.statusBar().showMessage(
+            f"Select a representative to begin review. sort_order={self._sort_order}"
+        )
 
     def _build_header(self) -> QWidget:
         header = QWidget(self)
@@ -828,6 +832,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self.statusBar().showMessage(
             " | ".join(
                 [
+                    f"sort_order={self._sort_order}",
                     f"decisions={summary['decision_counts']}",
                     f"notes={summary.get('note_count', 0)}",
                     f"missing={len(summary['missing_response_ids'])}",
@@ -1273,6 +1278,7 @@ def launch_human_feedback_ui(
         packet=packet,
         drafts=drafts,
         reviewer_id=reviewer_id,
+        sort_order=sort_order,
         responses_json_path=responses_path,
         summary_json_path=summary_path,
         brief_json_path=brief_json_path,
