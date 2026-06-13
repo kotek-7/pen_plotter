@@ -1175,8 +1175,8 @@ def main() -> None:
                 if item_id in packet_items
             ],
         )
-        output_path = responses_path.parent / args.output
-        json_path = responses_path.parent / args.json_output
+        output_path = _resolve_output_path(responses_path.parent, args.output)
+        json_path = _resolve_output_path(responses_path.parent, args.json_output)
         output_path.write_text(render_abx_summary_markdown(summary), encoding="utf-8")
         json_path.write_text(
             json.dumps(summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
