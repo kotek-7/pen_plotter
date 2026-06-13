@@ -385,6 +385,8 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument("--packet-json", help="Existing review packet or loop JSON")
     human_feedback_ui.add_argument("--responses-json", help="Existing human responses JSON")
     human_feedback_ui.add_argument("--summary-json", help="Human review summary output path")
+    human_feedback_ui.add_argument("--brief-json", help="Human review revision brief JSON output path")
+    human_feedback_ui.add_argument("--brief-markdown", help="Human review revision brief markdown output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
     human_feedback_ui.add_argument(
         "--target-count",
@@ -1033,11 +1035,15 @@ def main() -> None:
         packet_json = Path(args.packet_json) if args.packet_json else None
         responses_json = Path(args.responses_json) if args.responses_json else None
         summary_json = Path(args.summary_json) if args.summary_json else None
+        brief_json = Path(args.brief_json) if args.brief_json else None
+        brief_markdown = Path(args.brief_markdown) if args.brief_markdown else None
         launch_human_feedback_ui(
             root=root,
             packet_json=packet_json,
             responses_json=responses_json,
             summary_json=summary_json,
+            brief_json=brief_json,
+            brief_markdown=brief_markdown,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
         )

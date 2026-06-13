@@ -62,6 +62,57 @@ def test_qt_feedback_ui_uses_separate_review_guide_and_status_summary() -> None:
     assert "missing=" in window.statusBar().currentMessage()
 
 
+def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": ["spacing-too-wide"],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {
+        "exp-a": HumanFeedbackDraft(
+            experiment_id="exp-a",
+            decision="needs-tuning",
+            reason_tags=["spacing-too-wide"],
+            notes="字間が広い",
+            reviewer_id="reviewer-1",
+        )
+    }
+
+    window = HumanFeedbackQtWindow(
+        packet=packet,
+        drafts=drafts,
+        responses_json_path=tmp_path / "human_review_responses.json",
+        summary_json_path=tmp_path / "human_review_response_summary.json",
+        brief_json_path=tmp_path / "human_review_revision_brief.json",
+        brief_markdown_path=tmp_path / "human_review_revision_brief.md",
+    )
+
+    monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
+
+    assert window._detail_tabs.count() == 4
+    assert "Revision Brief" in window._brief_text.toPlainText()
+
+    window._export_revision_brief()
+
+    brief_md = (tmp_path / "human_review_revision_brief.md").read_text(encoding="utf-8")
+    brief_json = (tmp_path / "human_review_revision_brief.json").read_text(encoding="utf-8")
+
+    assert "Human Review Revision Brief" in brief_md
+    assert "字間が広い" in brief_md
+    assert '"brief_status": "ready"' in brief_json
+
+
 def test_qt_feedback_ui_defaults_to_zoomed_preview() -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None
@@ -139,7 +190,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 3
+    assert window._detail_tabs.count() == 4
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820

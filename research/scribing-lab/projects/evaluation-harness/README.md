@@ -264,8 +264,9 @@ python3 -m evaluation_harness human-feedback-ui \
 
 `human-feedback-ui` は代表 preview を画面上で切り替えながら、`accept` / `reject` /
 `needs-tuning` と reason tags を入力し、`human_review_responses.json` と
-`human_review_response_summary.json` を保存する。UI は Qt ベースなので、日本語と英字の
-表示品質が Tkinter 版より安定している。
+`human_review_response_summary.json` を保存する。`Revision Brief` タブと `Export Brief`
+ボタンで、note をそのまま次回修正用の brief に書き出せる。UI は Qt ベースなので、
+日本語と英字の表示品質が Tkinter 版より安定している。
 
 `--target-count` を指定すると、`root` から束を作る場合の代表項目数を増やせる。
 各 item の note は summary と next_actions にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。

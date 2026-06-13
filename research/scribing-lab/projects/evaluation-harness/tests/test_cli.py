@@ -112,6 +112,24 @@ def test_human_feedback_ui_parser_accepts_target_count() -> None:
     assert args.target_count == 72
 
 
+def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--brief-json",
+            "runs/test/brief.json",
+            "--brief-markdown",
+            "runs/test/brief.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.brief_json == "runs/test/brief.json"
+    assert args.brief_markdown == "runs/test/brief.md"
+
+
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
     args = build_parser().parse_args(
         [
