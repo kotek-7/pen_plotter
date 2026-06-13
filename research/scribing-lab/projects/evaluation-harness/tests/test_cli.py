@@ -225,6 +225,32 @@ def test_human_abx_feedback_loop_parser_accepts_recommendation_json() -> None:
     assert args.max_items == 12
 
 
+def test_human_abx_bundle_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout",
+            "--max-items",
+            "18",
+            "--output-dir",
+            "bundle",
+            "--output-prefix",
+            "layout_abx",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle"
+    assert args.root == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout"
+    assert args.max_items == 18
+    assert args.output_dir == "bundle"
+    assert args.output_prefix == "layout_abx"
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [

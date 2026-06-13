@@ -220,6 +220,162 @@ def test_build_human_abx_packet_filters_focus_areas_and_limits_items(tmp_path: P
     assert packet["abx_items"][0]["focus_area"] == "layout"
 
 
+def test_build_human_abx_packet_round_robin_focus_areas(tmp_path: Path) -> None:
+    previews = {
+        name: tmp_path / f"{name}.png"
+        for name in ["baseline-layout-1", "baseline-motion-1", "baseline-layout-2", "baseline-motion-2",
+                     "candidate-layout-1", "candidate-motion-1", "candidate-layout-2", "candidate-motion-2"]
+    }
+    for path in previews.values():
+        path.write_bytes(b"preview")
+
+    recommendation = {
+        "baseline_generator": "baseline-outline",
+        "expected_input_texts": ["日本", "字間", "提出", "記録"],
+        "expected_seeds": [1],
+        "expected_group_count": 4,
+        "selected_candidate_count": 4,
+        "selected_coverage_ratio": 1.0,
+        "selected_profile_counts": {"textured-casual": 2, "kanji-tight": 2},
+        "candidate_profile_counts": {"textured-casual": 2, "kanji-tight": 2},
+        "focus_area_counts": {"layout": 2, "motion": 2},
+        "recommended_action_counts": {
+            "character advance と line spacing を詰める": 2,
+            "motion-synthesis の tremor / timing jitter を下げる": 2,
+        },
+        "preview_comparisons": [
+            {
+                "input_text": "日本",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-layout-1",
+                "baseline_preview": {"path": str(previews["baseline-layout-1"])},
+                "candidate_experiment_id": "exp-candidate-layout-1",
+                "candidate_preview": {"path": str(previews["candidate-layout-1"])},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+            {
+                "input_text": "字間",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-motion-1",
+                "baseline_preview": {"path": str(previews["baseline-motion-1"])},
+                "candidate_experiment_id": "exp-candidate-motion-1",
+                "candidate_preview": {"path": str(previews["candidate-motion-1"])},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+            {
+                "input_text": "提出",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-layout-2",
+                "baseline_preview": {"path": str(previews["baseline-layout-2"])},
+                "candidate_experiment_id": "exp-candidate-layout-2",
+                "candidate_preview": {"path": str(previews["candidate-layout-2"])},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+            {
+                "input_text": "記録",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-motion-2",
+                "baseline_preview": {"path": str(previews["baseline-motion-2"])},
+                "candidate_experiment_id": "exp-candidate-motion-2",
+                "candidate_preview": {"path": str(previews["candidate-motion-2"])},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+        ],
+        "recommendations": [
+            {
+                "input_text": "日本",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-layout-1",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-layout-1",
+                    "profile_id": "textured-casual",
+                    "preview": {"path": str(previews["candidate-layout-1"])},
+                    "inferred_failure_tags": ["spacing-too-wide"],
+                    "suggested_next_actions": ["character advance と line spacing を詰める"],
+                    "focus_area": "layout",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+            {
+                "input_text": "字間",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-motion-1",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-motion-1",
+                    "profile_id": "kanji-tight",
+                    "preview": {"path": str(previews["candidate-motion-1"])},
+                    "inferred_failure_tags": ["over-jittered"],
+                    "suggested_next_actions": ["motion-synthesis の tremor / timing jitter を下げる"],
+                    "focus_area": "motion",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+            {
+                "input_text": "提出",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-layout-2",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-layout-2",
+                    "profile_id": "textured-casual",
+                    "preview": {"path": str(previews["candidate-layout-2"])},
+                    "inferred_failure_tags": ["spacing-too-wide"],
+                    "suggested_next_actions": ["character advance と line spacing を詰める"],
+                    "focus_area": "layout",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+            {
+                "input_text": "記録",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-motion-2",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-motion-2",
+                    "profile_id": "kanji-tight",
+                    "preview": {"path": str(previews["candidate-motion-2"])},
+                    "inferred_failure_tags": ["over-jittered"],
+                    "suggested_next_actions": ["motion-synthesis の tremor / timing jitter を下げる"],
+                    "focus_area": "motion",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+        ],
+    }
+
+    packet = build_human_abx_packet(
+        recommendation=recommendation,
+        focus_areas=("layout", "motion"),
+        max_items=4,
+    )
+
+    assert packet["selected_candidate_count"] == 4
+    assert packet["focus_area_counts"] == {"layout": 2, "motion": 2}
+    assert [item["focus_area"] for item in packet["abx_items"]] == ["layout", "motion", "layout", "motion"]
+
+
 def _record(
     experiment_id: str,
     *,

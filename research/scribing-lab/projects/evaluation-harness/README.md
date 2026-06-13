@@ -213,7 +213,7 @@ responses JSON としてそのまま戻せる。
 `--recommendation-json` と `--focus-areas layout,motion` を使うと、packet を挟まずに
 focused workbook を作れる。
 `human-abx-bundle` は、focused packet / workbook / feedback loop / response template /
-responses scaffold を 1 回でまとめて出力する。
+responses scaffold を 1 回でまとめて出力する。`layout` と `motion` を分けて回すときに使う。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

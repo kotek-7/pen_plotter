@@ -55,6 +55,13 @@ def build_human_abx_packet(
         packet_expected_seeds = list(recommendation.get("expected_seeds", []))
 
     focus_area_filter = {area for area in (focus_areas or ()) if area}
+    focus_area_order: list[str] = []
+    seen_focus_areas: set[str] = set()
+    for area in focus_areas or ():
+        if not area or area in seen_focus_areas:
+            continue
+        focus_area_order.append(area)
+        seen_focus_areas.add(area)
     items: list[dict[str, Any]] = []
     for item in recommendation["recommendations"]:
         selected = item["selected_candidate"]
@@ -85,8 +92,11 @@ def build_human_abx_packet(
             )
         )
 
-    if max_items is not None and max_items > 0:
-        items = items[:max_items]
+    items = _order_packet_items_by_focus_area(
+        items,
+        focus_area_order=focus_area_order,
+        max_items=max_items,
+    )
 
     selected_profile_counts = _count_by(items, "candidate_profile_id")
     focus_area_counts = _count_by(items, "focus_area")
@@ -274,6 +284,47 @@ def _count_by_nested_lists(items: list[dict[str, Any]], key: str) -> dict[str, i
                 continue
             counts[text] = counts.get(text, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def _order_packet_items_by_focus_area(
+    items: list[dict[str, Any]],
+    *,
+    focus_area_order: list[str],
+    max_items: int | None,
+) -> list[dict[str, Any]]:
+    if max_items is not None and max_items <= 0:
+        max_items = None
+    if len(focus_area_order) <= 1:
+        return items if max_items is None else items[:max_items]
+
+    grouped: dict[str, list[dict[str, Any]]] = {area: [] for area in focus_area_order}
+    fallback: list[dict[str, Any]] = []
+    for item in items:
+        focus_area = str(item.get("focus_area", "")).strip()
+        if focus_area in grouped:
+            grouped[focus_area].append(item)
+        else:
+            fallback.append(item)
+
+    ordered: list[dict[str, Any]] = []
+    while True:
+        progressed = False
+        for focus_area in focus_area_order:
+            bucket = grouped.get(focus_area, [])
+            if not bucket:
+                continue
+            ordered.append(bucket.pop(0))
+            progressed = True
+            if max_items is not None and len(ordered) >= max_items:
+                return ordered
+        if not progressed:
+            break
+
+    for item in fallback:
+        ordered.append(item)
+        if max_items is not None and len(ordered) >= max_items:
+            return ordered
+    return ordered if max_items is None else ordered[:max_items]
 
 
 __all__ = [
