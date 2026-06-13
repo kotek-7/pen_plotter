@@ -251,6 +251,31 @@ def test_human_abx_bundle_parser_accepts_recommendation_json() -> None:
     assert args.output_prefix == "layout_abx"
 
 
+def test_human_abx_bundle_followup_parser_accepts_bundle_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle-followup",
+            "--root",
+            "runs/test",
+            "--bundle-dir",
+            "runs/test/layout_bundle_v1",
+            "--bundle-prefix",
+            "layout_abx",
+            "--responses-json",
+            "runs/test/layout_bundle_v1/layout_abx_responses.json",
+            "--output-prefix",
+            "layout_abx_followup",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle-followup"
+    assert args.root == "runs/test"
+    assert args.bundle_dir == "runs/test/layout_bundle_v1"
+    assert args.bundle_prefix == "layout_abx"
+    assert args.responses_json == "runs/test/layout_bundle_v1/layout_abx_responses.json"
+    assert args.output_prefix == "layout_abx_followup"
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -1855,6 +1880,107 @@ def test_human_abx_bundle_command_writes_reports(tmp_path: Path) -> None:
     assert (bundle_dir / "layout_abx_feedback_loop.json").exists()
     assert (bundle_dir / "layout_abx_response_template.json").exists()
     assert (bundle_dir / "layout_abx_responses.json").exists()
+
+
+def test_human_abx_bundle_followup_command_writes_reports(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    bundle_dir = root / "layout_bundle_v1"
+    bundle_dir.mkdir(parents=True)
+
+    candidate_preview = tmp_path / "preview.png"
+    candidate_preview.write_bytes(b"candidate-preview")
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-motion-symbol",
+            input_text="，",
+            seed=1,
+            generator="structure-motion",
+            profile_id="symbol-neat",
+            artifacts={"preview": str(candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.16,
+                "baseline_drift_mm": 0.24,
+                "penup_distance_mm": 13.2,
+                "visible_char_count": 1,
+            },
+            failure_tags=["spacing-too-wide"],
+        )
+    )
+
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "，",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "symbol-neat",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-motion-symbol",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+            }
+        ]
+    }
+    packet_json = bundle_dir / "layout_abx_packet.json"
+    packet_json.write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    responses_json = bundle_dir / "layout_abx_responses.json"
+    responses_json.write_text(
+        json.dumps(
+            {
+                "responses": [
+                    {
+                        "item_id": "item-1",
+                        "evaluator_id": "eval-1",
+                        "choice": "B",
+                        "confidence": 4,
+                        "note": "more natural",
+                    }
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evaluation_harness.cli",
+            "human-abx-bundle-followup",
+            "--root",
+            str(root),
+            "--bundle-dir",
+            str(bundle_dir),
+            "--bundle-prefix",
+            "layout_abx",
+            "--responses-json",
+            str(responses_json),
+            "--output-prefix",
+            "layout_abx_followup",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert (bundle_dir / "layout_abx_followup_response_summary.md").exists()
+    assert (bundle_dir / "layout_abx_followup_response_summary.json").exists()
+    assert (bundle_dir / "layout_abx_followup_feedback_loop.md").exists()
+    assert (bundle_dir / "layout_abx_followup_feedback_loop.json").exists()
+    assert (bundle_dir / "layout_abx_followup_revision_plan.md").exists()
+    assert (bundle_dir / "layout_abx_followup_revision_plan.json").exists()
+    assert (bundle_dir / "layout_abx_followup_revision_run.md").exists()
+    assert (bundle_dir / "layout_abx_followup_revision_run.json").exists()
+    run_json = json.loads((bundle_dir / "layout_abx_followup_revision_run.json").read_text(encoding="utf-8"))
+    assert run_json["rerun_count"] == 1
+    assert run_json["preview_changed_count"] == 1
 
 
 def _record(

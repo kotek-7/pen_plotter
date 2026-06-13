@@ -447,6 +447,18 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle.add_argument("--output-dir", default="")
     human_abx_bundle.add_argument("--output-prefix", default="")
 
+    human_abx_bundle_followup = sub.add_parser(
+        "human-abx-bundle-followup",
+        help="Summarize bundle responses and run the revision loop from a bundle directory",
+    )
+    human_abx_bundle_followup.add_argument("--root", required=True, help="Run output directory")
+    human_abx_bundle_followup.add_argument("--bundle-dir", required=True, help="Bundle directory")
+    human_abx_bundle_followup.add_argument("--bundle-prefix", required=True)
+    human_abx_bundle_followup.add_argument("--responses-json", required=True)
+    human_abx_bundle_followup.add_argument("--evaluator-id", default="")
+    human_abx_bundle_followup.add_argument("--max-items", type=int, default=36)
+    human_abx_bundle_followup.add_argument("--output-prefix", default="")
+
     abx_workbook = sub.add_parser(
         "abx-workbook",
         help="Create a fillable ABX workbook from a packet",
@@ -1110,6 +1122,67 @@ def main() -> None:
         print(f"feedback_status: {feedback_loop['loop_status']}")
         print(f"bundle_dir: {bundle_dir}")
         print(f"bundle_prefix: {prefix}")
+    elif args.command == "human-abx-bundle-followup":
+        bundle_dir = Path(args.bundle_dir)
+        packet_path = bundle_dir / f"{args.bundle_prefix}_packet.json"
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        responses_path = Path(args.responses_json)
+        responses_data = json.loads(responses_path.read_text(encoding="utf-8"))
+        responses = load_abx_responses(responses_data)
+        packet_items = {
+            str(item.get("item_id", "")): item for item in packet.get("abx_items", [])
+        }
+        response_summary = summarize_abx_responses(
+            responses,
+            items=[
+                _abx_item_from_packet(packet_items[item_id])
+                for item_id in sorted({response.item_id for response in responses})
+                if item_id in packet_items
+            ],
+        )
+        feedback_loop = build_human_abx_feedback_loop(
+            packet,
+            responses_data=responses_data,
+            evaluator_id=args.evaluator_id,
+            max_items=args.max_items,
+        )
+        plan = build_abx_revision_plan(feedback_loop)
+        run = run_abx_revision_loop(Path(args.root), feedback_loop=feedback_loop)
+        output_prefix = args.output_prefix or f"{args.bundle_prefix}_followup"
+        summary_md_path = bundle_dir / f"{output_prefix}_response_summary.md"
+        summary_json_path = bundle_dir / f"{output_prefix}_response_summary.json"
+        feedback_md_path = bundle_dir / f"{output_prefix}_feedback_loop.md"
+        feedback_json_path = bundle_dir / f"{output_prefix}_feedback_loop.json"
+        plan_md_path = bundle_dir / f"{output_prefix}_revision_plan.md"
+        plan_json_path = bundle_dir / f"{output_prefix}_revision_plan.json"
+        run_md_path = bundle_dir / f"{output_prefix}_revision_run.md"
+        run_json_path = bundle_dir / f"{output_prefix}_revision_run.json"
+        summary_md_path.write_text(render_abx_summary_markdown(response_summary), encoding="utf-8")
+        summary_json_path.write_text(
+            json.dumps(response_summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
+        feedback_json_path.write_text(
+            json.dumps(feedback_loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        plan_md_path.write_text(render_abx_revision_plan_markdown(plan), encoding="utf-8")
+        plan_json_path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        run_md_path.write_text(render_abx_revision_run_markdown(run), encoding="utf-8")
+        run_json_path.write_text(
+            json.dumps(run, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"response_count: {response_summary['response_count']}")
+        print(f"selected_item_count: {plan['selected_item_count']}")
+        print(f"rerun_count: {run['rerun_count']}")
+        print(f"preview_changed_count: {run['preview_changed_count']}")
+        print(f"report: {run_md_path}")
+        print(f"json: {run_json_path}")
     elif args.command == "abx-workbook":
         packet = _load_abx_packet_from_args(args)
         responses_data = None
