@@ -224,6 +224,8 @@ follow-up は正規化した `<prefix>_responses.json` も bundle に保存す�
 `--pending-only` を付けると、未回答行だけを抜き出した pending workbook も保存する。
 同じく `pending packet` も保存されるので、そのまま次ラウンドの bundle に使える。
 `--next-bundle-dir` と `--next-bundle-prefix` を指定すると、pending packet から次ラウンド bundle を直接保存できる。
+`--chain-next-bundle` を付けると、`_v1` から `_v2` のように bundle 名を自動で進められる。
+`bundle-prefix` に `_vN` を付けていても、同じ中身の prefix へフォールバックして読む。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

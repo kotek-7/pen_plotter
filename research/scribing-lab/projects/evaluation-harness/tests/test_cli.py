@@ -341,6 +341,45 @@ def test_human_abx_bundle_followup_parser_accepts_next_bundle_paths() -> None:
     assert args.next_bundle_prefix == "layout_abx_v2"
 
 
+def test_human_abx_bundle_followup_parser_accepts_chain_next_bundle() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle-followup",
+            "--root",
+            "runs/test",
+            "--bundle-dir",
+            "runs/test/layout_bundle_v1",
+            "--bundle-prefix",
+            "layout_abx_v1",
+            "--pending-only",
+            "--chain-next-bundle",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle-followup"
+    assert args.pending_only is True
+    assert args.chain_next_bundle is True
+
+
+def test_human_abx_bundle_followup_parser_accepts_versioned_bundle_prefix() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle-followup",
+            "--root",
+            "runs/test",
+            "--bundle-dir",
+            "runs/test/layout_bundle_v1",
+            "--bundle-prefix",
+            "layout_abx_v1",
+            "--pending-only",
+            "--chain-next-bundle",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle-followup"
+    assert args.bundle_prefix == "layout_abx_v1"
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -2287,6 +2326,128 @@ def test_human_abx_bundle_followup_command_writes_next_bundle(tmp_path: Path) ->
             str(next_bundle_dir),
             "--next-bundle-prefix",
             "layout_abx_v2",
+            "--output-prefix",
+            "layout_abx_followup",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert (next_bundle_dir / "layout_abx_v2_packet.json").exists()
+    assert (next_bundle_dir / "layout_abx_v2_workbook.json").exists()
+    assert (next_bundle_dir / "layout_abx_v2_feedback_loop.json").exists()
+    assert (next_bundle_dir / "layout_abx_v2_response_template.json").exists()
+    assert (next_bundle_dir / "layout_abx_v2_responses.json").exists()
+    assert "next_bundle_dir:" in result.stdout
+    assert "next_bundle_prefix: layout_abx_v2" in result.stdout
+
+
+def test_human_abx_bundle_followup_command_chains_next_bundle(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    bundle_dir = root / "layout_bundle_v1"
+    next_bundle_dir = root / "layout_bundle_v2"
+    bundle_dir.mkdir(parents=True)
+
+    candidate_preview = tmp_path / "preview.png"
+    candidate_preview.write_bytes(b"candidate-preview")
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-motion-symbol",
+            input_text="，",
+            seed=1,
+            generator="structure-motion",
+            profile_id="symbol-neat",
+            artifacts={"preview": str(candidate_preview)},
+            metrics={
+                "draw_speed_cv": 0.16,
+                "baseline_drift_mm": 0.24,
+                "penup_distance_mm": 13.2,
+                "visible_char_count": 1,
+            },
+            failure_tags=["spacing-too-wide"],
+        )
+    )
+
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "，",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "symbol-neat",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-motion-symbol",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+            },
+            {
+                "item_id": "item-2",
+                "prompt": "字間",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "layout-tight",
+                "baseline_experiment_id": "exp-baseline-2",
+                "candidate_experiment_id": "exp-motion-symbol",
+                "option_a_artifact": "a2.png",
+                "option_b_artifact": "b2.png",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+            },
+        ]
+    }
+    (bundle_dir / "layout_abx_packet.json").write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    (bundle_dir / "layout_abx_workbook.json").write_text(
+        json.dumps(
+            {
+                "evaluator_id": "eval-1",
+                "rows": [
+                    {
+                        "item_id": "item-1",
+                        "prompt": "，",
+                        "candidate_profile_id": "symbol-neat",
+                        "selected_failure_tags": ["spacing-too-wide"],
+                        "selected_next_actions": ["character advance と line spacing を詰める"],
+                        "choice": "B",
+                        "confidence": 4,
+                        "note": "more natural",
+                    },
+                    {
+                        "item_id": "item-2",
+                        "prompt": "字間",
+                        "candidate_profile_id": "layout-tight",
+                        "selected_failure_tags": ["spacing-too-wide"],
+                        "selected_next_actions": ["character advance と line spacing を詰める"],
+                        "choice": "",
+                        "confidence": "",
+                        "note": "",
+                    },
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evaluation_harness.cli",
+            "human-abx-bundle-followup",
+            "--root",
+            str(root),
+            "--bundle-dir",
+            str(bundle_dir),
+            "--bundle-prefix",
+            "layout_abx_v1",
+            "--pending-only",
+            "--chain-next-bundle",
             "--output-prefix",
             "layout_abx_followup",
         ],

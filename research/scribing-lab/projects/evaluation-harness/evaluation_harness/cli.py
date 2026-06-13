@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 from evaluation_harness.artifacts import ArtifactStore
@@ -463,6 +464,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--pending-only", action="store_true")
     human_abx_bundle_followup.add_argument("--next-bundle-dir", default="")
     human_abx_bundle_followup.add_argument("--next-bundle-prefix", default="")
+    human_abx_bundle_followup.add_argument("--chain-next-bundle", action="store_true")
     human_abx_bundle_followup.add_argument("--output-prefix", default="")
 
     abx_workbook = sub.add_parser(
@@ -1130,9 +1132,13 @@ def main() -> None:
         print(f"bundle_prefix: {prefix}")
     elif args.command == "human-abx-bundle-followup":
         bundle_dir = Path(args.bundle_dir)
-        packet_path = bundle_dir / f"{args.bundle_prefix}_packet.json"
+        packet_path = _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "packet.json")
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
-        workbook_path = Path(args.workbook_json) if args.workbook_json else bundle_dir / f"{args.bundle_prefix}_workbook.json"
+        workbook_path = (
+            Path(args.workbook_json)
+            if args.workbook_json
+            else _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "workbook.json")
+        )
         responses_path = Path(args.responses_json) if args.responses_json else None
         workbook = None
         if workbook_path.exists():
@@ -1224,10 +1230,15 @@ def main() -> None:
                 )
                 print(f"pending_packet_rows: {len(pending_packet['abx_items'])}")
                 print(f"pending_workbook_rows: {len(pending_rows)}")
-                if args.next_bundle_dir:
-                    next_bundle_dir = _resolve_output_path(bundle_dir, args.next_bundle_dir)
+                if args.next_bundle_dir or args.chain_next_bundle:
+                    if args.next_bundle_dir:
+                        next_bundle_dir = _resolve_output_path(bundle_dir, args.next_bundle_dir)
+                    else:
+                        next_bundle_dir = bundle_dir.parent / _increment_bundle_name(bundle_dir.name)
                     next_bundle_dir.mkdir(parents=True, exist_ok=True)
-                    next_prefix = args.next_bundle_prefix or f"{output_prefix}_next"
+                    next_prefix = args.next_bundle_prefix or (
+                        _increment_bundle_name(args.bundle_prefix) if args.chain_next_bundle else f"{output_prefix}_next"
+                    )
                     next_workbook = build_abx_workbook(
                         pending_packet,
                         evaluator_id=args.evaluator_id,
@@ -1617,6 +1628,28 @@ def _default_abx_bundle_prefix(focus_areas: tuple[str, ...]) -> str:
     if not focus_areas:
         return "abx_bundle"
     return "_".join(sorted(focus_areas)) + "_abx"
+
+
+def _find_bundle_artifact_path(bundle_dir: Path, bundle_prefix: str, suffix: str) -> Path:
+    candidates = [bundle_prefix]
+    version_match = re.match(r"^(.*)_v\d+$", bundle_prefix)
+    if version_match:
+        candidates.append(version_match.group(1))
+    for candidate in candidates:
+        path = bundle_dir / f"{candidate}_{suffix}"
+        if path.exists():
+            return path
+    return bundle_dir / f"{bundle_prefix}_{suffix}"
+
+
+def _increment_bundle_name(name: str) -> str:
+    match = re.match(r"^(.*?)(?:_v(\d+))?$", name)
+    if not match:
+        return f"{name}_v2"
+    base, version = match.groups()
+    if version is None:
+        return f"{name}_v2"
+    return f"{base}_v{int(version) + 1}"
 
 
 def _load_abx_packet_from_args(args: argparse.Namespace) -> dict[str, object]:
