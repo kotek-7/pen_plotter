@@ -227,12 +227,13 @@ follow-up は正規化した `<prefix>_responses.json` も bundle に保存す�
 `--chain-next-bundle` を付けると、`_v1` から `_v2` のように bundle 名を自動で進められる。
 `bundle-prefix` に `_vN` を付けていても、同じ中身の prefix へフォールバックして読む。
 `human-abx-bundle-chain-status` は、bundle の連番ごとの packet / workbook / completion ratio を一覧化する。
+`human-abx-bundle-sweep-status` は、`goal-wide` 配下の bundle 系をまとめて一覧化する。
+どちらの status も、`revision_rerun_count` と `revision_preview_changed_count` を含む。
 ```sh
 python3 -m evaluation_harness human-abx-bundle-chain-status \
   --bundle-dir runs/goal-wide/layout_bundle_v1 \
   --bundle-prefix layout_abx
 ```
-`human-abx-bundle-sweep-status` は、`goal-wide` 配下の bundle 系をまとめて一覧化する。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

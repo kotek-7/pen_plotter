@@ -2625,6 +2625,8 @@ def test_human_abx_bundle_chain_status_command_writes_summary(tmp_path: Path) ->
     assert status_json["bundle_count"] == 2
     assert status_json["bundles"][0]["pending_row_count"] == 1
     assert status_json["bundles"][1]["completed_row_count"] == 1
+    assert status_json["bundles"][1]["revision_rerun_count"] == 0
+    assert status_json["bundles"][1]["revision_preview_changed_count"] == 0
 
 
 def test_human_abx_bundle_sweep_status_command_writes_summary(tmp_path: Path) -> None:
@@ -2738,6 +2740,9 @@ def test_human_abx_bundle_sweep_status_command_writes_summary(tmp_path: Path) ->
     assert sweep_json["bundle_root_count"] == 2
     assert sweep_json["bundle_chains"][0]["bundle_count"] == 1
     assert sweep_json["bundle_chains"][1]["bundle_count"] == 1
+    assert sweep_json["bundle_chains"][0]["bundles"][0]["revision_rerun_count"] == 0
+    assert sweep_json["bundle_chains"][1]["bundles"][0]["revision_preview_changed_count"] == 0
+    assert len(sweep_json["ranked_bundle_chains"]) == 2
 
 
 def _record(

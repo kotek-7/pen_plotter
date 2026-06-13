@@ -1754,6 +1754,12 @@ def _summarize_abx_bundle_chain(
             completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
         else:
             completed_row_count, pending_row_count, completion_ratio = 0, len(packet_items), 0.0
+        revision_run_path = _latest_bundle_artifact_path(current_dir, "*_revision_run.json")
+        revision_run = (
+            json.loads(revision_run_path.read_text(encoding="utf-8"))
+            if revision_run_path is not None and revision_run_path.exists()
+            else None
+        )
         next_bundle_dir = current_dir.parent / _increment_bundle_name(current_dir.name)
         next_bundle_prefix = _increment_bundle_name(current_prefix)
         next_packet_path = _find_bundle_artifact_path(next_bundle_dir, next_bundle_prefix, "packet.json")
@@ -1767,6 +1773,8 @@ def _summarize_abx_bundle_chain(
                 "completed_row_count": completed_row_count,
                 "pending_row_count": pending_row_count,
                 "completion_ratio": completion_ratio,
+                "revision_rerun_count": int(revision_run.get("rerun_count", 0)) if revision_run else 0,
+                "revision_preview_changed_count": int(revision_run.get("preview_changed_count", 0)) if revision_run else 0,
                 "next_bundle_dir": str(next_bundle_dir),
                 "next_bundle_prefix": next_bundle_prefix,
                 "next_bundle_exists": next_bundle_exists,
@@ -1800,11 +1808,20 @@ def _summarize_abx_bundle_sweep(root: Path, *, max_depth: int) -> dict[str, obje
         _summarize_abx_bundle_chain(bundle_root, _bundle_prefix_from_dir(bundle_root), max_depth=max_depth)
         for bundle_root in bundle_roots
     ]
+    ranked_bundle_chains = sorted(
+        bundle_chains,
+        key=lambda chain: (
+            -sum(int(bundle.get("revision_preview_changed_count", 0)) for bundle in chain.get("bundles", [])),
+            -sum(int(bundle.get("revision_rerun_count", 0)) for bundle in chain.get("bundles", [])),
+            chain.get("bundles", [{}])[0].get("bundle_dir", "") if chain.get("bundles") else "",
+        ),
+    )
     return {
         "root": str(root),
         "bundle_root_count": len(bundle_chains),
         "open_bundle_root_count": sum(1 for chain in bundle_chains if chain["open_bundle_count"]),
         "bundle_chains": bundle_chains,
+        "ranked_bundle_chains": ranked_bundle_chains,
     }
 
 
@@ -1825,6 +1842,13 @@ def _bundle_prefix_from_dir(bundle_dir: Path) -> str:
     return selected[0].name[: -len("_packet.json")]
 
 
+def _latest_bundle_artifact_path(bundle_dir: Path, pattern: str) -> Path | None:
+    candidates = sorted(bundle_dir.glob(pattern))
+    if not candidates:
+        return None
+    return candidates[-1]
+
+
 def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
     lines = [
         "# ABX Bundle Chain Status",
@@ -1842,8 +1866,8 @@ def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
         return "\n".join(lines) + "\n"
     lines.extend(
         [
-            "| bundle_dir | bundle_prefix | packet_items | workbook_rows | completed | pending | completion_ratio | next_bundle_exists |",
-            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+            "| bundle_dir | bundle_prefix | packet_items | workbook_rows | completed | pending | completion_ratio | rerun_count | preview_changed_count | next_bundle_exists |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for bundle in bundles:
@@ -1856,6 +1880,8 @@ def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
             f"{_markdown_cell(str(bundle['completed_row_count']))} | "
             f"{_markdown_cell(str(bundle['pending_row_count']))} | "
             f"{_markdown_cell(str(bundle['completion_ratio']))} | "
+            f"{_markdown_cell(str(bundle['revision_rerun_count']))} | "
+            f"{_markdown_cell(str(bundle['revision_preview_changed_count']))} | "
             f"{_markdown_cell(str(bundle['next_bundle_exists']))} |"
         )
     return "\n".join(lines) + "\n"
@@ -1872,14 +1898,34 @@ def render_abx_bundle_sweep_status_markdown(status: dict[str, object]) -> str:
         "## Bundle Chains",
         "",
     ]
+    ranked_chains = list(status.get("ranked_bundle_chains", []))
+    if ranked_chains:
+        lines.extend(
+            [
+                "### Recommended Order",
+                "",
+            ]
+        )
+        for chain in ranked_chains:
+            bundles = list(chain.get("bundles", []))
+            if not bundles:
+                continue
+            last_bundle = bundles[-1]
+            total_changed = sum(int(bundle.get("revision_preview_changed_count", 0)) for bundle in bundles)
+            total_rerun = sum(int(bundle.get("revision_rerun_count", 0)) for bundle in bundles)
+            lines.append(
+                f"- `{bundles[0]['bundle_dir']}` / `{bundles[0]['bundle_prefix']}`: "
+                f"changed=`{total_changed}` rerun=`{total_rerun}` latest=`{last_bundle.get('bundle_prefix', '')}`"
+            )
+        lines.append("")
     chains = list(status.get("bundle_chains", []))
     if not chains:
         lines.append("- none")
         return "\n".join(lines) + "\n"
     lines.extend(
         [
-            "| bundle_dir | bundle_prefix | bundle_count | open_bundle_count | chain_status |",
-            "| --- | --- | --- | --- | --- |",
+            "| bundle_dir | bundle_prefix | bundle_count | open_bundle_count | chain_status | latest_rerun_count | latest_preview_changed_count |",
+            "| --- | --- | --- | --- | --- | --- | --- |",
         ]
     )
     for chain in chains:
@@ -1891,12 +1937,15 @@ def render_abx_bundle_sweep_status_markdown(status: dict[str, object]) -> str:
             f"{_markdown_cell(str(bundles[0]['bundle_prefix']) if bundles else '')} | "
             f"{_markdown_cell(str(chain['bundle_count']))} | "
             f"{_markdown_cell(str(chain['open_bundle_count']))} | "
-            f"{_markdown_cell(str(chain['chain_status']))} |"
+            f"{_markdown_cell(str(chain['chain_status']))} | "
+            f"{_markdown_cell(str(last_bundle.get('revision_rerun_count', 0)) if last_bundle else 0)} | "
+            f"{_markdown_cell(str(last_bundle.get('revision_preview_changed_count', 0)) if last_bundle else 0)} |"
         )
         if last_bundle:
             lines.append(
                 f"- latest: `{last_bundle['bundle_dir']}` / `{last_bundle['bundle_prefix']}` / "
-                f"pending=`{last_bundle['pending_row_count']}` / next=`{last_bundle['next_bundle_exists']}`"
+                f"pending=`{last_bundle['pending_row_count']}` / next=`{last_bundle['next_bundle_exists']}` / "
+                f"rerun=`{last_bundle.get('revision_rerun_count', 0)}` / changed=`{last_bundle.get('revision_preview_changed_count', 0)}`"
             )
     return "\n".join(lines) + "\n"
 
