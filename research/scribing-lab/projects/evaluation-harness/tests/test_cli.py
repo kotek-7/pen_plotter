@@ -276,6 +276,24 @@ def test_human_abx_bundle_followup_parser_accepts_bundle_paths() -> None:
     assert args.output_prefix == "layout_abx_followup"
 
 
+def test_human_abx_bundle_followup_parser_defaults_responses_path() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle-followup",
+            "--root",
+            "runs/test",
+            "--bundle-dir",
+            "runs/test/layout_bundle_v1",
+            "--bundle-prefix",
+            "layout_abx",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle-followup"
+    assert args.responses_json == ""
+    assert args.output_prefix == ""
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -1882,7 +1900,7 @@ def test_human_abx_bundle_command_writes_reports(tmp_path: Path) -> None:
     assert (bundle_dir / "layout_abx_responses.json").exists()
 
 
-def test_human_abx_bundle_followup_command_writes_reports(tmp_path: Path) -> None:
+def test_human_abx_bundle_followup_command_uses_bundle_defaults(tmp_path: Path) -> None:
     root = tmp_path / "runs"
     bundle_dir = root / "layout_bundle_v1"
     bundle_dir.mkdir(parents=True)
@@ -1926,8 +1944,7 @@ def test_human_abx_bundle_followup_command_writes_reports(tmp_path: Path) -> Non
     }
     packet_json = bundle_dir / "layout_abx_packet.json"
     packet_json.write_text(json.dumps(packet, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    responses_json = bundle_dir / "layout_abx_responses.json"
-    responses_json.write_text(
+    (bundle_dir / "layout_abx_responses.json").write_text(
         json.dumps(
             {
                 "responses": [
@@ -1959,8 +1976,6 @@ def test_human_abx_bundle_followup_command_writes_reports(tmp_path: Path) -> Non
             str(bundle_dir),
             "--bundle-prefix",
             "layout_abx",
-            "--responses-json",
-            str(responses_json),
             "--output-prefix",
             "layout_abx_followup",
         ],

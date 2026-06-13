@@ -454,7 +454,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--root", required=True, help="Run output directory")
     human_abx_bundle_followup.add_argument("--bundle-dir", required=True, help="Bundle directory")
     human_abx_bundle_followup.add_argument("--bundle-prefix", required=True)
-    human_abx_bundle_followup.add_argument("--responses-json", required=True)
+    human_abx_bundle_followup.add_argument("--responses-json", default="")
     human_abx_bundle_followup.add_argument("--evaluator-id", default="")
     human_abx_bundle_followup.add_argument("--max-items", type=int, default=36)
     human_abx_bundle_followup.add_argument("--output-prefix", default="")
@@ -1126,7 +1126,11 @@ def main() -> None:
         bundle_dir = Path(args.bundle_dir)
         packet_path = bundle_dir / f"{args.bundle_prefix}_packet.json"
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
-        responses_path = Path(args.responses_json)
+        responses_path = (
+            Path(args.responses_json)
+            if args.responses_json
+            else bundle_dir / f"{args.bundle_prefix}_responses.json"
+        )
         responses_data = json.loads(responses_path.read_text(encoding="utf-8"))
         responses = load_abx_responses(responses_data)
         packet_items = {
