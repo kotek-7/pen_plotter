@@ -135,6 +135,7 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
     assert window._detail_tabs.count() == 7
+    assert window._detail_tabs.currentIndex() == 0
     assert "Human Review Start Card" in window._start_card_text.toPlainText()
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()

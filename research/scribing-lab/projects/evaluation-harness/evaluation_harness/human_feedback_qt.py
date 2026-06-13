@@ -846,6 +846,8 @@ class HumanFeedbackQtWindow(QMainWindow):
                 self._loading = False
         else:
             self._refresh_summary()
+        if hasattr(self, "_detail_tabs"):
+            self._detail_tabs.setCurrentIndex(0)
         self._refresh_summary()
         self._refresh_start_card()
         self._refresh_revision_brief()
