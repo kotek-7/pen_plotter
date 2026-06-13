@@ -155,6 +155,28 @@ def test_human_feedback_revision_plan_parser_accepts_brief_and_loop_paths() -> N
     assert args.json_output == "plan.json"
 
 
+def test_human_feedback_preview_revision_plan_parser_accepts_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-preview-revision-plan",
+            "--root",
+            "runs/test",
+            "--brief-json",
+            "runs/test/brief.json",
+            "--output",
+            "preview-plan.md",
+            "--json-output",
+            "preview-plan.json",
+        ]
+    )
+
+    assert args.command == "human-feedback-preview-revision-plan"
+    assert args.root == "runs/test"
+    assert args.brief_json == "runs/test/brief.json"
+    assert args.output == "preview-plan.md"
+    assert args.json_output == "preview-plan.json"
+
+
 def test_preview_review_packet_parser_accepts_output_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -2236,6 +2258,95 @@ def test_human_feedback_revision_plan_command_writes_outputs(
     assert "Human Review Revision Plan" in plan_md
     assert "字間が広い" in plan_md
     assert '"plan_status": "ready"' in plan_json
+
+
+def test_human_feedback_preview_revision_plan_command_writes_outputs(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-baseline",
+            input_text="永",
+            seed=1,
+            generator="baseline-outline",
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-candidate",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+            profile_id="fast-casual",
+            metrics={
+                "draw_speed_cv": 0.2,
+                "mean_abs_jerk_mm_s3": 1000.0,
+                "baseline_drift_mm": 0.3,
+                "shape_variation_mm": 0.64,
+                "layout_variation_mm": 0.96,
+                "gcode_safety_ok": 1,
+                "gcode_safety_violation_count": 0,
+            },
+        )
+    )
+    brief_path = root / "brief.json"
+    brief_path.parent.mkdir(parents=True, exist_ok=True)
+    brief_path.write_text(
+        json.dumps(
+            {
+                "brief_status": "ready",
+                "note_count": 1,
+                "reason_tag_counts": {"spacing-too-wide": 1},
+                "primary_notes": ["字間が広い"],
+                "selected_note_examples": [
+                    {
+                        "experiment_id": "exp-a",
+                        "decision": "needs-tuning",
+                        "reason_tags": ["spacing-too-wide"],
+                        "notes": "字間が広い",
+                        "reviewer_id": "reviewer-1",
+                    }
+                ],
+                "top_reason_tags": ["spacing-too-wide"],
+                "focus_lines": ["notes の指摘をそのまま次回の修正に反映する"],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-preview-revision-plan",
+            "--root",
+            str(root),
+            "--brief-json",
+            str(brief_path),
+            "--output",
+            "preview-plan.md",
+            "--json-output",
+            "preview-plan.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    plan_md = (root / "preview-plan.md").read_text(encoding="utf-8")
+    plan_json = (root / "preview-plan.json").read_text(encoding="utf-8")
+
+    assert "Human Review Preview Revision Plan" in plan_md
+    assert "Human Review Revision Brief" in plan_md
+    assert "Human Review Revision Plan" in plan_md
+    assert "Preview Revision Proposal" in plan_md
+    assert '"human_focus_area": "layout"' in plan_json
 
 
 def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:

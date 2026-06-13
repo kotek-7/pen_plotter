@@ -267,6 +267,7 @@ python3 -m evaluation_harness human-feedback-ui \
 `human_review_response_summary.json` を保存する。`Revision Brief` タブと `Export Brief`
 ボタンで、note をそのまま次回修正用の brief に書き出せる。UI は Qt ベースなので、
 日本語と英字の表示品質が Tkinter 版より安定している。
+`Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 
 `--target-count` を指定すると、`root` から束を作る場合の代表項目数を増やせる。
 各 item の note は summary と next_actions にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。

@@ -70,9 +70,11 @@ from evaluation_harness.abx import (
 )
 from evaluation_harness.human_review_response import (
     build_human_review_revision_brief,
+    build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     load_human_review_responses,
     render_human_review_response_markdown,
+    render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_brief_markdown,
     render_human_review_revision_plan_markdown,
     summarize_human_review_responses,
@@ -407,6 +409,19 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_plan.add_argument("--loop-json", help="Human feedback loop JSON")
     human_feedback_plan.add_argument("--output", default="human_review_revision_plan.md")
     human_feedback_plan.add_argument("--json-output", default="human_review_revision_plan.json")
+
+    human_feedback_preview_plan = sub.add_parser(
+        "human-feedback-preview-revision-plan",
+        help="Generate a preview revision plan from a human review brief",
+    )
+    human_feedback_preview_plan.add_argument("--root", required=True, help="Run output directory")
+    human_feedback_preview_plan.add_argument("--brief-json", help="Human review revision brief JSON")
+    human_feedback_preview_plan.add_argument("--loop-json", help="Human feedback loop JSON")
+    human_feedback_preview_plan.add_argument("--input-set", choices=("fixed", "review", "wide"), default="wide")
+    human_feedback_preview_plan.add_argument("--seeds", default="1")
+    human_feedback_preview_plan.add_argument("--baseline-generator", default="baseline-outline")
+    human_feedback_preview_plan.add_argument("--output", default="human_review_preview_revision_plan.md")
+    human_feedback_preview_plan.add_argument("--json-output", default="human_review_preview_revision_plan.json")
 
     preview_review = sub.add_parser(
         "preview-review-packet",
@@ -1106,6 +1121,44 @@ def main() -> None:
         )
         print(f"plan_status: {plan['plan_status']}")
         print(f"dominant_focus_area: {plan['dominant_focus_area']}")
+        print(f"report: {output_path}")
+        print(f"json: {json_path}")
+    elif args.command == "human-feedback-preview-revision-plan":
+        root = Path(args.root)
+        if args.loop_json:
+            loop = json.loads(Path(args.loop_json).read_text(encoding="utf-8"))
+            brief = loop.get("revision_brief")
+            if brief is None:
+                brief = build_human_review_revision_brief(
+                    loop.get(
+                        "response_summary",
+                        {"note_count": 0, "reason_tag_counts": {}, "note_examples": []},
+                    )
+                )
+        elif args.brief_json:
+            brief = json.loads(Path(args.brief_json).read_text(encoding="utf-8"))
+        else:
+            raise ValueError("--brief-json or --loop-json is required")
+        registry = ExperimentRegistry(root / "registry.jsonl")
+        preview_proposal = propose_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator=args.baseline_generator,
+            expected_input_texts=get_evaluation_inputs(args.input_set),
+            expected_seeds=tuple(_parse_seeds(args.seeds)),
+        )
+        combined = build_human_review_preview_revision_plan(brief, preview_proposal)
+        output_path = _resolve_output_path(root, args.output)
+        json_path = _resolve_output_path(root, args.json_output)
+        output_path.write_text(
+            render_human_review_preview_revision_plan_markdown(combined), encoding="utf-8"
+        )
+        json_path.write_text(
+            json.dumps(combined, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"plan_status: {combined['plan_status']}")
+        print(f"human_focus_area: {combined['human_focus_area']}")
+        print(f"preview_selected_candidate_count: {combined['preview_selected_candidate_count']}")
         print(f"report: {output_path}")
         print(f"json: {json_path}")
     elif args.command == "preview-review-packet":

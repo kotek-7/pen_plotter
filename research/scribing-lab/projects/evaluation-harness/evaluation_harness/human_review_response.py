@@ -196,6 +196,39 @@ def build_human_review_revision_plan(brief: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_human_review_preview_revision_plan(
+    brief: dict[str, Any],
+    preview_proposal: dict[str, Any],
+) -> dict[str, Any]:
+    human_plan = build_human_review_revision_plan(brief)
+    human_focus_area = str(human_plan.get("dominant_focus_area", "")).strip() or "preview"
+    preview_revision_plans = list(preview_proposal.get("revision_plans", []))
+    filtered_revision_plans = [
+        plan for plan in preview_revision_plans if str(plan.get("focus_area", "")) == human_focus_area
+    ]
+    if not filtered_revision_plans:
+        filtered_revision_plans = preview_revision_plans
+
+    filtered_area_counts: dict[str, int] = {}
+    for plan in filtered_revision_plans:
+        area = str(plan.get("focus_area", "")) or "preview"
+        filtered_area_counts[area] = filtered_area_counts.get(area, 0) + 1
+
+    return {
+        "plan_status": "ready" if filtered_revision_plans else "empty",
+        "human_revision_plan": human_plan,
+        "human_focus_area": human_focus_area,
+        "human_next_experiment_hint": human_plan["next_experiment_hint"],
+        "human_proposed_changes": list(human_plan.get("proposed_changes", [])),
+        "human_primary_notes": list(human_plan.get("primary_notes", [])),
+        "human_top_reason_tags": list(human_plan.get("top_reason_tags", [])),
+        "preview_revision_plan": preview_proposal,
+        "preview_focus_area_counts": dict(sorted(filtered_area_counts.items())),
+        "preview_revision_plans": filtered_revision_plans,
+        "preview_selected_candidate_count": len(filtered_revision_plans),
+    }
+
+
 def summarize_human_review_calibration(
     packet: dict[str, Any],
     responses: list[HumanReviewResponse],
@@ -514,6 +547,62 @@ def render_human_review_revision_plan_markdown(plan: dict[str, Any]) -> str:
     else:
         for note in plan["primary_notes"]:
             lines.append(f"- {note}")
+    return "\n".join(lines) + "\n"
+
+
+def render_human_review_preview_revision_plan_markdown(plan: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Preview Revision Plan",
+        "",
+        f"- plan_status: `{plan['plan_status']}`",
+        f"- human_focus_area: `{plan['human_focus_area']}`",
+        f"- human_next_experiment_hint: `{plan['human_next_experiment_hint']}`",
+        f"- preview_selected_candidate_count: `{plan['preview_selected_candidate_count']}`",
+        f"- preview_focus_area_counts: `{plan['preview_focus_area_counts']}`",
+        "",
+        "## Human Revision Brief",
+        "",
+        render_human_review_revision_brief_markdown(plan["human_revision_plan"]).rstrip(),
+        "",
+        "## Human Revision Plan",
+        "",
+        render_human_review_revision_plan_markdown(plan["human_revision_plan"]).rstrip(),
+        "",
+        "## Preview Revision Proposal",
+        "",
+    ]
+    preview_proposal = plan["preview_revision_plan"]
+    if not preview_proposal.get("revision_plans"):
+        lines.append("- none")
+    else:
+        for item in plan["preview_revision_plans"]:
+            lines.extend(
+                [
+                    f"### input={item['input_text']} seed={item['seed']}",
+                    "",
+                    f"- status: `{item['status']}`",
+                    f"- focus_area: `{item['focus_area']}`",
+                    f"- candidate_experiment_id: `{item['candidate_experiment_id']}`",
+                    f"- candidate_profile_id: `{item.get('candidate_profile_id', '')}`",
+                    f"- selected_failure_tags: `{item.get('selected_failure_tags', [])}`",
+                    f"- selected_next_actions: `{item.get('selected_next_actions', [])}`",
+                    f"- next_experiment_hint: `{item['next_experiment_hint']}`",
+                    "- proposed_changes:",
+                ]
+            )
+            if item["proposed_changes"]:
+                for change in item["proposed_changes"]:
+                    lines.append(
+                        "  - "
+                        f"target=`{change['target']}` "
+                        f"parameter=`{change['parameter']}` "
+                        f"direction=`{change['direction']}` "
+                        f"amount_hint=`{change['amount_hint']}` "
+                        f"reason=`{change['reason']}`"
+                    )
+            else:
+                lines.append("  - none")
+            lines.append("")
     return "\n".join(lines) + "\n"
 
 
