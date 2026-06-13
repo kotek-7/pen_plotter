@@ -2657,9 +2657,29 @@ def test_human_feedback_review_bundle_command_writes_outputs(
 
     from evaluation_harness.cli import main
 
+    bundle_dir = root / "bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    (bundle_dir / "longform_review_session_feedback.json").write_text(
+        json.dumps(
+            {
+                "sort_order": "longform-first",
+                "record_count": 3,
+                "representative_count": 3,
+                "high_priority_tags": ["spacing-too-wide"],
+                "what_to_compare": ["字間が広すぎないか"],
+                "focus_questions": ["何が最優先か"],
+                "reference_representative_ids": ["exp-00"],
+                "notes": "良い点: 長文は読みやすい\n気になる点: まだ字間が広い\n優先修正: layout を詰める",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
     main()
 
-    bundle_dir = root / "bundle"
     packet_md = (bundle_dir / "longform_review_packet.md").read_text(encoding="utf-8")
     start_card_md = (bundle_dir / "longform_review_start_card.md").read_text(encoding="utf-8")
     comparison_sheet_md = (bundle_dir / "longform_review_comparison_sheet.md").read_text(encoding="utf-8")
@@ -2678,6 +2698,7 @@ def test_human_feedback_review_bundle_command_writes_outputs(
     assert "Human Review Comparison Sheet" in comparison_sheet_md
     assert "Human Review Prompt" in prompt_md
     assert "Human Review Session Feedback" in session_feedback_md
+    assert "まだ字間が広い" in session_feedback_md
     assert "Review steps" in guide_md
     assert '"packet_representative_count": 2' in guide_json
     assert '"sort_order": "longform-first"' in (bundle_dir / "longform_review_start_card.json").read_text(encoding="utf-8")

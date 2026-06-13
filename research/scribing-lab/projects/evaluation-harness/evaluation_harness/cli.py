@@ -1371,6 +1371,15 @@ def main() -> None:
         prompt_json_path = bundle_dir / f"{prefix}_prompt.json"
         session_feedback_md_path = bundle_dir / f"{prefix}_session_feedback.md"
         session_feedback_json_path = bundle_dir / f"{prefix}_session_feedback.json"
+        if session_feedback_json_path.exists():
+            try:
+                existing_session_feedback = json.loads(session_feedback_json_path.read_text(encoding="utf-8"))
+            except (OSError, ValueError, TypeError):
+                existing_session_feedback = None
+            if isinstance(existing_session_feedback, dict):
+                existing_notes = str(existing_session_feedback.get("notes", "")).strip()
+                if existing_notes:
+                    session_feedback["notes"] = existing_notes
         guide_md_path = bundle_dir / f"{prefix}_guide.md"
         guide_json_path = bundle_dir / f"{prefix}_guide.json"
         index_md_path = bundle_dir / f"{prefix}_index.md"
