@@ -2144,9 +2144,15 @@ def test_human_abx_bundle_followup_command_writes_pending_workbook(tmp_path: Pat
     )
 
     assert result.returncode == 0
+    assert (bundle_dir / "layout_abx_followup_pending_packet.md").exists()
+    assert (bundle_dir / "layout_abx_followup_pending_packet.json").exists()
     pending_workbook = json.loads((bundle_dir / "layout_abx_followup_pending_workbook.json").read_text(encoding="utf-8"))
     assert len(pending_workbook["rows"]) == 1
     assert pending_workbook["rows"][0]["item_id"] == "item-2"
+    pending_packet = json.loads((bundle_dir / "layout_abx_followup_pending_packet.json").read_text(encoding="utf-8"))
+    assert len(pending_packet["abx_items"]) == 1
+    assert pending_packet["abx_items"][0]["item_id"] == "item-2"
+    assert "pending_packet_rows: 1" in result.stdout
     assert "pending_workbook_rows: 1" in result.stdout
 
 

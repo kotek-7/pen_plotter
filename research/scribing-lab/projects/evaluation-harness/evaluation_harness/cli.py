@@ -54,6 +54,7 @@ from evaluation_harness.human_abx import (
 )
 from evaluation_harness.abx import (
     AbxItem,
+    build_abx_pending_packet,
     build_abx_revision_plan,
     build_abx_responses_from_workbook,
     build_abx_workbook,
@@ -1166,6 +1167,8 @@ def main() -> None:
         summary_md_path = bundle_dir / f"{output_prefix}_response_summary.md"
         summary_json_path = bundle_dir / f"{output_prefix}_response_summary.json"
         responses_json_path = bundle_dir / f"{output_prefix}_responses.json"
+        pending_packet_md_path = bundle_dir / f"{output_prefix}_pending_packet.md"
+        pending_packet_json_path = bundle_dir / f"{output_prefix}_pending_packet.json"
         pending_workbook_md_path = bundle_dir / f"{output_prefix}_pending_workbook.md"
         pending_workbook_json_path = bundle_dir / f"{output_prefix}_pending_workbook.json"
         feedback_md_path = bundle_dir / f"{output_prefix}_feedback_loop.md"
@@ -1194,6 +1197,7 @@ def main() -> None:
                     for row in workbook.get("rows", [])
                     if not str(row.get("choice", "")).strip() or not str(row.get("confidence", "")).strip()
                 ]
+                pending_packet = build_abx_pending_packet(packet, workbook)
                 pending_workbook = {
                     **workbook,
                     "loop_status": workbook.get("loop_status", feedback_loop["loop_status"]),
@@ -1202,6 +1206,13 @@ def main() -> None:
                     "packet": workbook.get("packet", feedback_loop["packet"]),
                     "rows": pending_rows,
                 }
+                pending_packet_md_path.write_text(
+                    render_human_abx_packet_markdown(pending_packet), encoding="utf-8"
+                )
+                pending_packet_json_path.write_text(
+                    json.dumps(pending_packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
                 pending_workbook_md_path.write_text(
                     render_abx_workbook_markdown(pending_workbook), encoding="utf-8"
                 )
@@ -1209,6 +1220,7 @@ def main() -> None:
                     json.dumps(pending_workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
                     encoding="utf-8",
                 )
+                print(f"pending_packet_rows: {len(pending_packet['abx_items'])}")
                 print(f"pending_workbook_rows: {len(pending_rows)}")
         feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
         feedback_json_path.write_text(

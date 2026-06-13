@@ -243,6 +243,69 @@ def summarize_abx_workbook_completion(workbook: dict[str, Any]) -> tuple[int, in
     return completed_row_count, pending_row_count, completion_ratio
 
 
+def build_abx_pending_packet(packet: dict[str, Any], workbook: dict[str, Any]) -> dict[str, Any]:
+    pending_item_ids = {
+        str(row.get("item_id", ""))
+        for row in workbook.get("rows", [])
+        if not str(row.get("choice", "")).strip() or not str(row.get("confidence", "")).strip()
+    }
+    pending_items: list[dict[str, Any]] = []
+    for item in packet.get("abx_items", []):
+        if str(item.get("item_id", "")) not in pending_item_ids:
+            continue
+        pending_items.append(
+            {
+                **item,
+                "baseline_experiment_id": item.get("baseline_experiment_id", ""),
+                "candidate_experiment_id": item.get("candidate_experiment_id", ""),
+                "candidate_profile_id": item.get("candidate_profile_id", ""),
+                "expected_preference": item.get("expected_preference"),
+                "selected_failure_tags": list(item.get("selected_failure_tags", [])),
+                "selected_next_actions": list(item.get("selected_next_actions", [])),
+                "focus_area": item.get("focus_area", "") or _focus_area_from_actions(item.get("selected_next_actions", [])),
+                "selection_status": item.get("selection_status", "pending"),
+                "option_a_artifact": item.get("option_a_artifact", ""),
+                "option_b_artifact": item.get("option_b_artifact", ""),
+            }
+        )
+    selected_profile_counts: dict[str, int] = {}
+    for item in pending_items:
+        profile_id = str(item.get("candidate_profile_id", "")).strip()
+        if profile_id:
+            selected_profile_counts[profile_id] = selected_profile_counts.get(profile_id, 0) + 1
+    selected_next_actions = [
+        action
+        for item in pending_items
+        for action in item.get("selected_next_actions", [])
+    ]
+    focus_area_counts: dict[str, int] = {}
+    for item in pending_items:
+        focus_area = str(item.get("focus_area", "")).strip()
+        if focus_area:
+            focus_area_counts[focus_area] = focus_area_counts.get(focus_area, 0) + 1
+    return {
+        **packet,
+        "abx_items": pending_items,
+        "record_count": packet.get("record_count", len(packet.get("abx_items", []))),
+        "expected_group_count": packet.get("expected_group_count", len(pending_items)),
+        "selected_candidate_count": len(pending_items),
+        "selected_coverage_ratio": packet.get("selected_coverage_ratio", 0.0),
+        "selected_profile_counts": selected_profile_counts,
+        "candidate_profile_counts": packet.get("candidate_profile_counts", {}),
+        "focus_area_counts": packet.get("focus_area_counts", focus_area_counts),
+        "recommended_action_counts": packet.get("recommended_action_counts", {}),
+        "pending_item_ids": sorted(pending_item_ids),
+        "pending_item_count": len(pending_items),
+        "pending_selected_candidate_count": len(pending_items),
+        "packet_focus_areas": packet.get("packet_focus_areas", []),
+        "packet_max_items": packet.get("packet_max_items", None),
+        "source_selected_candidate_count": packet.get(
+            "source_selected_candidate_count",
+            packet.get("selected_candidate_count", len(packet.get("abx_items", []))),
+        ),
+    }
+
+
 def _limit_abx_packet(packet: dict[str, Any], *, max_items: int | None) -> dict[str, Any]:
     if max_items is None or max_items <= 0:
         return packet

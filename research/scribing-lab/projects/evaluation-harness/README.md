@@ -222,6 +222,7 @@ revision plan / revision run を bundle からまとめて生成できる。
 workbook には completed / pending の row 数と completion ratio も保存される。
 follow-up は正規化した `<prefix>_responses.json` も bundle に保存する。
 `--pending-only` を付けると、未回答行だけを抜き出した pending workbook も保存する。
+同じく `pending packet` も保存されるので、そのまま次ラウンドの bundle に使える。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
