@@ -1812,7 +1812,17 @@ def _bundle_prefix_from_dir(bundle_dir: Path) -> str:
     packet_files = sorted(bundle_dir.glob("*_packet.json"))
     if not packet_files:
         return bundle_dir.name[:-3]
-    return packet_files[0].name[: -len("_packet.json")]
+    preferred: list[Path] = []
+    fallback: list[Path] = []
+    for packet_path in packet_files:
+        prefix = packet_path.name[: -len("_packet.json")]
+        if "followup" in prefix or "pending" in prefix:
+            fallback.append(packet_path)
+        else:
+            preferred.append(packet_path)
+    selected = preferred or fallback or packet_files
+    selected.sort(key=lambda path: (len(path.name), path.name))
+    return selected[0].name[: -len("_packet.json")]
 
 
 def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:

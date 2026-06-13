@@ -634,13 +634,24 @@ def run_abx_revision_loop(
             f"abx-{candidate_record.experiment_id}-rev",
             reserved_experiment_ids,
         )
-        record = run_structure_motion(
-            root=root_path,
-            experiment_id=experiment_id,
-            input_text=source_item.get("prompt", ""),
-            seed=candidate_record.seed,
-            writer_profile=revision["profile"],
-        )
+        while True:
+            try:
+                record = run_structure_motion(
+                    root=root_path,
+                    experiment_id=experiment_id,
+                    input_text=source_item.get("prompt", ""),
+                    seed=candidate_record.seed,
+                    writer_profile=revision["profile"],
+                )
+                break
+            except ValueError as exc:
+                if "Duplicate experiment id" not in str(exc):
+                    raise
+                reserved_experiment_ids.add(experiment_id)
+                experiment_id = _unique_revision_experiment_id(
+                    experiment_id,
+                    reserved_experiment_ids,
+                )
         reserved_experiment_ids.add(record.experiment_id)
         rerun_records.append(record)
         preview_before = _file_sha256(candidate_record.artifacts.get("preview", ""))
