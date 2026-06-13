@@ -214,6 +214,7 @@ responses JSON としてそのまま戻せる。
 focused workbook を作れる。
 `human-abx-bundle` は、focused packet / workbook / feedback loop / response template /
 responses scaffold を 1 回でまとめて出力する。`layout` と `motion` を分けて回すときに使う。
+`--output-dir` と `--output-prefix` を指定すると、束の保存先と名前をそのまま揃えられる。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
