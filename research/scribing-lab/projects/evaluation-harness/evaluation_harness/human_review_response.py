@@ -113,6 +113,36 @@ def summarize_human_review_responses(
     }
 
 
+def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]:
+    note_examples = summary.get("note_examples", [])
+    note_snippets = [str(item.get("notes", "")).strip() for item in note_examples if str(item.get("notes", "")).strip()]
+    primary_notes = list(dict.fromkeys(note_snippets))
+    reason_tag_counts = dict(summary.get("reason_tag_counts", {}))
+    top_reason_tags = [
+        tag
+        for tag, _count in sorted(
+            reason_tag_counts.items(),
+            key=lambda item: (-int(item[1]), item[0]),
+        )[:8]
+    ]
+    focus_lines: list[str] = []
+    if primary_notes:
+        focus_lines.append("notes の指摘をそのまま次回の修正に反映する")
+    if top_reason_tags:
+        focus_lines.append(f"reason_tags の上位: {top_reason_tags}")
+    if not focus_lines:
+        focus_lines.append("特記なし")
+    return {
+        "brief_status": "ready" if primary_notes or top_reason_tags else "empty",
+        "note_count": int(summary.get("note_count", 0)),
+        "reason_tag_counts": reason_tag_counts,
+        "primary_notes": primary_notes,
+        "selected_note_examples": note_examples[:8],
+        "top_reason_tags": top_reason_tags,
+        "focus_lines": focus_lines,
+    }
+
+
 def summarize_human_review_calibration(
     packet: dict[str, Any],
     responses: list[HumanReviewResponse],
@@ -361,6 +391,39 @@ def render_human_review_response_markdown(summary: dict[str, Any]) -> str:
                 f"decision=`{note['decision']}`, "
                 f"reason_tags=`{note['reason_tags']}`, "
                 f"reviewer_id=`{note['reviewer_id']}`"
+            )
+            lines.append(f"  - notes: {note['notes']}")
+    return "\n".join(lines) + "\n"
+
+
+def render_human_review_revision_brief_markdown(brief: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Revision Brief",
+        "",
+        f"- brief_status: `{brief['brief_status']}`",
+        f"- note_count: `{brief['note_count']}`",
+        f"- top_reason_tags: `{brief['top_reason_tags']}`",
+        "",
+        "## Focus Lines",
+        "",
+    ]
+    lines.extend(f"- {item}" for item in brief.get("focus_lines", []))
+    lines.extend(["", "## Primary Notes", ""])
+    if not brief.get("primary_notes"):
+        lines.append("- none")
+    else:
+        for note in brief["primary_notes"]:
+            lines.append(f"- {note}")
+    lines.extend(["", "## Note Examples", ""])
+    if not brief.get("selected_note_examples"):
+        lines.append("- none")
+    else:
+        for note in brief["selected_note_examples"]:
+            lines.append(
+                "- "
+                f"{note['experiment_id']}: "
+                f"decision=`{note['decision']}`, "
+                f"reason_tags=`{note['reason_tags']}`"
             )
             lines.append(f"  - notes: {note['notes']}")
     return "\n".join(lines) + "\n"

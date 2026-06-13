@@ -52,7 +52,7 @@
 3. generator/exporter を実行する。
 4. preview、trajectory、G-code、ログ、必要に応じて実機スキャンを artifact store に保存する。
 5. 人間レビュー用の大きめの sample book を作り、`human-feedback-ui` で確認する。
-6. human response と note を保存して summary / calibration / agreement / note 要約を更新する。
+6. human response と note を保存して summary / calibration / agreement / revision brief を更新する。
 7. 必要に応じて preview / ABX で候補を絞り込む。
 8. 実験レポートを生成し、次に試す最小変更を提案する。
 

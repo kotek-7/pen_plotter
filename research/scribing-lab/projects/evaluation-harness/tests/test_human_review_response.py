@@ -3,10 +3,12 @@ import pytest
 from evaluation_harness.human_review_response import (
     HumanReviewResponse,
     cohen_kappa,
+    build_human_review_revision_brief,
     load_human_review_responses,
     summarize_human_review_calibration,
     summarize_human_review_agreement,
     render_human_review_response_markdown,
+    render_human_review_revision_brief_markdown,
     summarize_human_review_responses,
 )
 
@@ -74,7 +76,7 @@ def test_load_human_review_responses_accepts_wrapped_object() -> None:
 def test_render_human_review_response_markdown() -> None:
     summary = summarize_human_review_responses(
         _packet(["exp-a"]),
-        [HumanReviewResponse(experiment_id="exp-a", decision="accept")],
+        [HumanReviewResponse(experiment_id="exp-a", decision="accept", notes="字間が広い")],
     )
 
     report = render_human_review_response_markdown(summary)
@@ -82,6 +84,30 @@ def test_render_human_review_response_markdown() -> None:
     assert "# Human Review Response Summary" in report
     assert "can_proceed_to_plot" in report
     assert "exp-a" in report
+    assert "## Notes" in report
+    assert "字間が広い" in report
+
+
+def test_build_human_review_revision_brief_uses_notes_and_tags() -> None:
+    summary = summarize_human_review_responses(
+        _packet(["exp-a"]),
+        [
+            HumanReviewResponse(
+                experiment_id="exp-a",
+                decision="needs-tuning",
+                reason_tags=["spacing-too-wide"],
+                notes="字間が広い",
+            )
+        ],
+    )
+
+    brief = build_human_review_revision_brief(summary)
+
+    assert brief["brief_status"] == "ready"
+    assert brief["primary_notes"] == ["字間が広い"]
+    assert "spacing-too-wide" in brief["top_reason_tags"]
+    assert "notes の指摘をそのまま次回の修正に反映する" in brief["focus_lines"][0]
+    assert "Revision Brief" in render_human_review_revision_brief_markdown(brief)
 
 
 def test_summarize_human_review_calibration_reports_adjustments() -> None:

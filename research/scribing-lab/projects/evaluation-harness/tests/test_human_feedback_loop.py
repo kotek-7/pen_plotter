@@ -44,6 +44,7 @@ def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> N
     assert loop["response_summary"]["can_proceed_to_plot"] is False
     assert loop["response_summary"]["decision_counts"] == {"needs-tuning": 1}
     assert loop["response_summary"]["note_count"] == 1
+    assert loop["revision_brief"]["brief_status"] == "ready"
     assert any("line spacing" in action for action in loop["next_actions"])
     assert any("notes" in action for action in loop["next_actions"])
     assert loop["calibration_summary"] is not None
@@ -51,6 +52,7 @@ def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> N
     assert loop["agreement_summary"] is not None
     assert "Calibration Summary" in render_human_feedback_loop_markdown(loop)
     assert "## Notes" in render_human_feedback_loop_markdown(loop)
+    assert "## Revision Brief" in render_human_feedback_loop_markdown(loop)
 
 
 def test_build_human_feedback_loop_reports_agreement_for_multiple_reviewers() -> None:

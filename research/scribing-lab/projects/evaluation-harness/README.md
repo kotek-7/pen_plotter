@@ -276,8 +276,8 @@ python3 -m evaluation_harness human-feedback-ui \
 
 `human-feedback-loop` は、同じ review packet に加えて response template と validation summary を
 1 つの `human_feedback_loop.md` / `.json` にまとめる。responses を渡すと、
-`accept` / `reject` / `needs-tuning` の集計、自由記述の note 要約、次アクションまで出力する。
-note は summary にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。
+`accept` / `reject` / `needs-tuning` の集計、自由記述の note 要約、revision brief、次アクションまで出力する。
+note は summary と revision brief にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。
 
 目視レビュー結果を packet と照合して集計する場合:
 
