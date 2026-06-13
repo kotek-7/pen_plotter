@@ -67,6 +67,32 @@ def test_qt_feedback_ui_uses_separate_review_guide_and_status_summary() -> None:
     assert "sort_order=longform-first" in window.statusBar().currentMessage()
 
 
+def test_qt_feedback_ui_infers_sort_order_from_packet(tmp_path) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "sort_order": "longform-first",
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": [],
+                "metrics": {},
+                "preview": "",
+            }
+        ],
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+
+    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
+
+    assert window.windowTitle() == "Human Feedback Loop [longform-first]"
+    assert "sort_order=longform-first" in window.statusBar().currentMessage()
+
+
 def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None

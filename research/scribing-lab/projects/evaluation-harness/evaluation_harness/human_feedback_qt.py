@@ -169,7 +169,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._packet = packet
         self._drafts = drafts
         self._reviewer_id = reviewer_id.strip()
-        self._sort_order = sort_order
+        self._sort_order = str(packet.get("sort_order", sort_order) or "default")
         self._responses_json_path = responses_json_path
         self._summary_json_path = summary_json_path
         self._brief_json_path = brief_json_path
@@ -653,7 +653,9 @@ class HumanFeedbackQtWindow(QMainWindow):
         item = self._packet.get("representatives", [])[row]
         self._current_experiment_id = str(item["experiment_id"])
         self._load_current_item()
-        self.statusBar().showMessage(f"Selected {self._current_experiment_id}")
+        self.statusBar().showMessage(
+            f"sort_order={self._sort_order} | Selected {self._current_experiment_id}"
+        )
 
     def _load_current_item(self) -> None:
         item = self._current_item()
@@ -1265,6 +1267,7 @@ def launch_human_feedback_ui(
         target_count=target_count,
         sort_order=sort_order,
     )
+    sort_order = str(packet.get("sort_order", sort_order) or "default")
     drafts = load_response_drafts(
         packet=packet,
         responses_json=responses_path if responses_path.exists() else None,
