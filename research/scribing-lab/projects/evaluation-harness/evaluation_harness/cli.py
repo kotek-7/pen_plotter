@@ -407,9 +407,15 @@ def build_parser() -> argparse.ArgumentParser:
         "human-abx-feedback-loop",
         help="Summarize ABX responses and generate the next feedback loop packet",
     )
-    human_abx_loop.add_argument("--packet-json", required=True)
+    human_abx_loop.add_argument("--packet-json", default="")
+    human_abx_loop.add_argument("--recommendation-json", default="")
     human_abx_loop.add_argument("--responses-json", default="")
     human_abx_loop.add_argument("--evaluator-id", default="")
+    human_abx_loop.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep when building a packet from recommendation JSON",
+    )
     human_abx_loop.add_argument("--max-items", type=int, default=36)
     human_abx_loop.add_argument("--template-json-output", default="human_abx_response_template.json")
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
@@ -939,7 +945,18 @@ def main() -> None:
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "human-abx-feedback-loop":
-        packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+        focus_areas = tuple(_parse_csv(args.focus_areas))
+        if args.recommendation_json:
+            recommendation = json.loads(Path(args.recommendation_json).read_text(encoding="utf-8"))
+            packet = build_human_abx_packet(
+                recommendation=recommendation,
+                focus_areas=focus_areas,
+                max_items=args.max_items or None,
+            )
+            packet_path = Path(args.recommendation_json)
+        else:
+            packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+            packet_path = Path(args.packet_json)
         responses_data = None
         if args.responses_json:
             responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
@@ -949,9 +966,9 @@ def main() -> None:
             evaluator_id=args.evaluator_id,
             max_items=args.max_items,
         )
-        output_path = Path(args.packet_json).parent / args.output
-        json_path = Path(args.packet_json).parent / args.json_output
-        template_json_path = Path(args.packet_json).parent / args.template_json_output
+        output_path = packet_path.parent / args.output
+        json_path = packet_path.parent / args.json_output
+        template_json_path = packet_path.parent / args.template_json_output
         output_path.write_text(render_abx_feedback_loop_markdown(loop), encoding="utf-8")
         json_path.write_text(
             json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",

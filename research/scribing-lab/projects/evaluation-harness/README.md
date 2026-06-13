@@ -199,6 +199,9 @@ python3 -m evaluation_harness human-feedback-loop \
 `human-abx-feedback-loop` は ABX packet と response をまとめて、候補比較の集計、
 response template、次アクションを 1 つの束にする。responses がない場合は、
 そのまま記入用テンプレートとして使える。
+`--recommendation-json` を使うと、`human-abx-packet` を挟まずに recommendation から
+直接 feedback loop を作れる。`--focus-areas layout,motion` と `--max-items 36` を
+合わせると、小さな口頭 FB 用の束にしやすい。
 `--max-items` で代表項目数を絞れるので、口頭 FB 用には小さめの束を作る。
 `--template-json-output` で、埋め戻し用の response template を別ファイルに保存できる。
 `abx-workbook` は、候補ごとの表形式 workbook を出して、`choice` / `confidence` / `note`

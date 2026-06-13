@@ -201,6 +201,32 @@ def test_human_abx_feedback_loop_parser_accepts_packet_and_response_paths() -> N
     assert args.json_output == "loop.json"
 
 
+def test_human_abx_feedback_loop_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-feedback-loop",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout,motion",
+            "--max-items",
+            "12",
+            "--output",
+            "loop.md",
+            "--json-output",
+            "loop.json",
+            "--template-json-output",
+            "template.json",
+        ]
+    )
+
+    assert args.command == "human-abx-feedback-loop"
+    assert args.packet_json == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 12
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
