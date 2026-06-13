@@ -195,6 +195,23 @@ def test_human_feedback_start_card_parser_accepts_paths() -> None:
     assert args.json_output == "runs/test/start-card.json"
 
 
+def test_human_feedback_review_ui_parser_accepts_bundle_paths() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-review-ui",
+            "--bundle-dir",
+            "runs/test/bundle",
+            "--bundle-prefix",
+            "longform_review",
+        ]
+    )
+
+    assert args.command == "human-feedback-review-ui"
+    assert args.bundle_dir == "runs/test/bundle"
+    assert args.bundle_prefix == "longform_review"
+    assert args.root == ""
+
+
 def test_human_feedback_ui_parser_accepts_preview_run_outputs() -> None:
     args = build_parser().parse_args(
         [
@@ -2590,6 +2607,68 @@ def test_human_feedback_review_bundle_command_writes_outputs(
     assert "Review steps" in guide_md
     assert '"packet_representative_count": 2' in guide_json
     assert '"sort_order": "longform-first"' in (bundle_dir / "longform_review_start_card.json").read_text(encoding="utf-8")
+
+
+def test_human_feedback_review_ui_command_opens_bundle_packet(
+    tmp_path: Path, monkeypatch
+) -> None:
+    bundle_dir = tmp_path / "bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+    packet_json = bundle_dir / "longform_review_packet.json"
+    responses_json = bundle_dir / "longform_review_responses.json"
+    packet_json.write_text(
+        json.dumps(
+            {
+                "representatives": [
+                    {
+                        "experiment_id": "exp-a",
+                        "input_text": "長文の比較に十分な余白と字数を持たせるため、ここでは少しだけ冗長に書いています。",
+                        "seed": 1,
+                        "reason": "metric-extreme",
+                        "failure_tags": [],
+                        "metrics": {},
+                        "preview": "",
+                    }
+                ],
+                "sort_order": "longform-first",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    responses_json.write_text(json.dumps({"responses": []}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+
+    captured: dict[str, object] = {}
+
+    def fake_launch_human_feedback_ui(**kwargs):
+        captured.update(kwargs)
+
+    monkeypatch.setattr(
+        "evaluation_harness.human_feedback_qt.launch_human_feedback_ui",
+        fake_launch_human_feedback_ui,
+    )
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-review-ui",
+            "--bundle-dir",
+            str(bundle_dir),
+            "--bundle-prefix",
+            "longform_review",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    assert captured["packet_json"] == packet_json
+    assert captured["responses_json"] == responses_json
+    assert captured["sort_order"] == "longform-first"
+    assert captured["root"] == bundle_dir.parent
 
 
 def test_human_feedback_loop_command_writes_revision_brief(

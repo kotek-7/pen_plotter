@@ -440,6 +440,16 @@ def build_parser() -> argparse.ArgumentParser:
         help="Sort representative items and grouped inputs for review readability",
     )
 
+    human_feedback_review_ui = sub.add_parser(
+        "human-feedback-review-ui",
+        help="Launch the human feedback UI from a review bundle",
+    )
+    human_feedback_review_ui.add_argument("--bundle-dir", required=True, help="Review bundle directory")
+    human_feedback_review_ui.add_argument("--bundle-prefix", required=True)
+    human_feedback_review_ui.add_argument("--root", default="", help="Run output directory")
+    human_feedback_review_ui.add_argument("--responses-json", default="", help="Existing human responses JSON")
+    human_feedback_review_ui.add_argument("--reviewer-id", default="")
+
     human_feedback_bundle = sub.add_parser(
         "human-feedback-review-bundle",
         help="Create a human review packet, start card, and guide bundle",
@@ -1238,6 +1248,24 @@ def main() -> None:
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
             sort_order=args.sort_order,
+        )
+    elif args.command == "human-feedback-review-ui":
+        from evaluation_harness.human_feedback_qt import launch_human_feedback_ui
+
+        bundle_dir = Path(args.bundle_dir)
+        root = Path(args.root) if args.root else bundle_dir.parent
+        packet_json = _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "packet.json")
+        responses_json = (
+            Path(args.responses_json)
+            if args.responses_json
+            else _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "responses.json")
+        )
+        launch_human_feedback_ui(
+            root=root,
+            packet_json=packet_json,
+            responses_json=responses_json if responses_json.exists() else None,
+            reviewer_id=args.reviewer_id,
+            sort_order="longform-first",
         )
     elif args.command == "human-feedback-review-bundle":
         root = Path(args.root) if args.root else None
