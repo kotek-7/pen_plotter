@@ -130,22 +130,28 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
         brief_markdown_path=tmp_path / "human_review_revision_brief.md",
         start_card_json_path=tmp_path / "human_review_start_card.json",
         start_card_markdown_path=tmp_path / "human_review_start_card.md",
+        comparison_sheet_json_path=tmp_path / "human_review_comparison_sheet.json",
+        comparison_sheet_markdown_path=tmp_path / "human_review_comparison_sheet.md",
     )
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
-    assert window._detail_tabs.count() == 7
+    assert window._detail_tabs.count() == 8
     assert window._detail_tabs.currentIndex() == 0
     assert "Human Review Start Card" in window._start_card_text.toPlainText()
+    assert "Human Review Comparison Sheet" in window._comparison_sheet_text.toPlainText()
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()
     assert "Preview Run" in window._preview_run_text.toPlainText()
 
     window._export_start_card()
     window._export_revision_brief()
+    window._export_review_bundle()
 
     start_card_md = (tmp_path / "human_review_start_card.md").read_text(encoding="utf-8")
     start_card_json = (tmp_path / "human_review_start_card.json").read_text(encoding="utf-8")
+    comparison_sheet_md = (tmp_path / "human_review_comparison_sheet.md").read_text(encoding="utf-8")
+    comparison_sheet_json = (tmp_path / "human_review_comparison_sheet.json").read_text(encoding="utf-8")
     brief_md = (tmp_path / "human_review_revision_brief.md").read_text(encoding="utf-8")
     brief_json = (tmp_path / "human_review_revision_brief.json").read_text(encoding="utf-8")
     plan_md = (tmp_path / "human_review_revision_plan.md").read_text(encoding="utf-8")
@@ -154,6 +160,8 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     assert "Human Review Start Card" in start_card_md
     assert '"sort_order": "longform-first"' in start_card_json
     assert '"representative_count": 1' in start_card_json
+    assert "Human Review Comparison Sheet" in comparison_sheet_md
+    assert '"what_to_compare"' in comparison_sheet_json
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
     assert '"brief_status": "ready"' in brief_json
@@ -361,6 +369,8 @@ def test_qt_feedback_ui_exports_review_bundle(tmp_path, monkeypatch) -> None:
 
     assert (root / "human_review_start_card.md").exists()
     assert (root / "human_review_start_card.json").exists()
+    assert (root / "human_review_comparison_sheet.md").exists()
+    assert (root / "human_review_comparison_sheet.json").exists()
     assert (root / "human_review_responses.json").exists()
     assert (root / "human_review_response_summary.json").exists()
     assert (root / "human_review_revision_brief.md").exists()
@@ -393,10 +403,14 @@ def test_qt_feedback_ui_accepts_preview_run_output_paths(tmp_path) -> None:
         drafts=drafts,
         preview_run_json_path=tmp_path / "preview_run.json",
         preview_run_markdown_path=tmp_path / "preview_run.md",
+        comparison_sheet_json_path=tmp_path / "comparison_sheet.json",
+        comparison_sheet_markdown_path=tmp_path / "comparison_sheet.md",
     )
 
     assert window._preview_run_json_path == tmp_path / "preview_run.json"
     assert window._preview_run_markdown_path == tmp_path / "preview_run.md"
+    assert window._comparison_sheet_json_path == tmp_path / "comparison_sheet.json"
+    assert window._comparison_sheet_markdown_path == tmp_path / "comparison_sheet.md"
 
 
 def test_qt_feedback_ui_accepts_packet_output_paths(tmp_path) -> None:
@@ -506,7 +520,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 7
+    assert window._detail_tabs.count() == 8
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820

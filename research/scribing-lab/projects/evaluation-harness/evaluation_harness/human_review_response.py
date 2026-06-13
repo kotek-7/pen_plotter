@@ -229,6 +229,90 @@ def render_human_review_start_card_markdown(card: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_human_review_comparison_sheet(packet: dict[str, Any]) -> dict[str, Any]:
+    representatives = list(packet.get("representatives", []))
+    failure_tag_counts = dict(packet.get("failure_tag_counts", {}))
+    top_failure_tags = [
+        tag
+        for tag, _count in sorted(
+            failure_tag_counts.items(),
+            key=lambda item: (-int(item[1]), item[0]),
+        )[:6]
+    ]
+    tagged_anchors = [
+        {
+            "experiment_id": str(item.get("experiment_id", "unknown")),
+            "input_text": str(item.get("input_text", "")),
+            "reason": str(item.get("reason", "")),
+            "failure_tags": list(item.get("failure_tags", [])),
+            "metrics": {
+                key: item.get("metrics", {}).get(key)
+                for key in (
+                    "baseline_drift_mm",
+                    "draw_speed_cv",
+                    "mean_abs_jerk_mm_s3",
+                    "repeated_char_ratio",
+                    "stroke_start_spacing_cv",
+                )
+                if key in item.get("metrics", {})
+            },
+        }
+        for item in representatives
+        if item.get("failure_tags")
+    ][:8]
+    what_to_compare = _comparison_sheet_watch_items(top_failure_tags)
+    if not what_to_compare:
+        what_to_compare = [
+            "字間が広すぎないか",
+            "揺れがノイズに見えないか",
+            "終筆が揃いすぎていないか",
+            "フォントの焼き直しに寄りすぎていないか",
+            "日本語として字間のリズムが自然か",
+            "行全体の流れが硬すぎないか",
+        ]
+    return {
+        "record_count": int(packet.get("record_count", len(representatives))),
+        "representative_count": int(packet.get("representative_count", len(representatives))),
+        "high_priority_tags": top_failure_tags,
+        "what_to_compare": what_to_compare,
+        "tagged_anchors": tagged_anchors,
+    }
+
+
+def render_human_review_comparison_sheet_markdown(sheet: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Comparison Sheet",
+        "",
+        f"- record_count: `{sheet.get('record_count', 0)}`",
+        f"- representative_count: `{sheet.get('representative_count', 0)}`",
+        "",
+        "## High Priority Tags",
+    ]
+    for tag in sheet.get("high_priority_tags", []):
+        lines.append(f"- {tag}")
+
+    lines.extend(["", "## What to Compare"])
+    for item in sheet.get("what_to_compare", []):
+        lines.append(f"- {item}")
+
+    anchors = list(sheet.get("tagged_anchors", []))
+    if anchors:
+        lines.extend(["", "## Tagged Anchors"])
+        for item in anchors:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            lines.append(f"### {experiment_id}")
+            lines.append("")
+            lines.append(f"- input_text: `{input_text}`")
+            lines.append(f"- reason: `{reason}`")
+            lines.append(f"- failure_tags: `{item.get('failure_tags', [])}`")
+            lines.append(f"- metrics: `{item.get('metrics', {})}`")
+            lines.append("")
+
+    return "\n".join(lines) + "\n"
+
+
 def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
     candidates = [
         ("spacing-too-wide", "字間が広すぎるか"),
@@ -242,6 +326,20 @@ def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
     if watched:
         return watched[:4]
     return [label for _tag, label in candidates[:4]]
+
+
+def _comparison_sheet_watch_items(top_failure_tags: list[str]) -> list[str]:
+    mapping = {
+        "spacing-too-wide": "字間が広すぎないか",
+        "over-jittered": "揺れがノイズに見えないか",
+        "terminal-too-uniform": "終筆が揃いすぎていないか",
+        "too-font-like": "フォントの焼き直しに寄りすぎていないか",
+        "spacing-unnatural": "日本語として字間のリズムが自然か",
+        "line-too-mechanical": "行全体の流れが硬すぎないか",
+        "repeated-char-too-identical": "反復文字が同じ形に寄りすぎていないか",
+        "too-uniform": "速度変化が単調すぎないか",
+    }
+    return [mapping[tag] for tag in top_failure_tags if tag in mapping]
 
 
 def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]:

@@ -76,10 +76,12 @@ from evaluation_harness.abx import (
 )
 from evaluation_harness.human_review_response import (
     build_human_review_start_card,
+    build_human_review_comparison_sheet,
     build_human_review_revision_brief,
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     load_human_review_responses,
+    render_human_review_comparison_sheet_markdown,
     render_human_review_start_card_markdown,
     render_human_review_response_markdown,
     render_human_review_preview_revision_plan_markdown,
@@ -424,6 +426,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--start-card-markdown",
         help="Human review start card markdown output path",
     )
+    human_feedback_ui.add_argument(
+        "--comparison-sheet-json",
+        help="Human review comparison sheet JSON output path",
+    )
+    human_feedback_ui.add_argument(
+        "--comparison-sheet-markdown",
+        help="Human review comparison sheet markdown output path",
+    )
     human_feedback_ui.add_argument("--preview-run-json", help="Human review preview revision run JSON output path")
     human_feedback_ui.add_argument("--preview-run-markdown", help="Human review preview revision run markdown output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
@@ -452,7 +462,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     human_feedback_bundle = sub.add_parser(
         "human-feedback-review-bundle",
-        help="Create a human review packet, start card, and guide bundle",
+        help="Create a human review packet, start card, comparison sheet, and guide bundle",
     )
     bundle_target = human_feedback_bundle.add_mutually_exclusive_group(required=True)
     bundle_target.add_argument("--root", help="Run output directory")
@@ -477,6 +487,11 @@ def build_parser() -> argparse.ArgumentParser:
     human_feedback_bundle.add_argument("--packet-output-markdown", default="human_review_packet.md")
     human_feedback_bundle.add_argument("--start-card-json", default="human_review_start_card.json")
     human_feedback_bundle.add_argument("--start-card-markdown", default="human_review_start_card.md")
+    human_feedback_bundle.add_argument("--comparison-sheet-json", default="human_review_comparison_sheet.json")
+    human_feedback_bundle.add_argument(
+        "--comparison-sheet-markdown",
+        default="human_review_comparison_sheet.md",
+    )
     human_feedback_bundle.add_argument("--guide-json", default="human_review_guide.json")
     human_feedback_bundle.add_argument("--guide-markdown", default="human_review_guide.md")
 
@@ -1228,6 +1243,10 @@ def main() -> None:
         packet_output_markdown = Path(args.packet_output_markdown) if args.packet_output_markdown else None
         start_card_json = Path(args.start_card_json) if args.start_card_json else None
         start_card_markdown = Path(args.start_card_markdown) if args.start_card_markdown else None
+        comparison_sheet_json = Path(args.comparison_sheet_json) if args.comparison_sheet_json else None
+        comparison_sheet_markdown = (
+            Path(args.comparison_sheet_markdown) if args.comparison_sheet_markdown else None
+        )
         preview_run_json = Path(args.preview_run_json) if args.preview_run_json else None
         preview_run_markdown = Path(args.preview_run_markdown) if args.preview_run_markdown else None
         launch_human_feedback_ui(
@@ -1243,6 +1262,8 @@ def main() -> None:
             packet_output_markdown=packet_output_markdown,
             start_card_json=start_card_json,
             start_card_markdown=start_card_markdown,
+            comparison_sheet_json=comparison_sheet_json,
+            comparison_sheet_markdown=comparison_sheet_markdown,
             preview_run_json=preview_run_json,
             preview_run_markdown=preview_run_markdown,
             reviewer_id=args.reviewer_id,
@@ -1291,6 +1312,7 @@ def main() -> None:
             summary,
             sort_order=str(packet.get("sort_order", args.sort_order) or "default"),
         )
+        comparison_sheet = build_human_review_comparison_sheet(packet)
         bundle_dir = _resolve_output_path(base_dir, args.output_dir) if args.output_dir else base_dir
         bundle_dir.mkdir(parents=True, exist_ok=True)
         prefix = args.output_prefix or "human_review"
@@ -1298,6 +1320,8 @@ def main() -> None:
         packet_json_path = bundle_dir / f"{prefix}_packet.json"
         card_md_path = bundle_dir / f"{prefix}_start_card.md"
         card_json_path = bundle_dir / f"{prefix}_start_card.json"
+        comparison_md_path = bundle_dir / f"{prefix}_comparison_sheet.md"
+        comparison_json_path = bundle_dir / f"{prefix}_comparison_sheet.json"
         guide_md_path = bundle_dir / f"{prefix}_guide.md"
         guide_json_path = bundle_dir / f"{prefix}_guide.json"
         index_md_path = bundle_dir / f"{prefix}_index.md"
@@ -1312,12 +1336,21 @@ def main() -> None:
             json.dumps(card, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        comparison_md_path.write_text(
+            render_human_review_comparison_sheet_markdown(comparison_sheet),
+            encoding="utf-8",
+        )
+        comparison_json_path.write_text(
+            json.dumps(comparison_sheet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         guide_md_path.write_text(render_review_guide_markdown(), encoding="utf-8")
         guide_json_path.write_text(
             json.dumps(
                 {
                     "review_steps": render_review_guide_markdown().splitlines(),
                     "start_card": card,
+                    "comparison_sheet": comparison_sheet,
                     "packet_representative_count": packet.get("representative_count", 0),
                 },
                 ensure_ascii=False,
@@ -1340,6 +1373,7 @@ def main() -> None:
                     "## Files",
                     f"- packet: `{packet_md_path.name}` / `{packet_json_path.name}`",
                     f"- start card: `{card_md_path.name}` / `{card_json_path.name}`",
+                    f"- comparison sheet: `{comparison_md_path.name}` / `{comparison_json_path.name}`",
                     f"- guide: `{guide_md_path.name}` / `{guide_json_path.name}`",
                     "",
                     "## Open",
@@ -1359,6 +1393,10 @@ def main() -> None:
                     "representative_count": card["representative_count"],
                     "packet": {"markdown": packet_md_path.name, "json": packet_json_path.name},
                     "start_card": {"markdown": card_md_path.name, "json": card_json_path.name},
+                    "comparison_sheet": {
+                        "markdown": comparison_md_path.name,
+                        "json": comparison_json_path.name,
+                    },
                     "guide": {"markdown": guide_md_path.name, "json": guide_json_path.name},
                 },
                 ensure_ascii=False,

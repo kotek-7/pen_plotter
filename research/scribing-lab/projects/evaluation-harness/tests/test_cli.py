@@ -156,6 +156,8 @@ def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
     assert args.plan_markdown == "runs/test/plan.md"
     assert args.start_card_json is None
     assert args.start_card_markdown is None
+    assert args.comparison_sheet_json is None
+    assert args.comparison_sheet_markdown is None
     assert args.preview_run_json is None
     assert args.preview_run_markdown is None
 
@@ -177,6 +179,25 @@ def test_human_feedback_ui_parser_accepts_start_card_outputs() -> None:
     assert args.root == "runs/test"
     assert args.start_card_json == "runs/test/start-card.json"
     assert args.start_card_markdown == "runs/test/start-card.md"
+
+
+def test_human_feedback_ui_parser_accepts_comparison_sheet_outputs() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--comparison-sheet-json",
+            "runs/test/comparison-sheet.json",
+            "--comparison-sheet-markdown",
+            "runs/test/comparison-sheet.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.comparison_sheet_json == "runs/test/comparison-sheet.json"
+    assert args.comparison_sheet_markdown == "runs/test/comparison-sheet.md"
 
 
 def test_human_feedback_start_card_parser_accepts_paths() -> None:
@@ -2599,6 +2620,8 @@ def test_human_feedback_review_bundle_command_writes_outputs(
     bundle_dir = root / "bundle"
     packet_md = (bundle_dir / "longform_review_packet.md").read_text(encoding="utf-8")
     start_card_md = (bundle_dir / "longform_review_start_card.md").read_text(encoding="utf-8")
+    comparison_sheet_md = (bundle_dir / "longform_review_comparison_sheet.md").read_text(encoding="utf-8")
+    comparison_sheet_json = (bundle_dir / "longform_review_comparison_sheet.json").read_text(encoding="utf-8")
     guide_md = (bundle_dir / "longform_review_guide.md").read_text(encoding="utf-8")
     guide_json = (bundle_dir / "longform_review_guide.json").read_text(encoding="utf-8")
     index_md = (bundle_dir / "longform_review_index.md").read_text(encoding="utf-8")
@@ -2606,9 +2629,11 @@ def test_human_feedback_review_bundle_command_writes_outputs(
 
     assert "Human Review Packet" in packet_md
     assert "Human Review Start Card" in start_card_md
+    assert "Human Review Comparison Sheet" in comparison_sheet_md
     assert "Review steps" in guide_md
     assert '"packet_representative_count": 2' in guide_json
     assert '"sort_order": "longform-first"' in (bundle_dir / "longform_review_start_card.json").read_text(encoding="utf-8")
+    assert '"what_to_compare"' in comparison_sheet_json
     assert "Human Review Bundle Index" in index_md
     assert "human-feedback-review-ui" in index_md
     assert '"bundle_prefix": "longform_review"' in index_json
