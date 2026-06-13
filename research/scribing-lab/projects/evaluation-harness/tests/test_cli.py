@@ -158,6 +158,8 @@ def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
     assert args.start_card_markdown is None
     assert args.comparison_sheet_json is None
     assert args.comparison_sheet_markdown is None
+    assert args.prompt_json is None
+    assert args.prompt_markdown is None
     assert args.preview_run_json is None
     assert args.preview_run_markdown is None
 
@@ -198,6 +200,25 @@ def test_human_feedback_ui_parser_accepts_comparison_sheet_outputs() -> None:
     assert args.root == "runs/test"
     assert args.comparison_sheet_json == "runs/test/comparison-sheet.json"
     assert args.comparison_sheet_markdown == "runs/test/comparison-sheet.md"
+
+
+def test_human_feedback_ui_parser_accepts_prompt_outputs() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--prompt-json",
+            "runs/test/prompt.json",
+            "--prompt-markdown",
+            "runs/test/prompt.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.prompt_json == "runs/test/prompt.json"
+    assert args.prompt_markdown == "runs/test/prompt.md"
 
 
 def test_human_feedback_start_card_parser_accepts_paths() -> None:
@@ -2646,6 +2667,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
     bundle_dir.mkdir(parents=True, exist_ok=True)
     packet_json = bundle_dir / "longform_review_packet.json"
     comparison_sheet_json = bundle_dir / "longform_review_comparison_sheet.json"
+    prompt_json = bundle_dir / "longform_review_prompt.json"
     responses_json = bundle_dir / "longform_review_responses.json"
     packet_json.write_text(
         json.dumps(
@@ -2684,6 +2706,24 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
         + "\n",
         encoding="utf-8",
     )
+    prompt_json.write_text(
+        json.dumps(
+            {
+                "record_count": 1,
+                "representative_count": 1,
+                "sort_order": "longform-first",
+                "high_priority_tags": ["spacing-too-wide"],
+                "what_to_compare": ["字間が広すぎないか"],
+                "focus_questions": ["何が最優先か"],
+                "response_format": ["良い点: 1 行で書く"],
+                "top_representatives": [],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
     responses_json.write_text(json.dumps({"responses": []}, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     captured: dict[str, object] = {}
@@ -2714,6 +2754,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
     assert captured["packet_json"] == packet_json
     assert captured["responses_json"] == responses_json
     assert captured["comparison_sheet_json"] == comparison_sheet_json
+    assert captured["prompt_json"] == prompt_json
     assert captured["sort_order"] == "longform-first"
     assert captured["root"] == bundle_dir.parent
     assert captured["initial_detail_tab"] == "comparison-sheet"

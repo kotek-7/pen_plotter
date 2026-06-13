@@ -47,11 +47,13 @@ from evaluation_harness.human_feedback_loop import ALLOWED_REASON_TAGS
 from evaluation_harness.human_review_response import (
     build_human_review_start_card,
     build_human_review_comparison_sheet,
+    build_human_review_prompt,
     build_human_review_revision_brief,
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     render_human_review_start_card_markdown,
     render_human_review_comparison_sheet_markdown,
+    render_human_review_prompt_markdown,
     render_human_review_revision_brief_markdown,
     render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_plan_markdown,
@@ -167,6 +169,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         start_card_markdown_path: Path | None = None,
         comparison_sheet_json_path: Path | None = None,
         comparison_sheet_markdown_path: Path | None = None,
+        prompt_json_path: Path | None = None,
+        prompt_markdown_path: Path | None = None,
         preview_run_json_path: Path | None = None,
         preview_run_markdown_path: Path | None = None,
         initial_detail_tab: str = "start-card",
@@ -189,6 +193,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._start_card_markdown_path = start_card_markdown_path
         self._comparison_sheet_json_path = comparison_sheet_json_path
         self._comparison_sheet_markdown_path = comparison_sheet_markdown_path
+        self._prompt_json_path = prompt_json_path
+        self._prompt_markdown_path = prompt_markdown_path
         self._preview_run_json_path = preview_run_json_path
         self._preview_run_markdown_path = preview_run_markdown_path
         self._initial_detail_tab = initial_detail_tab
@@ -443,6 +449,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         tabs.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         tabs.addTab(self._build_start_card_box(), "Start Card")
         tabs.addTab(self._build_comparison_sheet_box(), "Comparison Sheet")
+        tabs.addTab(self._build_prompt_box(), "Review Prompt")
         tabs.addTab(self._build_details_box(), "Details")
         tabs.addTab(self._build_review_box(), "Review")
         tabs.addTab(self._build_notes_box(), "Notes")
@@ -481,6 +488,17 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._comparison_sheet_text.setReadOnly(True)
         self._comparison_sheet_text.setFont(self._body_font)
         layout.addWidget(self._comparison_sheet_text)
+        return group
+
+    def _build_prompt_box(self) -> QGroupBox:
+        group = QGroupBox("Review Prompt", self)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self._prompt_text = QPlainTextEdit(group)
+        self._prompt_text.setReadOnly(True)
+        self._prompt_text.setFont(self._body_font)
+        layout.addWidget(self._prompt_text)
         return group
 
     def _build_details_box(self) -> QGroupBox:
@@ -835,6 +853,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_summary()
         self._refresh_start_card()
         self._refresh_comparison_sheet()
+        self._refresh_prompt()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
 
@@ -861,6 +880,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_summary()
         self._refresh_start_card()
         self._refresh_comparison_sheet()
+        self._refresh_prompt()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
         self._refresh_preview_plan()
@@ -869,6 +889,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         tab_order = [
             "start-card",
             "comparison-sheet",
+            "review-prompt",
             "details",
             "review",
             "notes",
@@ -917,6 +938,14 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._comparison_sheet_text.setPlainText(
             render_human_review_comparison_sheet_markdown(self._current_comparison_sheet())
         )
+
+    def _current_prompt(self) -> dict[str, Any]:
+        return build_human_review_prompt(self._packet)
+
+    def _refresh_prompt(self) -> None:
+        if not hasattr(self, "_prompt_text"):
+            return
+        self._prompt_text.setPlainText(render_human_review_prompt_markdown(self._current_prompt()))
 
     def _current_revision_brief(self) -> dict[str, Any]:
         summary = validate_response_drafts(self._packet, self._drafts)
@@ -1032,6 +1061,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         packet = self._write_packet()
         start_card = self._write_start_card()
         comparison_sheet = self._write_comparison_sheet()
+        prompt = self._write_prompt()
         responses = self._write_responses_and_summary(summary)
         brief = self._write_revision_brief()
         plan = self._write_revision_plan()
@@ -1045,6 +1075,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             f"- packet: {packet['markdown']}\n"
             f"- start card: {start_card['markdown']}\n"
             f"- comparison sheet: {comparison_sheet['markdown']}\n"
+            f"- review prompt: {prompt['markdown']}\n"
             f"- responses: {responses['responses']}\n"
             f"- summary: {responses['summary']}\n"
             f"- brief: {brief['markdown']}\n"
@@ -1156,6 +1187,19 @@ class HumanFeedbackQtWindow(QMainWindow):
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(
             json.dumps(sheet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _write_prompt(self) -> dict[str, Path]:
+        prompt = self._current_prompt()
+        markdown_path = self._prompt_markdown_path or self._default_prompt_markdown_path()
+        json_path = self._prompt_json_path or self._default_prompt_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_human_review_prompt_markdown(prompt), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(prompt, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         return {"markdown": markdown_path, "json": json_path}
@@ -1291,6 +1335,16 @@ class HumanFeedbackQtWindow(QMainWindow):
             return self._responses_json_path.with_name("human_review_comparison_sheet.json")
         return Path("human_review_comparison_sheet.json")
 
+    def _default_prompt_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_prompt.md")
+        return Path("human_review_prompt.md")
+
+    def _default_prompt_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_prompt.json")
+        return Path("human_review_prompt.json")
+
     def _default_preview_run_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_preview_revision_run.md")
@@ -1380,6 +1434,8 @@ def launch_human_feedback_ui(
     start_card_markdown: Path | None = None,
     comparison_sheet_json: Path | None = None,
     comparison_sheet_markdown: Path | None = None,
+    prompt_json: Path | None = None,
+    prompt_markdown: Path | None = None,
     preview_run_json: Path | None = None,
     preview_run_markdown: Path | None = None,
     reviewer_id: str = "",
@@ -1402,6 +1458,8 @@ def launch_human_feedback_ui(
     comparison_sheet_markdown_path = (
         comparison_sheet_markdown or (base_dir / "human_review_comparison_sheet.md")
     )
+    prompt_json_path = prompt_json or (base_dir / "human_review_prompt.json")
+    prompt_markdown_path = prompt_markdown or (base_dir / "human_review_prompt.md")
     preview_run_json_path = preview_run_json or (base_dir / "human_review_preview_revision_run.json")
     preview_run_markdown_path = preview_run_markdown or (base_dir / "human_review_preview_revision_run.md")
     packet = load_feedback_packet(
@@ -1439,6 +1497,8 @@ def launch_human_feedback_ui(
         start_card_markdown_path=start_card_markdown_path,
         comparison_sheet_json_path=comparison_sheet_json_path,
         comparison_sheet_markdown_path=comparison_sheet_markdown_path,
+        prompt_json_path=prompt_json_path,
+        prompt_markdown_path=prompt_markdown_path,
         preview_run_json_path=preview_run_json_path,
         preview_run_markdown_path=preview_run_markdown_path,
         initial_detail_tab=initial_detail_tab,

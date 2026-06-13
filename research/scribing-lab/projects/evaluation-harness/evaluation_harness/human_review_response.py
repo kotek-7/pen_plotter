@@ -313,6 +313,88 @@ def render_human_review_comparison_sheet_markdown(sheet: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_human_review_prompt(packet: dict[str, Any]) -> dict[str, Any]:
+    sheet = build_human_review_comparison_sheet(packet)
+    representatives = list(packet.get("representatives", []))
+    top_representatives = [
+        {
+            "experiment_id": str(item.get("experiment_id", "unknown")),
+            "input_text": str(item.get("input_text", "")),
+            "reason": str(item.get("reason", "")),
+            "failure_tags": list(item.get("failure_tags", [])),
+        }
+        for item in representatives[:6]
+    ]
+    focus_questions = [
+        "最初にどの代表サンプルが自然 / 不自然に見えるか",
+        "字間・終筆・揺れ・フォント感のうち、何を最優先で直したいか",
+        "長文、短文、Latin、数字、記号のどの混在で崩れやすいか",
+        "次の改版で 1 点だけ直すなら何を選ぶか",
+    ]
+    response_format = [
+        "良い点: 1 行で書く",
+        "気になる点: 1〜3 点を書く",
+        "優先修正: 1 点だけ書く",
+        "必要なら代表 experiment_id を添える",
+    ]
+    return {
+        "record_count": int(packet.get("record_count", len(representatives))),
+        "representative_count": int(packet.get("representative_count", len(representatives))),
+        "sort_order": str(packet.get("sort_order", "default")),
+        "high_priority_tags": sheet.get("high_priority_tags", []),
+        "what_to_compare": sheet.get("what_to_compare", []),
+        "focus_questions": focus_questions,
+        "response_format": response_format,
+        "top_representatives": top_representatives,
+    }
+
+
+def render_human_review_prompt_markdown(prompt: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Prompt",
+        "",
+        f"- sort_order: `{prompt.get('sort_order', 'default')}`",
+        f"- record_count: `{prompt.get('record_count', 0)}`",
+        f"- representative_count: `{prompt.get('representative_count', 0)}`",
+        "",
+        "## Focus Questions",
+    ]
+    for item in prompt.get("focus_questions", []):
+        lines.append(f"- {item}")
+
+    lines.extend(["", "## Response Format"])
+    for item in prompt.get("response_format", []):
+        lines.append(f"- {item}")
+
+    high_priority_tags = list(prompt.get("high_priority_tags", []))
+    if high_priority_tags:
+        lines.extend(["", "## High Priority Tags"])
+        for tag in high_priority_tags:
+            lines.append(f"- {tag}")
+
+    what_to_compare = list(prompt.get("what_to_compare", []))
+    if what_to_compare:
+        lines.extend(["", "## What to Compare"])
+        for item in what_to_compare:
+            lines.append(f"- {item}")
+
+    top_representatives = list(prompt.get("top_representatives", []))
+    if top_representatives:
+        lines.extend(["", "## Representative Head"])
+        for item in top_representatives:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            lines.append(f"- {experiment_id}: {input_text}")
+            if reason:
+                lines.append(f"  - reason: `{reason}`")
+            failure_tags = item.get("failure_tags", [])
+            if failure_tags:
+                lines.append(f"  - failure_tags: `{failure_tags}`")
+
+    return "\n".join(lines) + "\n"
+
+
 def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
     candidates = [
         ("spacing-too-wide", "字間が広すぎるか"),
