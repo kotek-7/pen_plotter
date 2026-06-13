@@ -286,6 +286,29 @@ def test_abx_workbook_parser_accepts_recommendation_json() -> None:
     assert args.max_items == 24
 
 
+def test_human_abx_bundle_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout",
+            "--output-dir",
+            "bundle",
+            "--output-prefix",
+            "layout_abx",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle"
+    assert args.root == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout"
+    assert args.output_dir == "bundle"
+    assert args.output_prefix == "layout_abx"
+
+
 def test_validate_abx_responses_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -1713,6 +1736,99 @@ def test_abx_revision_run_command_writes_reports(tmp_path: Path) -> None:
     assert '"rerun_count"' in json_text
     assert '"preview_changed_count"' in json_text
     assert '"preview_changed": true' in json_text
+
+
+def test_human_abx_bundle_command_writes_reports(tmp_path: Path) -> None:
+    baseline_preview = tmp_path / "baseline.png"
+    candidate_preview = tmp_path / "candidate.png"
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+
+    recommendation_path = tmp_path / "wide_recommendation.json"
+    recommendation_path.write_text(
+        json.dumps(
+            {
+                "baseline_generator": "baseline-outline",
+                "expected_input_texts": ["日本"],
+                "expected_seeds": [1],
+                "expected_group_count": 1,
+                "selected_candidate_count": 1,
+                "selected_coverage_ratio": 1.0,
+                "selected_profile_counts": {"textured-casual": 1},
+                "candidate_profile_counts": {"textured-casual": 1},
+                "focus_area_counts": {"layout": 1},
+                "recommended_action_counts": {"character advance と line spacing を詰める": 1},
+                "preview_comparisons": [
+                    {
+                        "input_text": "日本",
+                        "seed": 1,
+                        "baseline_experiment_id": "exp-baseline",
+                        "baseline_preview": {"path": str(baseline_preview)},
+                        "candidate_experiment_id": "exp-candidate",
+                        "candidate_preview": {"path": str(candidate_preview)},
+                        "preview_comparable": True,
+                        "preview_hash_changed": True,
+                        "preview_similarity": {"score": 1.0},
+                        "preview_size_delta": 0,
+                    }
+                ],
+                "recommendations": [
+                    {
+                        "input_text": "日本",
+                        "seed": 1,
+                        "baseline_experiment_id": "exp-baseline",
+                        "selection_status": "selected",
+                        "selected_candidate": {
+                            "experiment_id": "exp-candidate",
+                            "profile_id": "textured-casual",
+                            "preview": {"path": str(candidate_preview)},
+                            "inferred_failure_tags": ["spacing-too-wide"],
+                            "suggested_next_actions": ["character advance と line spacing を詰める"],
+                            "focus_area": "layout",
+                        },
+                        "candidate_count": 1,
+                        "preview_candidate_count": 1,
+                        "candidate_items": [],
+                    }
+                ],
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evaluation_harness.cli",
+            "human-abx-bundle",
+            "--recommendation-json",
+            str(recommendation_path),
+            "--focus-areas",
+            "layout",
+            "--max-items",
+            "1",
+            "--output-dir",
+            "bundle",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    bundle_dir = tmp_path / "bundle"
+    assert (bundle_dir / "layout_abx_packet.md").exists()
+    assert (bundle_dir / "layout_abx_packet.json").exists()
+    assert (bundle_dir / "layout_abx_workbook.md").exists()
+    assert (bundle_dir / "layout_abx_workbook.json").exists()
+    assert (bundle_dir / "layout_abx_feedback_loop.md").exists()
+    assert (bundle_dir / "layout_abx_feedback_loop.json").exists()
+    assert (bundle_dir / "layout_abx_response_template.json").exists()
+    assert (bundle_dir / "layout_abx_responses.json").exists()
 
 
 def _record(

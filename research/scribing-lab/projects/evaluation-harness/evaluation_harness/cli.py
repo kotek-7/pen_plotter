@@ -421,6 +421,32 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_loop.add_argument("--output", default="human_abx_feedback_loop.md")
     human_abx_loop.add_argument("--json-output", default="human_abx_feedback_loop.json")
 
+    human_abx_bundle = sub.add_parser(
+        "human-abx-bundle",
+        help="Create a focused ABX packet, workbook, and feedback bundle",
+    )
+    human_abx_bundle.add_argument("--root", default="", help="Run output directory")
+    human_abx_bundle.add_argument(
+        "--input-set",
+        choices=("fixed", "review", "wide"),
+        default="wide",
+        help="Use the fixed, review, or wide evaluation corpus",
+    )
+    human_abx_bundle.add_argument("--seeds", default="1", help="Comma-separated integer seeds")
+    human_abx_bundle.add_argument("--baseline-generator", default="baseline-outline")
+    human_abx_bundle.add_argument("--packet-json", default="")
+    human_abx_bundle.add_argument("--recommendation-json", default="")
+    human_abx_bundle.add_argument("--responses-json", default="")
+    human_abx_bundle.add_argument("--evaluator-id", default="")
+    human_abx_bundle.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep, such as layout,motion",
+    )
+    human_abx_bundle.add_argument("--max-items", type=int, default=36)
+    human_abx_bundle.add_argument("--output-dir", default="")
+    human_abx_bundle.add_argument("--output-prefix", default="")
+
     abx_workbook = sub.add_parser(
         "abx-workbook",
         help="Create a fillable ABX workbook from a packet",
@@ -1007,6 +1033,83 @@ def main() -> None:
         print(f"report: {output_path}")
         print(f"json: {json_path}")
         print(f"template_json: {template_json_path}")
+    elif args.command == "human-abx-bundle":
+        focus_areas = tuple(_parse_csv(args.focus_areas))
+        if args.recommendation_json:
+            recommendation_path = Path(args.recommendation_json)
+            packet = build_human_abx_packet(
+                recommendation=json.loads(recommendation_path.read_text(encoding="utf-8")),
+                focus_areas=focus_areas,
+                max_items=args.max_items or None,
+            )
+            base_dir = recommendation_path.parent
+        else:
+            if not args.root:
+                raise ValueError("--root is required when --recommendation-json is not set")
+            root = Path(args.root)
+            packet = build_human_abx_packet(
+                ExperimentRegistry(root / "registry.jsonl").load_all(),
+                expected_input_texts=get_evaluation_inputs(args.input_set),
+                expected_seeds=tuple(_parse_seeds(args.seeds)),
+                baseline_generator=args.baseline_generator,
+                focus_areas=focus_areas,
+                max_items=args.max_items or None,
+            )
+            base_dir = root
+        responses_data = _load_json_if_present(args.responses_json)
+        workbook = build_abx_workbook(
+            packet,
+            responses_data=responses_data,
+            evaluator_id=args.evaluator_id,
+            max_items=args.max_items,
+        )
+        feedback_loop = build_human_abx_feedback_loop(
+            packet,
+            responses_data=responses_data,
+            evaluator_id=args.evaluator_id,
+            max_items=args.max_items,
+        )
+        bundle_dir = _resolve_output_path(base_dir, args.output_dir) if args.output_dir else base_dir
+        bundle_dir.mkdir(parents=True, exist_ok=True)
+        prefix = args.output_prefix or _default_abx_bundle_prefix(focus_areas)
+        packet_md_path = bundle_dir / f"{prefix}_packet.md"
+        packet_json_path = bundle_dir / f"{prefix}_packet.json"
+        workbook_md_path = bundle_dir / f"{prefix}_workbook.md"
+        workbook_json_path = bundle_dir / f"{prefix}_workbook.json"
+        feedback_md_path = bundle_dir / f"{prefix}_feedback_loop.md"
+        feedback_json_path = bundle_dir / f"{prefix}_feedback_loop.json"
+        template_json_path = bundle_dir / f"{prefix}_response_template.json"
+        responses_json_path = bundle_dir / f"{prefix}_responses.json"
+        packet_md_path.write_text(render_human_abx_packet_markdown(packet), encoding="utf-8")
+        packet_json_path.write_text(
+            json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        workbook_md_path.write_text(render_abx_workbook_markdown(workbook), encoding="utf-8")
+        workbook_json_path.write_text(
+            json.dumps(workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
+        feedback_json_path.write_text(
+            json.dumps(feedback_loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        template_json_path.write_text(
+            json.dumps(feedback_loop["response_template"], ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+        responses_json_path.write_text(
+            json.dumps(build_abx_responses_from_workbook(workbook), ensure_ascii=False, indent=2, sort_keys=True)
+            + "\n",
+            encoding="utf-8",
+        )
+        print(f"packet_items: {len(packet['abx_items'])}")
+        print(f"workbook_rows: {len(workbook['rows'])}")
+        print(f"feedback_status: {feedback_loop['loop_status']}")
+        print(f"bundle_dir: {bundle_dir}")
+        print(f"bundle_prefix: {prefix}")
     elif args.command == "abx-workbook":
         packet = _load_abx_packet_from_args(args)
         responses_data = None
@@ -1312,6 +1415,12 @@ def _resolve_output_path(base_dir: Path, raw_path: str) -> Path:
     if path.is_absolute() or path.parent != Path("."):
         return path
     return base_dir / path
+
+
+def _default_abx_bundle_prefix(focus_areas: tuple[str, ...]) -> str:
+    if not focus_areas:
+        return "abx_bundle"
+    return "_".join(sorted(focus_areas)) + "_abx"
 
 
 def _load_abx_packet_from_args(args: argparse.Namespace) -> dict[str, object]:
