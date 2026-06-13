@@ -33,6 +33,7 @@ def build_human_review_packet(
     records: list[ExperimentRecord],
     *,
     target_count: int | None = None,
+    sort_order: str = "default",
 ) -> dict[str, Any]:
     review = build_offline_review(records)
     by_id = {record.experiment_id: record for record in records}
@@ -40,6 +41,11 @@ def build_human_review_packet(
         records,
         review,
         target_count=target_count,
+    )
+    representative_ids = _sort_representative_ids(
+        representative_ids,
+        by_id,
+        sort_order=sort_order,
     )
     representative_records = [by_id[experiment_id] for experiment_id in representative_ids]
     return {
@@ -52,7 +58,8 @@ def build_human_review_packet(
             _packet_item(record, reason=_representative_reason(record, review))
             for record in representative_records
         ],
-        "records_by_input": _records_by_input(records),
+        "records_by_input": _records_by_input(records, sort_order=sort_order),
+        "sort_order": sort_order,
     }
 
 
@@ -64,6 +71,7 @@ def render_human_review_packet_markdown(packet: dict[str, Any]) -> str:
         f"- representative_count: `{packet['representative_count']}`",
         f"- failure_tag_counts: `{packet['failure_tag_counts']}`",
         f"- script_group_counts: `{packet.get('script_group_counts', {})}`",
+        f"- sort_order: `{packet.get('sort_order', 'default')}`",
         f"- robustness: `{packet['robustness']}`",
         "",
         "## Representatives",
@@ -187,11 +195,45 @@ def _representative_reason(record: ExperimentRecord, review: dict[str, Any]) -> 
     return "metric-extreme"
 
 
-def _records_by_input(records: list[ExperimentRecord]) -> dict[str, list[dict[str, Any]]]:
+def _records_by_input(
+    records: list[ExperimentRecord],
+    *,
+    sort_order: str = "default",
+) -> dict[str, list[dict[str, Any]]]:
+    ordered_records = sorted(
+        records,
+        key=lambda item: _record_sort_key(item, sort_order=sort_order),
+    )
     grouped: dict[str, list[dict[str, Any]]] = {}
-    for record in sorted(records, key=lambda item: (item.input_text, item.seed, item.experiment_id)):
+    for record in ordered_records:
         grouped.setdefault(record.input_text, []).append(_packet_item(record, reason="input-group"))
     return grouped
+
+
+def _sort_representative_ids(
+    representative_ids: list[str],
+    by_id: dict[str, ExperimentRecord],
+    *,
+    sort_order: str,
+) -> list[str]:
+    if sort_order != "longform-first":
+        return representative_ids
+    return sorted(
+        representative_ids,
+        key=lambda experiment_id: _record_sort_key(by_id[experiment_id], sort_order=sort_order),
+    )
+
+
+def _record_sort_key(record: ExperimentRecord, *, sort_order: str) -> tuple[Any, ...]:
+    if sort_order == "longform-first":
+        return (
+            -len(record.input_text),
+            -len(_input_script_groups(record.input_text)),
+            record.input_text,
+            record.seed,
+            record.experiment_id,
+        )
+    return (record.input_text, record.seed, record.experiment_id)
 
 
 def _packet_item(record: ExperimentRecord, *, reason: str) -> dict[str, Any]:

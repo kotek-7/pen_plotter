@@ -185,6 +185,7 @@ python3 -m evaluation_harness human-review-packet \
 failure tags と、input ごとの全 preview path を `human_review_packet.md` / `.json`
 または `preview_review_packet.md` / `.json` に保存する。
 `--target-count` で代表項目数を増やせるので、大きめの人間レビュー束をそのまま作れる。
+`--sort-order longform-first` を使うと、長文や混在入力を先頭にしたレビュー束を作れる。
 
 ```sh
 python3 -m evaluation_harness human-feedback-loop \

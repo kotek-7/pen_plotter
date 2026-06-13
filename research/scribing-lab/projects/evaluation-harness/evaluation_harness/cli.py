@@ -358,6 +358,12 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Target number of representative items to include in the packet",
     )
+    human_review.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
+    )
     human_review.add_argument("--output", default="human_review_packet.md")
     human_review.add_argument("--json-output", default="human_review_packet.json")
 
@@ -465,6 +471,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=None,
         help="Target number of representative items to include in the packet",
+    )
+    preview_review.add_argument(
+        "--sort-order",
+        choices=("default", "longform-first"),
+        default="default",
+        help="Sort representative items and grouped inputs for review readability",
     )
     preview_review.add_argument("--output", default="preview_review_packet.md")
     preview_review.add_argument("--json-output", default="preview_review_packet.json")
@@ -1038,6 +1050,7 @@ def main() -> None:
         packet = build_human_review_packet(
             registry.load_all(),
             target_count=args.target_count,
+            sort_order=args.sort_order,
         )
         markdown_path = root / args.output
         json_path = root / args.json_output
@@ -1281,6 +1294,7 @@ def main() -> None:
         packet = build_human_review_packet(
             registry.load_all(),
             target_count=args.target_count,
+            sort_order=args.sort_order,
         )
         markdown_path = root / args.output
         json_path = root / args.json_output

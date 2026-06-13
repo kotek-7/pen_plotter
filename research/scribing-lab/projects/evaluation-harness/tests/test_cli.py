@@ -47,6 +47,21 @@ def test_human_review_packet_parser_accepts_output_paths() -> None:
     assert args.json_output == "packet.json"
 
 
+def test_human_review_packet_parser_accepts_sort_order() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-review-packet",
+            "--root",
+            "runs/test",
+            "--sort-order",
+            "longform-first",
+        ]
+    )
+
+    assert args.command == "human-review-packet"
+    assert args.sort_order == "longform-first"
+
+
 def test_human_feedback_loop_parser_accepts_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -283,6 +298,21 @@ def test_preview_review_packet_parser_accepts_target_count() -> None:
     assert args.command == "preview-review-packet"
     assert args.root == "runs/test"
     assert args.target_count == 48
+
+
+def test_preview_review_packet_parser_accepts_sort_order() -> None:
+    args = build_parser().parse_args(
+        [
+            "preview-review-packet",
+            "--root",
+            "runs/test",
+            "--sort-order",
+            "longform-first",
+        ]
+    )
+
+    assert args.command == "preview-review-packet"
+    assert args.sort_order == "longform-first"
 
 
 def test_human_review_packet_parser_accepts_target_count() -> None:
@@ -2194,6 +2224,14 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
             generator="structure-motion",
         )
     )
+    registry.append(
+        _record(
+            experiment_id="exp-b",
+            input_text="この文章は、手書きらしさを確認するための長めの文章です。",
+            seed=1,
+            generator="structure-motion",
+        )
+    )
 
     monkeypatch.setattr(
         "sys.argv",
@@ -2202,6 +2240,8 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
             "preview-review-packet",
             "--root",
             str(root),
+            "--sort-order",
+            "longform-first",
             "--output",
             "preview.md",
             "--json-output",
@@ -2218,7 +2258,8 @@ def test_preview_review_packet_command_writes_reports(tmp_path: Path, monkeypatc
 
     assert "Human Review Packet" in markdown
     assert "representative_count" in markdown
-    assert '"representative_count": 1' in json_text
+    assert '"representative_count": 2' in json_text
+    assert markdown.index("この文章は、手書きらしさを確認するための長めの文章です。") < markdown.index("### 永")
 
 
 def test_human_review_packet_command_supports_large_target_count(
@@ -2271,6 +2312,56 @@ def test_human_review_packet_command_supports_large_target_count(
     assert "Human Review Packet" in markdown
     assert "representative_count: `32`" in markdown
     assert '"representative_count": 32' in json_text
+
+
+def test_human_review_packet_command_supports_longform_sort_order(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = tmp_path / "runs"
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        _record(
+            experiment_id="exp-short",
+            input_text="永",
+            seed=1,
+            generator="structure-motion",
+        )
+    )
+    registry.append(
+        _record(
+            experiment_id="exp-long",
+            input_text="この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。",
+            seed=1,
+            generator="structure-motion",
+        )
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-review-packet",
+            "--root",
+            str(root),
+            "--sort-order",
+            "longform-first",
+            "--output",
+            "review.md",
+            "--json-output",
+            "review.json",
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    main()
+
+    markdown = (root / "review.md").read_text(encoding="utf-8")
+    json_text = (root / "review.json").read_text(encoding="utf-8")
+
+    assert "representative_count: `2`" in markdown
+    assert markdown.index("この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。") < markdown.index("永")
+    assert '"input_text": "この文章は、手書きらしさ、速度変動、終筆の違いをまとめて観察するためのものです。"' in json_text
 
 
 def test_human_feedback_loop_command_supports_large_target_count(
