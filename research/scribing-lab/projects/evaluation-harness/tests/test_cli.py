@@ -3,6 +3,8 @@ import subprocess
 from pathlib import Path
 import sys
 
+import pytest
+
 from evaluation_harness.baseline_outline import DEFAULT_EVALUATION_INPUTS
 from evaluation_harness.models import ExperimentRecord
 from evaluation_harness.registry import ExperimentRegistry
@@ -2491,6 +2493,42 @@ def test_human_feedback_start_card_command_writes_outputs(
     assert "sort_order: `longform-first`" in markdown
     assert '"sort_order": "longform-first"' in json_text
     assert '"representative_count": 2' in json_text
+
+
+def test_human_feedback_start_card_command_rejects_abx_packet(tmp_path: Path, monkeypatch) -> None:
+    packet_path = tmp_path / "layout_motion_abx_v37_packet.json"
+    packet_path.write_text(
+        json.dumps(
+            {
+                "abx_items": [
+                    {
+                        "item_id": "abx-001",
+                        "input_text": "永",
+                        "seed": 1,
+                    }
+                ]
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr(
+        "sys.argv",
+        [
+            "evaluation_harness",
+            "human-feedback-start-card",
+            "--packet-json",
+            str(packet_path),
+        ],
+    )
+
+    from evaluation_harness.cli import main
+
+    with pytest.raises(ValueError, match="human review packet"):
+        main()
 
 
 def test_human_feedback_loop_command_writes_revision_brief(

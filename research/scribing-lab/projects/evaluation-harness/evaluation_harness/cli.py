@@ -1219,6 +1219,11 @@ def main() -> None:
             target_count=args.target_count,
             sort_order=args.sort_order,
         )
+        if not packet.get("representatives"):
+            raise ValueError(
+                "human-feedback-start-card requires a human review packet with representatives; "
+                "use human-review-packet or --root for a review registry"
+            )
         drafts = load_response_drafts(
             packet=packet,
             responses_json=responses_json if responses_json and responses_json.exists() else None,
