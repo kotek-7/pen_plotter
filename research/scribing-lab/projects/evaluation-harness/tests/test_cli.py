@@ -2002,11 +2002,15 @@ def test_human_abx_bundle_followup_command_uses_bundle_defaults(tmp_path: Path) 
     assert (bundle_dir / "layout_abx_followup_revision_plan.json").exists()
     assert (bundle_dir / "layout_abx_followup_revision_run.md").exists()
     assert (bundle_dir / "layout_abx_followup_revision_run.json").exists()
+    assert (bundle_dir / "layout_abx_followup_responses.json").exists()
     assert "completed_row_count: 1" in result.stdout
     assert "completion_ratio: 1.0" in result.stdout
+    assert "responses_json:" in result.stdout
     run_json = json.loads((bundle_dir / "layout_abx_followup_revision_run.json").read_text(encoding="utf-8"))
     assert run_json["rerun_count"] == 1
     assert run_json["preview_changed_count"] == 1
+    responses_json = json.loads((bundle_dir / "layout_abx_followup_responses.json").read_text(encoding="utf-8"))
+    assert responses_json["responses"][0]["choice"] == "B"
 
 
 def _record(

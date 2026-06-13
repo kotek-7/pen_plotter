@@ -1164,6 +1164,7 @@ def main() -> None:
         output_prefix = args.output_prefix or f"{args.bundle_prefix}_followup"
         summary_md_path = bundle_dir / f"{output_prefix}_response_summary.md"
         summary_json_path = bundle_dir / f"{output_prefix}_response_summary.json"
+        responses_json_path = bundle_dir / f"{output_prefix}_responses.json"
         feedback_md_path = bundle_dir / f"{output_prefix}_feedback_loop.md"
         feedback_json_path = bundle_dir / f"{output_prefix}_feedback_loop.json"
         plan_md_path = bundle_dir / f"{output_prefix}_revision_plan.md"
@@ -1173,6 +1174,10 @@ def main() -> None:
         summary_md_path.write_text(render_abx_summary_markdown(response_summary), encoding="utf-8")
         summary_json_path.write_text(
             json.dumps(response_summary, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        responses_json_path.write_text(
+            json.dumps(responses_data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
@@ -1201,6 +1206,7 @@ def main() -> None:
         print(f"preview_changed_count: {run['preview_changed_count']}")
         print(f"report: {run_md_path}")
         print(f"json: {run_json_path}")
+        print(f"responses_json: {responses_json_path}")
     elif args.command == "abx-workbook":
         packet = _load_abx_packet_from_args(args)
         responses_data = None
