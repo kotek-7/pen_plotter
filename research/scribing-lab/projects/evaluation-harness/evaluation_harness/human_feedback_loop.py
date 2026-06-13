@@ -10,11 +10,13 @@ from evaluation_harness.human_review_response import (
     DECISIONS,
     HumanReviewResponse,
     build_human_review_revision_brief,
+    build_human_review_session_feedback,
     summarize_human_review_agreement,
     summarize_human_review_calibration,
     load_human_review_responses,
     render_human_review_response_markdown,
     render_human_review_revision_brief_markdown,
+    render_human_review_session_feedback_markdown,
     summarize_human_review_responses,
 )
 from evaluation_harness.models import ExperimentRecord
@@ -91,6 +93,7 @@ def build_human_feedback_loop(
     records: list[ExperimentRecord],
     *,
     responses_data: Any | None = None,
+    session_feedback_data: Any | None = None,
     reviewer_id: str = "",
     target_count: int | None = None,
     sort_order: str = "default",
@@ -109,11 +112,19 @@ def build_human_feedback_loop(
         response_summary = summarize_human_review_responses(packet, responses)
         calibration_summary = summarize_human_review_calibration(packet, responses)
         agreement_summary = summarize_human_review_agreement(responses)
-    revision_brief = build_human_review_revision_brief(response_summary or {
+    session_feedback = None
+    if session_feedback_data is not None:
+        session_feedback = build_human_review_session_feedback(packet)
+        if isinstance(session_feedback_data, dict):
+            session_feedback.update(session_feedback_data)
+    revision_brief = build_human_review_revision_brief(
+        response_summary or {
         "note_count": 0,
         "reason_tag_counts": {},
         "note_examples": [],
-    })
+    },
+        session_feedback,
+    )
 
     loop_status = _loop_status(response_summary)
     next_actions = _next_actions(loop_status, response_summary, calibration_summary, agreement_summary)
@@ -124,6 +135,7 @@ def build_human_feedback_loop(
         "response_summary": response_summary,
         "calibration_summary": calibration_summary,
         "agreement_summary": agreement_summary,
+        "session_feedback": session_feedback,
         "revision_brief": revision_brief,
         "next_actions": next_actions,
     }
@@ -270,6 +282,15 @@ def render_human_feedback_loop_markdown(loop: dict[str, Any]) -> str:
                 "## Response Summary",
                 "",
                 "- pending",
+                "",
+            ]
+        )
+    if loop.get("session_feedback") is not None:
+        lines.extend(
+            [
+                "## Session Feedback",
+                "",
+                render_human_review_session_feedback_markdown(loop["session_feedback"]).rstrip(),
                 "",
             ]
         )

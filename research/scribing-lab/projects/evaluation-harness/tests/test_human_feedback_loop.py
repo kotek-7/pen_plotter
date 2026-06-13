@@ -50,6 +50,12 @@ def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> N
                 }
             ]
         },
+        session_feedback_data={
+            "notes": "良い点: 長文は読みやすい\n気になる点: まだ字間が広い\n優先修正: layout を再調整する",
+            "high_priority_tags": ["spacing-too-wide"],
+            "focus_questions": ["どの文字で字間が気になるか"],
+            "reference_representative_ids": ["exp-a"],
+        },
         reviewer_id="reviewer-1",
     )
 
@@ -57,15 +63,41 @@ def test_build_human_feedback_loop_with_responses_summarizes_next_actions() -> N
     assert loop["response_summary"]["can_proceed_to_plot"] is False
     assert loop["response_summary"]["decision_counts"] == {"needs-tuning": 1}
     assert loop["response_summary"]["note_count"] == 1
+    assert loop["session_feedback"]["notes"].startswith("良い点: 長文は読みやすい")
     assert loop["revision_brief"]["brief_status"] == "ready"
+    assert loop["revision_brief"]["session_feedback_status"] == "ready"
     assert any("line spacing" in action for action in loop["next_actions"])
     assert any("notes" in action for action in loop["next_actions"])
     assert loop["calibration_summary"] is not None
     assert loop["calibration_summary"]["reviewed_response_count"] == 1
     assert loop["agreement_summary"] is not None
-    assert "Calibration Summary" in render_human_feedback_loop_markdown(loop)
-    assert "## Notes" in render_human_feedback_loop_markdown(loop)
-    assert "## Revision Brief" in render_human_feedback_loop_markdown(loop)
+    report = render_human_feedback_loop_markdown(loop)
+    assert "Calibration Summary" in report
+    assert "## Session Feedback" in report
+    assert "まだ字間が広い" in report
+    assert "## Revision Brief" in report
+
+
+
+
+def test_build_human_feedback_loop_with_session_feedback_influences_brief() -> None:
+    record = _record("exp-a", generator="structure-motion")
+
+    loop = build_human_feedback_loop(
+        [record],
+        session_feedback_data={
+            "notes": "良い点: 長文は読みやすい\n気になる点: まだ字間が広い\n優先修正: layout を再調整する",
+            "high_priority_tags": ["spacing-too-wide"],
+            "focus_questions": ["どの文字で字間が気になるか"],
+            "reference_representative_ids": ["exp-a"],
+        },
+        reviewer_id="reviewer-1",
+    )
+
+    assert loop["session_feedback"]["notes"].startswith("良い点: 長文は読みやすい")
+    assert loop["revision_brief"]["session_feedback_status"] == "ready"
+    assert "session_feedback の notes を次回の修正に反映する" in loop["revision_brief"]["focus_lines"][0]
+    assert "## Session Feedback" in render_human_feedback_loop_markdown(loop)
 
 
 def test_build_human_feedback_loop_reports_agreement_for_multiple_reviewers() -> None:

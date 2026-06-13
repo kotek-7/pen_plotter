@@ -72,6 +72,8 @@ def test_human_feedback_loop_parser_accepts_response_paths() -> None:
             "runs/test",
             "--responses-json",
             "runs/test/human_review_responses.json",
+            "--session-feedback-json",
+            "runs/test/human_review_session_feedback.json",
             "--reviewer-id",
             "reviewer-1",
             "--output",
@@ -84,6 +86,7 @@ def test_human_feedback_loop_parser_accepts_response_paths() -> None:
     assert args.command == "human-feedback-loop"
     assert args.root == "runs/test"
     assert args.responses_json == "runs/test/human_review_responses.json"
+    assert args.session_feedback_json == "runs/test/human_review_session_feedback.json"
     assert args.reviewer_id == "reviewer-1"
     assert args.output == "loop.md"
     assert args.json_output == "loop.json"
@@ -2862,6 +2865,7 @@ def test_human_feedback_loop_command_writes_revision_brief(
         )
     )
     responses_path = root / "human_review_responses.json"
+    session_feedback_path = root / "human_review_session_feedback.json"
     responses_path.parent.mkdir(parents=True, exist_ok=True)
     responses_path.write_text(
         json.dumps(
@@ -2882,6 +2886,24 @@ def test_human_feedback_loop_command_writes_revision_brief(
         + "\n",
         encoding="utf-8",
     )
+    session_feedback_path.write_text(
+        json.dumps(
+            {
+                "sort_order": "longform-first",
+                "record_count": 1,
+                "representative_count": 1,
+                "high_priority_tags": ["spacing-too-wide"],
+                "what_to_compare": ["字間が広すぎないか"],
+                "focus_questions": ["何が最優先か"],
+                "reference_representative_ids": ["exp-a"],
+                "notes": "良い点: 長文は読みやすい\n気になる点: まだ字間が広い\n優先修正: layout を再調整する",
+            },
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     monkeypatch.setattr(
         "sys.argv",
@@ -2892,6 +2914,8 @@ def test_human_feedback_loop_command_writes_revision_brief(
             str(root),
             "--responses-json",
             str(responses_path),
+            "--session-feedback-json",
+            str(session_feedback_path),
             "--brief-only",
             "--sort-order",
             "longform-first",
@@ -2909,7 +2933,9 @@ def test_human_feedback_loop_command_writes_revision_brief(
 
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
-    assert "sort_order: `longform-first`" in (root / "human_feedback_loop.md").read_text(encoding="utf-8")
+    assert "session_feedback の notes を次回の修正に反映する" in brief_md
+    assert "Human Review Session Feedback" in (root / "human_feedback_loop.md").read_text(encoding="utf-8")
+    assert "まだ字間が広い" in (root / "human_feedback_loop.md").read_text(encoding="utf-8")
     assert '"brief_status": "ready"' in brief_json
     assert "Human Review Revision Plan" in plan_md
     assert '"plan_status": "ready"' in plan_json

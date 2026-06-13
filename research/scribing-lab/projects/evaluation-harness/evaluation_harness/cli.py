@@ -387,6 +387,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_feedback.add_argument("--root", required=True, help="Run output directory")
     human_feedback.add_argument("--responses-json", help="Human review response JSON")
+    human_feedback.add_argument("--session-feedback-json", help="Human review session feedback JSON")
     human_feedback.add_argument("--reviewer-id", default="")
     human_feedback.add_argument(
         "--target-count",
@@ -1192,9 +1193,13 @@ def main() -> None:
         responses_data = None
         if args.responses_json:
             responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
+        session_feedback_data = None
+        if args.session_feedback_json:
+            session_feedback_data = json.loads(Path(args.session_feedback_json).read_text(encoding="utf-8"))
         loop = build_human_feedback_loop(
             registry.load_all(),
             responses_data=responses_data,
+            session_feedback_data=session_feedback_data,
             reviewer_id=args.reviewer_id,
             target_count=args.target_count,
             sort_order=args.sort_order,
@@ -1207,7 +1212,8 @@ def main() -> None:
                 "note_count": 0,
                 "reason_tag_counts": {},
                 "note_examples": [],
-            }
+            },
+            loop.get("session_feedback"),
         )
         brief_md_path = root / args.brief_output
         brief_json_path = root / args.brief_json_output
