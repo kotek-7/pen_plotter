@@ -128,22 +128,31 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
         summary_json_path=tmp_path / "human_review_response_summary.json",
         brief_json_path=tmp_path / "human_review_revision_brief.json",
         brief_markdown_path=tmp_path / "human_review_revision_brief.md",
+        start_card_json_path=tmp_path / "human_review_start_card.json",
+        start_card_markdown_path=tmp_path / "human_review_start_card.md",
     )
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
-    assert window._detail_tabs.count() == 6
+    assert window._detail_tabs.count() == 7
+    assert "Human Review Start Card" in window._start_card_text.toPlainText()
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()
     assert "Preview Run" in window._preview_run_text.toPlainText()
 
+    window._export_start_card()
     window._export_revision_brief()
 
+    start_card_md = (tmp_path / "human_review_start_card.md").read_text(encoding="utf-8")
+    start_card_json = (tmp_path / "human_review_start_card.json").read_text(encoding="utf-8")
     brief_md = (tmp_path / "human_review_revision_brief.md").read_text(encoding="utf-8")
     brief_json = (tmp_path / "human_review_revision_brief.json").read_text(encoding="utf-8")
     plan_md = (tmp_path / "human_review_revision_plan.md").read_text(encoding="utf-8")
     plan_json = (tmp_path / "human_review_revision_plan.json").read_text(encoding="utf-8")
 
+    assert "Human Review Start Card" in start_card_md
+    assert '"sort_order": "longform-first"' in start_card_json
+    assert '"representative_count": 1' in start_card_json
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
     assert '"brief_status": "ready"' in brief_json
@@ -494,7 +503,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 6
+    assert window._detail_tabs.count() == 7
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820

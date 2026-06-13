@@ -270,7 +270,9 @@ python3 -m evaluation_harness human-feedback-ui \
 ボタンで、note をそのまま次回修正用の brief に書き出せる。`Export Preview Run`
 ボタンを使うと、今開いている packet の input / seed 軸に沿って brief と plan を
 まとめて preview rerun まで出力できる。UI は Qt ベースなので、日本語と英字の表示品質が
-Tkinter 版より安定している。`Preview Run` タブでは、現在の brief から作った preview
+Tkinter 版より安定している。`Start Card` タブと `Export Start Card` ボタンで、開いた
+packet の代表項目・注視点・script 分布をそのまま見せられる。`Preview Run` タブでは、
+現在の brief から作った preview
 revision plan をその場で確認できる。
 `Export Review Bundle` は、responses / brief / plan / preview run をまとめて保存する。
 起動時に保存先を明示したい場合は `--preview-run-json` と `--preview-run-markdown` を指定する。

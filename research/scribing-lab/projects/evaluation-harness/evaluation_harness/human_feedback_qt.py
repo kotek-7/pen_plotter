@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections import Counter
 from pathlib import Path
 from typing import Any
 
@@ -145,6 +146,60 @@ def _format_summary_lines(summary: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_human_feedback_start_card_markdown(card: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Start Card",
+        "",
+        f"- sort_order: `{card.get('sort_order', 'default')}`",
+        f"- record_count: `{card.get('record_count', 0)}`",
+        f"- representative_count: `{card.get('representative_count', 0)}`",
+        f"- loop_status: `{card.get('loop_status', 'awaiting_response')}`",
+        f"- brief_status: `{card.get('brief_status', 'empty')}`",
+        "",
+        "## First Things To Watch",
+    ]
+    for item in card.get("first_things_to_watch", []):
+        lines.append(f"- {item}")
+
+    top_failure_tags = card.get("top_failure_tags", {})
+    if top_failure_tags:
+        lines.extend(["", "## Top Failure Tags"])
+        for tag, count in top_failure_tags.items():
+            lines.append(f"- {tag}: `{count}`")
+
+    top_script_groups = card.get("top_script_groups", {})
+    if top_script_groups:
+        lines.extend(["", "## Script Groups"])
+        for group, count in top_script_groups.items():
+            lines.append(f"- {group}: `{count}`")
+
+    representatives = list(card.get("top_representatives", []))
+    if representatives:
+        lines.extend(["", "## Top Representatives"])
+        for item in representatives:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            marker = item.get("marker", "metric-extreme")
+            lines.append(f"- {experiment_id}: {input_text} ({marker})")
+            if reason:
+                lines.append(f"  - reason: `{reason}`")
+
+    preview_head = list(card.get("preview_head", []))
+    if preview_head:
+        lines.extend(["", "## Preview Representative Head"])
+        for item in preview_head:
+            experiment_id = item.get("experiment_id", "unknown")
+            input_text = item.get("input_text", "")
+            reason = item.get("reason", "")
+            marker = item.get("marker", "metric-extreme")
+            lines.append(f"- {experiment_id}: {input_text} ({marker})")
+            if reason:
+                lines.append(f"  - reason: `{reason}`")
+
+    return "\n".join(lines) + "\n"
+
+
 class HumanFeedbackQtWindow(QMainWindow):
     def __init__(
         self,
@@ -161,6 +216,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         plan_markdown_path: Path | None = None,
         packet_json_path: Path | None = None,
         packet_markdown_path: Path | None = None,
+        start_card_json_path: Path | None = None,
+        start_card_markdown_path: Path | None = None,
         preview_run_json_path: Path | None = None,
         preview_run_markdown_path: Path | None = None,
         base_dir: Path | None = None,
@@ -178,6 +235,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._plan_markdown_path = plan_markdown_path
         self._packet_json_path = packet_json_path
         self._packet_markdown_path = packet_markdown_path
+        self._start_card_json_path = start_card_json_path
+        self._start_card_markdown_path = start_card_markdown_path
         self._preview_run_json_path = preview_run_json_path
         self._preview_run_markdown_path = preview_run_markdown_path
         self._base_dir = base_dir or Path.cwd()
@@ -280,6 +339,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._packet_button = QPushButton("Export Packet", header)
         self._packet_button.clicked.connect(self._export_packet_bundle)
         layout.addWidget(self._packet_button, 0, Qt.AlignVCenter)
+
+        self._start_card_button = QPushButton("Export Start Card", header)
+        self._start_card_button.clicked.connect(self._export_start_card)
+        layout.addWidget(self._start_card_button, 0, Qt.AlignVCenter)
 
         self._bundle_button = QPushButton("Export Review Bundle", header)
         self._bundle_button.clicked.connect(self._export_review_bundle)
@@ -434,6 +497,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._detail_tabs = tabs
         tabs.setMinimumWidth(360)
         tabs.setSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        tabs.addTab(self._build_start_card_box(), "Start Card")
         tabs.addTab(self._build_details_box(), "Details")
         tabs.addTab(self._build_review_box(), "Review")
         tabs.addTab(self._build_notes_box(), "Notes")
@@ -451,6 +515,17 @@ class HumanFeedbackQtWindow(QMainWindow):
         layout.addWidget(self._build_reason_tags_box())
         layout.addStretch(1)
         return widget
+
+    def _build_start_card_box(self) -> QGroupBox:
+        group = QGroupBox("Start Card", self)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self._start_card_text = QPlainTextEdit(group)
+        self._start_card_text.setReadOnly(True)
+        self._start_card_text.setFont(self._body_font)
+        layout.addWidget(self._start_card_text)
+        return group
 
     def _build_details_box(self) -> QGroupBox:
         group = QGroupBox("Details", self)
@@ -802,6 +877,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             return
         self._capture_current_draft()
         self._refresh_summary()
+        self._refresh_start_card()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
 
@@ -824,6 +900,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         else:
             self._refresh_summary()
         self._refresh_summary()
+        self._refresh_start_card()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
         self._refresh_preview_plan()
@@ -843,6 +920,84 @@ class HumanFeedbackQtWindow(QMainWindow):
                 ]
             )
         )
+
+    def _current_start_card(self) -> dict[str, Any]:
+        representatives = list(self._packet.get("representatives", []))
+        summary = validate_response_drafts(self._packet, self._drafts)
+        note_count = int(summary.get("note_count", 0))
+        response_count = int(sum(summary.get("decision_counts", {}).values()))
+
+        if summary["can_proceed_to_plot"]:
+            loop_status = "ready"
+        elif response_count == 0:
+            loop_status = "awaiting_response"
+        elif summary["validation_errors"]:
+            loop_status = "needs_fix"
+        else:
+            loop_status = "in_progress"
+
+        brief_status = "ready" if (response_count > 0 or note_count > 0) else "empty"
+
+        failure_tag_counts = Counter[str]()
+        script_group_counts = Counter[str]()
+        for item in representatives:
+            failure_tag_counts.update(str(tag) for tag in item.get("failure_tags", []))
+            script_group_counts.update(str(group) for group in item.get("input_script_groups", []))
+
+        first_things_to_watch = self._start_card_watch_items(failure_tag_counts)
+        if not first_things_to_watch:
+            first_things_to_watch = [
+                "字間が広すぎるか",
+                "長文で行全体が機械的に揃いすぎていないか",
+                "Latin / digit / punctuation の混在で崩れないか",
+                "反復文字が同じ形に寄りすぎていないか",
+            ]
+
+        top_representatives = [
+            {
+                "experiment_id": str(item.get("experiment_id", "unknown")),
+                "input_text": str(item.get("input_text", "")),
+                "reason": str(item.get("reason", "")),
+                "marker": "failure-tag" if item.get("failure_tags") else "metric-extreme",
+            }
+            for item in representatives[:8]
+        ]
+
+        return {
+            "sort_order": self._sort_order,
+            "record_count": int(self._packet.get("record_count", len(representatives))),
+            "representative_count": int(
+                self._packet.get("representative_count", len(representatives))
+            ),
+            "loop_status": loop_status,
+            "brief_status": brief_status,
+            "note_count": note_count,
+            "response_count": response_count,
+            "first_things_to_watch": first_things_to_watch,
+            "top_failure_tags": dict(failure_tag_counts.most_common(6)),
+            "top_script_groups": dict(script_group_counts.most_common(6)),
+            "top_representatives": top_representatives,
+            "preview_head": top_representatives,
+        }
+
+    def _start_card_watch_items(self, failure_tag_counts: Counter[str]) -> list[str]:
+        candidates = [
+            ("spacing-too-wide", "字間が広すぎるか"),
+            ("over-jittered", "揺れが情報ではなくノイズになっていないか"),
+            ("terminal-too-uniform", "終筆が機械的に揃いすぎていないか"),
+            ("too-font-like", "骨格がフォントの焼き直しに寄りすぎていないか"),
+            ("spacing-unnatural", "文字間のリズムが日本語として不自然でないか"),
+            ("line-too-mechanical", "行全体の流れが硬すぎないか"),
+        ]
+        watched = [label for tag, label in candidates if failure_tag_counts.get(tag, 0) > 0]
+        if watched:
+            return watched[:4]
+        return [label for _tag, label in candidates[:4]]
+
+    def _refresh_start_card(self) -> None:
+        if not hasattr(self, "_start_card_text"):
+            return
+        self._start_card_text.setPlainText(render_human_feedback_start_card_markdown(self._current_start_card()))
 
     def _current_revision_brief(self) -> dict[str, Any]:
         summary = validate_response_drafts(self._packet, self._drafts)
@@ -982,6 +1137,14 @@ class HumanFeedbackQtWindow(QMainWindow):
             f"Saved packet to {packet['markdown']}",
         )
 
+    def _export_start_card(self) -> None:
+        card = self._write_start_card()
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved start card to {card['markdown']}",
+        )
+
     def _export_revision_brief(self) -> None:
         self._write_revision_brief()
         self._write_revision_plan()
@@ -1044,6 +1207,19 @@ class HumanFeedbackQtWindow(QMainWindow):
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(
             json.dumps(self._packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _write_start_card(self) -> dict[str, Path]:
+        card = self._current_start_card()
+        markdown_path = self._start_card_markdown_path or self._default_start_card_markdown_path()
+        json_path = self._start_card_json_path or self._default_start_card_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_human_feedback_start_card_markdown(card), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(card, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         return {"markdown": markdown_path, "json": json_path}
@@ -1159,6 +1335,16 @@ class HumanFeedbackQtWindow(QMainWindow):
             return self._responses_json_path.with_name("human_review_packet.json")
         return Path("human_review_packet.json")
 
+    def _default_start_card_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_start_card.md")
+        return Path("human_review_start_card.md")
+
+    def _default_start_card_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_start_card.json")
+        return Path("human_review_start_card.json")
+
     def _default_preview_run_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_preview_revision_run.md")
@@ -1244,6 +1430,8 @@ def launch_human_feedback_ui(
     plan_markdown: Path | None = None,
     packet_output_json: Path | None = None,
     packet_output_markdown: Path | None = None,
+    start_card_json: Path | None = None,
+    start_card_markdown: Path | None = None,
     preview_run_json: Path | None = None,
     preview_run_markdown: Path | None = None,
     reviewer_id: str = "",
@@ -1259,6 +1447,8 @@ def launch_human_feedback_ui(
     plan_markdown_path = plan_markdown or (base_dir / "human_review_revision_plan.md")
     packet_json_path = packet_output_json or (base_dir / "human_review_packet.json")
     packet_markdown_path = packet_output_markdown or (base_dir / "human_review_packet.md")
+    start_card_json_path = start_card_json or (base_dir / "human_review_start_card.json")
+    start_card_markdown_path = start_card_markdown or (base_dir / "human_review_start_card.md")
     preview_run_json_path = preview_run_json or (base_dir / "human_review_preview_revision_run.json")
     preview_run_markdown_path = preview_run_markdown or (base_dir / "human_review_preview_revision_run.md")
     packet = load_feedback_packet(
@@ -1290,6 +1480,8 @@ def launch_human_feedback_ui(
         plan_markdown_path=plan_markdown_path,
         packet_json_path=packet_json_path,
         packet_markdown_path=packet_markdown_path,
+        start_card_json_path=start_card_json_path,
+        start_card_markdown_path=start_card_markdown_path,
         preview_run_json_path=preview_run_json_path,
         preview_run_markdown_path=preview_run_markdown_path,
         base_dir=base_dir,

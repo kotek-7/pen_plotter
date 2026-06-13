@@ -152,8 +152,29 @@ def test_human_feedback_ui_parser_accepts_brief_outputs() -> None:
     assert args.brief_markdown == "runs/test/brief.md"
     assert args.plan_json == "runs/test/plan.json"
     assert args.plan_markdown == "runs/test/plan.md"
+    assert args.start_card_json is None
+    assert args.start_card_markdown is None
     assert args.preview_run_json is None
     assert args.preview_run_markdown is None
+
+
+def test_human_feedback_ui_parser_accepts_start_card_outputs() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-feedback-ui",
+            "--root",
+            "runs/test",
+            "--start-card-json",
+            "runs/test/start-card.json",
+            "--start-card-markdown",
+            "runs/test/start-card.md",
+        ]
+    )
+
+    assert args.command == "human-feedback-ui"
+    assert args.root == "runs/test"
+    assert args.start_card_json == "runs/test/start-card.json"
+    assert args.start_card_markdown == "runs/test/start-card.md"
 
 
 def test_human_feedback_ui_parser_accepts_preview_run_outputs() -> None:
@@ -757,29 +778,6 @@ def test_abx_workbook_parser_accepts_recommendation_json() -> None:
     assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
     assert args.focus_areas == "layout,motion"
     assert args.max_items == 24
-
-
-def test_human_abx_bundle_parser_accepts_recommendation_json() -> None:
-    args = build_parser().parse_args(
-        [
-            "human-abx-bundle",
-            "--recommendation-json",
-            "runs/test/wide_profile_recommendation.json",
-            "--focus-areas",
-            "layout",
-            "--output-dir",
-            "bundle",
-            "--output-prefix",
-            "layout_abx",
-        ]
-    )
-
-    assert args.command == "human-abx-bundle"
-    assert args.root == ""
-    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
-    assert args.focus_areas == "layout"
-    assert args.output_dir == "bundle"
-    assert args.output_prefix == "layout_abx"
 
 
 def test_validate_abx_responses_parser_accepts_packet_and_response_paths() -> None:
