@@ -101,12 +101,22 @@ def test_build_human_review_revision_brief_uses_notes_and_tags() -> None:
         ],
     )
 
-    brief = build_human_review_revision_brief(summary)
+    session_feedback = {
+        "notes": "優先修正: 字間を詰める",
+        "high_priority_tags": ["spacing-too-wide"],
+        "focus_questions": ["どの文字で字間が気になるか"],
+        "reference_representative_ids": ["exp-a"],
+    }
+    brief = build_human_review_revision_brief(summary, session_feedback)
 
     assert brief["brief_status"] == "ready"
-    assert brief["primary_notes"] == ["字間が広い"]
+    assert brief["primary_notes"][0] == "優先修正: 字間を詰める"
+    assert "字間が広い" in brief["primary_notes"]
     assert "spacing-too-wide" in brief["top_reason_tags"]
-    assert "notes の指摘をそのまま次回の修正に反映する" in brief["focus_lines"][0]
+    assert brief["session_feedback_status"] == "ready"
+    assert brief["session_feedback_notes"] == ["優先修正: 字間を詰める"]
+    assert brief["session_feedback_reference_representative_ids"] == ["exp-a"]
+    assert "session_feedback の notes を次回の修正に反映する" in brief["focus_lines"][0]
     assert "Revision Brief" in render_human_review_revision_brief_markdown(brief)
 
 

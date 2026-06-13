@@ -56,6 +56,7 @@ from evaluation_harness.human_review_response import (
     render_human_review_comparison_sheet_markdown,
     render_human_review_prompt_markdown,
     render_human_review_session_feedback_markdown,
+    render_human_review_session_feedback_notes_template,
     render_human_review_revision_brief_markdown,
     render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_plan_markdown,
@@ -519,7 +520,7 @@ class HumanFeedbackQtWindow(QMainWindow):
 
         self._session_feedback_text = QPlainTextEdit(group)
         self._session_feedback_text.setFont(self._body_font)
-        self._session_feedback_text.setPlaceholderText("bundle 全体への FB を書く。")
+        self._session_feedback_text.setPlaceholderText(render_human_review_session_feedback_notes_template())
         self._session_feedback_text.textChanged.connect(self._sync_from_widgets)
         layout.addWidget(self._session_feedback_text)
         return group
@@ -981,20 +982,11 @@ class HumanFeedbackQtWindow(QMainWindow):
     def _refresh_session_feedback(self) -> None:
         if not hasattr(self, "_session_feedback_text"):
             return
-        if not self._session_feedback_text.toPlainText().strip():
-            self._session_feedback_text.blockSignals(True)
-            try:
-                self._session_feedback_text.setPlainText(
-                    render_human_review_session_feedback_markdown(
-                        build_human_review_session_feedback(self._packet)
-                    )
-                )
-            finally:
-                self._session_feedback_text.blockSignals(False)
+        self._session_feedback_text.setPlaceholderText(render_human_review_session_feedback_notes_template())
 
     def _current_revision_brief(self) -> dict[str, Any]:
         summary = validate_response_drafts(self._packet, self._drafts)
-        return build_human_review_revision_brief(summary)
+        return build_human_review_revision_brief(summary, self._current_session_feedback())
 
     def _refresh_revision_brief(self) -> None:
         if not hasattr(self, "_brief_text"):

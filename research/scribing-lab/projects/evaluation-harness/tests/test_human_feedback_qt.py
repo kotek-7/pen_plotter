@@ -140,7 +140,9 @@ def test_qt_feedback_ui_can_open_session_feedback_first() -> None:
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts, initial_detail_tab="session-feedback")
 
     assert window._detail_tabs.currentIndex() == 3
-    assert "Human Review Session Feedback" in window._session_feedback_text.toPlainText()
+    assert "良い点:" in window._session_feedback_text.placeholderText()
+    assert "優先修正:" in window._session_feedback_text.placeholderText()
+    assert window._session_feedback_text.toPlainText() == ""
 
 
 def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
@@ -187,6 +189,12 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
         session_feedback_json_path=tmp_path / "human_review_session_feedback.json",
         session_feedback_markdown_path=tmp_path / "human_review_session_feedback.md",
     )
+    assert window._session_feedback_text.toPlainText() == ""
+    window._session_feedback_text.setPlainText(
+        "良い点: 長文でも流れは自然\n"
+        "気になる点: まだ字間が広い\n"
+        "優先修正: layout を詰める"
+    )
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
@@ -195,7 +203,7 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     assert "Human Review Start Card" in window._start_card_text.toPlainText()
     assert "Human Review Comparison Sheet" in window._comparison_sheet_text.toPlainText()
     assert "Human Review Prompt" in window._prompt_text.toPlainText()
-    assert "Human Review Session Feedback" in window._session_feedback_text.toPlainText()
+    assert "良い点:" in window._session_feedback_text.toPlainText()
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()
     assert "Preview Run" in window._preview_run_text.toPlainText()
@@ -225,11 +233,14 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     assert "Human Review Prompt" in prompt_md
     assert '"focus_questions"' in prompt_json
     assert "Human Review Session Feedback" in session_feedback_md
+    assert "まだ字間が広い" in session_feedback_md
     assert '"reference_representative_ids"' in session_feedback_json
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
+    assert "session_feedback の notes を次回の修正に反映する" in brief_md
     assert '"brief_status": "ready"' in brief_json
     assert "Human Review Revision Plan" in plan_md
+    assert "layout" in plan_md
     assert '"plan_status": "ready"' in plan_json
 
 

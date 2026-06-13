@@ -444,20 +444,42 @@ def render_human_review_session_feedback_markdown(session_feedback: dict[str, An
         for experiment_id in representative_ids:
             lines.append(f"- {experiment_id}")
 
+    notes = str(session_feedback.get("notes", "")).strip()
     lines.extend(
         [
             "",
             "## Notes",
             "",
-            "ここに bundle 全体への FB を書く。",
+        ]
+    )
+    if notes:
+        lines.extend(notes.splitlines())
+        lines.append("")
+    else:
+        lines.extend(
+            [
+                "ここに bundle 全体への FB を書く。",
+                "",
+                "- 良い点:",
+                "- 気になる点:",
+                "- 優先修正:",
+                "",
+            ]
+        )
+    return "\n".join(lines) + "\n"
+
+
+def render_human_review_session_feedback_notes_template() -> str:
+    return "\n".join(
+        [
+            "良い点:",
             "",
-            "- 良い点:",
-            "- 気になる点:",
-            "- 優先修正:",
+            "気になる点:",
+            "",
+            "優先修正:",
             "",
         ]
     )
-    return "\n".join(lines) + "\n"
 
 
 def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
@@ -489,11 +511,31 @@ def _comparison_sheet_watch_items(top_failure_tags: list[str]) -> list[str]:
     return [mapping[tag] for tag in top_failure_tags if tag in mapping]
 
 
-def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]:
+def build_human_review_revision_brief(
+    summary: dict[str, Any],
+    session_feedback: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    session_feedback = session_feedback or {}
     note_examples = summary.get("note_examples", [])
     note_snippets = [str(item.get("notes", "")).strip() for item in note_examples if str(item.get("notes", "")).strip()]
     primary_notes = list(dict.fromkeys(note_snippets))
     reason_tag_counts = dict(summary.get("reason_tag_counts", {}))
+    session_notes = str(session_feedback.get("notes", "")).strip()
+    session_high_priority_tags = [
+        str(tag).strip()
+        for tag in session_feedback.get("high_priority_tags", [])
+        if str(tag).strip()
+    ]
+    session_focus_questions = [
+        str(item).strip()
+        for item in session_feedback.get("focus_questions", [])
+        if str(item).strip()
+    ]
+    session_reference_representative_ids = [
+        str(item).strip()
+        for item in session_feedback.get("reference_representative_ids", [])
+        if str(item).strip()
+    ]
     top_reason_tags = [
         tag
         for tag, _count in sorted(
@@ -501,7 +543,23 @@ def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]
             key=lambda item: (-int(item[1]), item[0]),
         )[:8]
     ]
+    for tag in session_high_priority_tags:
+        if tag not in top_reason_tags:
+            top_reason_tags.append(tag)
+    if session_notes:
+        primary_notes = [session_notes, *primary_notes]
     focus_lines: list[str] = []
+    if session_notes:
+        focus_lines.append("session_feedback の notes を次回の修正に反映する")
+    if session_high_priority_tags:
+        focus_lines.append(f"session_feedback の high_priority_tags: {session_high_priority_tags}")
+    if session_reference_representative_ids:
+        focus_lines.append(
+            "session_feedback の reference_representative_ids: "
+            f"{session_reference_representative_ids}"
+        )
+    if session_focus_questions:
+        focus_lines.append(f"session_feedback の focus_questions: {session_focus_questions}")
     if primary_notes:
         focus_lines.append("notes の指摘をそのまま次回の修正に反映する")
     if top_reason_tags:
@@ -509,13 +567,18 @@ def build_human_review_revision_brief(summary: dict[str, Any]) -> dict[str, Any]
     if not focus_lines:
         focus_lines.append("特記なし")
     return {
-        "brief_status": "ready" if primary_notes or top_reason_tags else "empty",
+        "brief_status": "ready" if primary_notes or top_reason_tags or session_notes else "empty",
         "note_count": int(summary.get("note_count", 0)),
         "reason_tag_counts": reason_tag_counts,
         "primary_notes": primary_notes,
         "selected_note_examples": note_examples[:8],
         "top_reason_tags": top_reason_tags,
         "focus_lines": focus_lines,
+        "session_feedback_status": "ready" if session_notes else "empty",
+        "session_feedback_notes": [session_notes] if session_notes else [],
+        "session_feedback_high_priority_tags": session_high_priority_tags,
+        "session_feedback_focus_questions": session_focus_questions,
+        "session_feedback_reference_representative_ids": session_reference_representative_ids,
     }
 
 
@@ -526,7 +589,18 @@ def build_human_review_revision_plan(brief: dict[str, Any]) -> dict[str, Any]:
         for item in note_examples
         if str(item.get("notes", "")).strip()
     ]
+    note_texts.extend(
+        str(note).strip()
+        for note in brief.get("session_feedback_notes", [])
+        if str(note).strip()
+    )
     reason_tags = [str(tag) for tag in brief.get("top_reason_tags", []) if str(tag).strip()]
+    reason_tags.extend(
+        tag
+        for tag in brief.get("session_feedback_high_priority_tags", [])
+        if str(tag).strip()
+    )
+    reason_tags = list(dict.fromkeys(reason_tags))
     focus_area_counts: dict[str, int] = {}
     proposed_changes: list[dict[str, Any]] = []
     for tag in reason_tags:
@@ -566,6 +640,12 @@ def build_human_review_revision_plan(brief: dict[str, Any]) -> dict[str, Any]:
         "dominant_focus_area": dominant_focus_area,
         "top_reason_tags": reason_tags,
         "primary_notes": list(brief.get("primary_notes", [])),
+        "session_feedback_notes": list(brief.get("session_feedback_notes", [])),
+        "session_feedback_high_priority_tags": list(brief.get("session_feedback_high_priority_tags", [])),
+        "session_feedback_focus_questions": list(brief.get("session_feedback_focus_questions", [])),
+        "session_feedback_reference_representative_ids": list(
+            brief.get("session_feedback_reference_representative_ids", [])
+        ),
         "note_examples": note_examples[:8],
         "proposed_changes": proposed_changes,
         "next_experiment_hint": next_experiment_hint,
@@ -870,6 +950,21 @@ def render_human_review_revision_brief_markdown(brief: dict[str, Any]) -> str:
         "",
     ]
     lines.extend(f"- {item}" for item in brief.get("focus_lines", []))
+    if brief.get("session_feedback_status", "empty") == "ready":
+        lines.extend(["", "## Session Feedback", ""])
+        session_notes = brief.get("session_feedback_notes", [])
+        if session_notes:
+            for note in session_notes:
+                lines.append(f"- {note}")
+        high_priority_tags = brief.get("session_feedback_high_priority_tags", [])
+        if high_priority_tags:
+            lines.append(f"- high_priority_tags: `{high_priority_tags}`")
+        focus_questions = brief.get("session_feedback_focus_questions", [])
+        if focus_questions:
+            lines.append(f"- focus_questions: `{focus_questions}`")
+        reference_ids = brief.get("session_feedback_reference_representative_ids", [])
+        if reference_ids:
+            lines.append(f"- reference_representative_ids: `{reference_ids}`")
     lines.extend(["", "## Primary Notes", ""])
     if not brief.get("primary_notes"):
         lines.append("- none")
@@ -923,6 +1018,23 @@ def render_human_review_revision_plan_markdown(plan: dict[str, Any]) -> str:
     else:
         for note in plan["primary_notes"]:
             lines.append(f"- {note}")
+    if plan.get("session_feedback_notes"):
+        lines.extend(["", "## Session Feedback", ""])
+        for note in plan["session_feedback_notes"]:
+            lines.append(f"- {note}")
+        if plan.get("session_feedback_high_priority_tags"):
+            lines.append(
+                f"- high_priority_tags: `{plan['session_feedback_high_priority_tags']}`"
+            )
+        if plan.get("session_feedback_focus_questions"):
+            lines.append(
+                f"- focus_questions: `{plan['session_feedback_focus_questions']}`"
+            )
+        if plan.get("session_feedback_reference_representative_ids"):
+            lines.append(
+                "- reference_representative_ids: "
+                f"`{plan['session_feedback_reference_representative_ids']}`"
+            )
     return "\n".join(lines) + "\n"
 
 
