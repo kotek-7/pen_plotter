@@ -258,6 +258,36 @@ def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     assert args.json_output == "workbook.json"
 
 
+def test_abx_workbook_parser_accepts_recommendation_json() -> None:
+    args = build_parser().parse_args(
+        [
+            "abx-workbook",
+            "--recommendation-json",
+            "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout,motion",
+            "--responses-json",
+            "runs/test/human_abx_responses.json",
+            "--evaluator-id",
+            "eval-1",
+            "--max-items",
+            "24",
+            "--responses-output",
+            "responses.json",
+            "--output",
+            "workbook.md",
+            "--json-output",
+            "workbook.json",
+        ]
+    )
+
+    assert args.command == "abx-workbook"
+    assert args.packet_json == ""
+    assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 24
+
+
 def test_validate_abx_responses_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [

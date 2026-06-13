@@ -425,7 +425,13 @@ def build_parser() -> argparse.ArgumentParser:
         "abx-workbook",
         help="Create a fillable ABX workbook from a packet",
     )
-    abx_workbook.add_argument("--packet-json", required=True)
+    abx_workbook.add_argument("--packet-json", default="")
+    abx_workbook.add_argument("--recommendation-json", default="")
+    abx_workbook.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep when building a packet from recommendation JSON",
+    )
     abx_workbook.add_argument("--responses-json", default="")
     abx_workbook.add_argument("--evaluator-id", default="")
     abx_workbook.add_argument("--max-items", type=int, default=36)
@@ -978,9 +984,9 @@ def main() -> None:
             evaluator_id=args.evaluator_id,
             max_items=args.max_items,
         )
-        output_path = packet_path.parent / args.output
-        json_path = packet_path.parent / args.json_output
-        template_json_path = packet_path.parent / args.template_json_output
+        output_path = _resolve_output_path(packet_path.parent, args.output)
+        json_path = _resolve_output_path(packet_path.parent, args.json_output)
+        template_json_path = _resolve_output_path(packet_path.parent, args.template_json_output)
         output_path.write_text(render_abx_feedback_loop_markdown(loop), encoding="utf-8")
         json_path.write_text(
             json.dumps(loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -997,7 +1003,7 @@ def main() -> None:
         print(f"json: {json_path}")
         print(f"template_json: {template_json_path}")
     elif args.command == "abx-workbook":
-        packet = json.loads(Path(args.packet_json).read_text(encoding="utf-8"))
+        packet = _load_abx_packet_from_args(args)
         responses_data = None
         if args.responses_json:
             responses_data = json.loads(Path(args.responses_json).read_text(encoding="utf-8"))
@@ -1007,14 +1013,15 @@ def main() -> None:
             evaluator_id=args.evaluator_id,
             max_items=args.max_items,
         )
-        output_path = Path(args.packet_json).parent / args.output
-        json_path = Path(args.packet_json).parent / args.json_output
+        packet_path = Path(args.recommendation_json or args.packet_json)
+        output_path = _resolve_output_path(packet_path.parent, args.output)
+        json_path = _resolve_output_path(packet_path.parent, args.json_output)
         output_path.write_text(render_abx_workbook_markdown(workbook), encoding="utf-8")
         json_path.write_text(
             json.dumps(workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
-        responses_path = Path(args.packet_json).parent / args.responses_output
+        responses_path = _resolve_output_path(packet_path.parent, args.responses_output)
         responses_path.write_text(
             json.dumps(build_abx_responses_from_workbook(workbook), ensure_ascii=False, indent=2, sort_keys=True)
             + "\n",
@@ -1084,12 +1091,12 @@ def main() -> None:
                 max_items=args.max_items,
             )
         plan = build_abx_revision_plan(feedback_loop)
-        output_path = Path(args.feedback_loop_json).parent / args.output
-        json_path = Path(args.feedback_loop_json).parent / args.json_output
+        output_path = _resolve_output_path(Path(args.feedback_loop_json).parent, args.output)
+        json_path = _resolve_output_path(Path(args.feedback_loop_json).parent, args.json_output)
         if not args.feedback_loop_json:
             base_dir = Path(args.packet_json).parent
-            output_path = base_dir / args.output
-            json_path = base_dir / args.json_output
+            output_path = _resolve_output_path(base_dir, args.output)
+            json_path = _resolve_output_path(base_dir, args.json_output)
         output_path.write_text(render_abx_revision_plan_markdown(plan), encoding="utf-8")
         json_path.write_text(
             json.dumps(plan, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -1293,6 +1300,13 @@ def _load_json_if_present(path: str) -> dict[str, object] | None:
     if not path:
         return None
     return json.loads(Path(path).read_text(encoding="utf-8"))
+
+
+def _resolve_output_path(base_dir: Path, raw_path: str) -> Path:
+    path = Path(raw_path)
+    if path.is_absolute() or path.parent != Path("."):
+        return path
+    return base_dir / path
 
 
 def _load_abx_packet_from_args(args: argparse.Namespace) -> dict[str, object]:

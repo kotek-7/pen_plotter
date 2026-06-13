@@ -208,6 +208,8 @@ response template、次アクションを 1 つの束にする。responses が�
 を埋めやすくする。
 `abx-workbook` の JSON を編集して `choice` と `confidence` を入れると、
 responses JSON としてそのまま戻せる。
+`--recommendation-json` と `--focus-areas layout,motion` を使うと、packet を挟まずに
+focused workbook を作れる。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。
