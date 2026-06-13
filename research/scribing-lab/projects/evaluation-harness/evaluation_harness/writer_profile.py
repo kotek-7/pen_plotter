@@ -30,6 +30,7 @@ def _ensure_paths() -> None:
 _ensure_paths()
 
 from writer_profile import WriterProfile, WriterProfileParameters, get_profile  # noqa: E402
+from writer_profile.registry import WriterProfileLookupError  # noqa: E402
 
 BASELINE_PROFILE_ID = "baseline-neat"
 BASELINE_PROFILE = get_profile(BASELINE_PROFILE_ID)
@@ -38,12 +39,12 @@ BASELINE_PROFILE = get_profile(BASELINE_PROFILE_ID)
 def resolve_writer_profile(profile_id: str) -> WriterProfile:
     try:
         return get_profile(profile_id)
-    except Exception as exc:
+    except WriterProfileLookupError:
         alias = _canonical_profile_id(profile_id)
         if alias != profile_id:
             try:
                 return get_profile(alias)
-            except Exception:
+            except WriterProfileLookupError:
                 pass
         raise
 
