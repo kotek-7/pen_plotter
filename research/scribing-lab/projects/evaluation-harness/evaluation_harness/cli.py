@@ -467,6 +467,16 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--chain-next-bundle", action="store_true")
     human_abx_bundle_followup.add_argument("--output-prefix", default="")
 
+    human_abx_bundle_chain_status = sub.add_parser(
+        "human-abx-bundle-chain-status",
+        help="Summarize the current bundle chain and pending ratios",
+    )
+    human_abx_bundle_chain_status.add_argument("--bundle-dir", required=True, help="Bundle directory")
+    human_abx_bundle_chain_status.add_argument("--bundle-prefix", required=True)
+    human_abx_bundle_chain_status.add_argument("--max-depth", type=int, default=8)
+    human_abx_bundle_chain_status.add_argument("--output", default="bundle_chain_status.md")
+    human_abx_bundle_chain_status.add_argument("--json-output", default="bundle_chain_status.json")
+
     abx_workbook = sub.add_parser(
         "abx-workbook",
         help="Create a fillable ABX workbook from a packet",
@@ -1317,6 +1327,24 @@ def main() -> None:
         print(f"report: {run_md_path}")
         print(f"json: {run_json_path}")
         print(f"responses_json: {responses_json_path}")
+    elif args.command == "human-abx-bundle-chain-status":
+        bundle_status = _summarize_abx_bundle_chain(
+            Path(args.bundle_dir),
+            args.bundle_prefix,
+            max_depth=args.max_depth,
+        )
+        bundle_dir = Path(args.bundle_dir)
+        markdown_path = bundle_dir / args.output
+        json_path = bundle_dir / args.json_output
+        markdown_path.write_text(render_abx_bundle_chain_status_markdown(bundle_status), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(bundle_status, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"bundle_count: {bundle_status['bundle_count']}")
+        print(f"open_bundle_count: {bundle_status['open_bundle_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
     elif args.command == "abx-workbook":
         packet = _load_abx_packet_from_args(args)
         responses_data = None
@@ -1652,6 +1680,11 @@ def _increment_bundle_name(name: str) -> str:
     return f"{base}_v{int(version) + 1}"
 
 
+def _markdown_cell(value: object) -> str:
+    text = "" if value is None else str(value)
+    return text.replace("|", "\\|").replace("\n", " ")
+
+
 def _load_abx_packet_from_args(args: argparse.Namespace) -> dict[str, object]:
     focus_areas = tuple(_parse_csv(getattr(args, "focus_areas", "")))
     if getattr(args, "recommendation_json", ""):
@@ -1675,6 +1708,96 @@ def _abx_item_from_packet(item: dict[str, object]) -> AbxItem:
         question=str(item.get("question", "")),
         expected_preference=item.get("expected_preference"),
     )
+
+
+def _summarize_abx_bundle_chain(
+    bundle_dir: Path,
+    bundle_prefix: str,
+    *,
+    max_depth: int,
+) -> dict[str, object]:
+    bundles: list[dict[str, object]] = []
+    current_dir = bundle_dir
+    current_prefix = bundle_prefix
+    for _ in range(max_depth if max_depth > 0 else 1):
+        packet_path = _find_bundle_artifact_path(current_dir, current_prefix, "packet.json")
+        if not packet_path.exists():
+            break
+        packet = json.loads(packet_path.read_text(encoding="utf-8"))
+        workbook_path = _find_bundle_artifact_path(current_dir, current_prefix, "workbook.json")
+        workbook = json.loads(workbook_path.read_text(encoding="utf-8")) if workbook_path.exists() else None
+        packet_items = list(packet.get("abx_items", []))
+        if workbook is not None:
+            completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
+        else:
+            completed_row_count, pending_row_count, completion_ratio = 0, len(packet_items), 0.0
+        next_bundle_dir = current_dir.parent / _increment_bundle_name(current_dir.name)
+        next_bundle_prefix = _increment_bundle_name(current_prefix)
+        next_packet_path = _find_bundle_artifact_path(next_bundle_dir, next_bundle_prefix, "packet.json")
+        next_bundle_exists = next_packet_path.exists()
+        bundles.append(
+            {
+                "bundle_dir": str(current_dir),
+                "bundle_prefix": current_prefix,
+                "packet_item_count": len(packet_items),
+                "workbook_row_count": len(workbook.get("rows", [])) if workbook is not None else 0,
+                "completed_row_count": completed_row_count,
+                "pending_row_count": pending_row_count,
+                "completion_ratio": completion_ratio,
+                "next_bundle_dir": str(next_bundle_dir),
+                "next_bundle_prefix": next_bundle_prefix,
+                "next_bundle_exists": next_bundle_exists,
+            }
+        )
+        if not next_bundle_exists:
+            break
+        current_dir = next_bundle_dir
+        current_prefix = next_bundle_prefix
+
+    open_bundle_count = sum(1 for bundle in bundles if bundle["pending_row_count"])
+    chain_status = "complete" if bundles and not bundles[-1]["next_bundle_exists"] and not bundles[-1]["pending_row_count"] else "active"
+    return {
+        "chain_status": chain_status,
+        "bundle_count": len(bundles),
+        "open_bundle_count": open_bundle_count,
+        "bundles": bundles,
+    }
+
+
+def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
+    lines = [
+        "# ABX Bundle Chain Status",
+        "",
+        f"- chain_status: `{status['chain_status']}`",
+        f"- bundle_count: `{status['bundle_count']}`",
+        f"- open_bundle_count: `{status['open_bundle_count']}`",
+        "",
+        "## Bundles",
+        "",
+    ]
+    bundles = list(status.get("bundles", []))
+    if not bundles:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            "| bundle_dir | bundle_prefix | packet_items | workbook_rows | completed | pending | completion_ratio | next_bundle_exists |",
+            "| --- | --- | --- | --- | --- | --- | --- | --- |",
+        ]
+    )
+    for bundle in bundles:
+        lines.append(
+            "| "
+            f"{_markdown_cell(str(bundle['bundle_dir']))} | "
+            f"{_markdown_cell(str(bundle['bundle_prefix']))} | "
+            f"{_markdown_cell(str(bundle['packet_item_count']))} | "
+            f"{_markdown_cell(str(bundle['workbook_row_count']))} | "
+            f"{_markdown_cell(str(bundle['completed_row_count']))} | "
+            f"{_markdown_cell(str(bundle['pending_row_count']))} | "
+            f"{_markdown_cell(str(bundle['completion_ratio']))} | "
+            f"{_markdown_cell(str(bundle['next_bundle_exists']))} |"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _structure_inputs(input_set: str) -> tuple[str, ...]:
