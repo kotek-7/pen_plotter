@@ -461,6 +461,8 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--evaluator-id", default="")
     human_abx_bundle_followup.add_argument("--max-items", type=int, default=36)
     human_abx_bundle_followup.add_argument("--pending-only", action="store_true")
+    human_abx_bundle_followup.add_argument("--next-bundle-dir", default="")
+    human_abx_bundle_followup.add_argument("--next-bundle-prefix", default="")
     human_abx_bundle_followup.add_argument("--output-prefix", default="")
 
     abx_workbook = sub.add_parser(
@@ -1222,6 +1224,66 @@ def main() -> None:
                 )
                 print(f"pending_packet_rows: {len(pending_packet['abx_items'])}")
                 print(f"pending_workbook_rows: {len(pending_rows)}")
+                if args.next_bundle_dir:
+                    next_bundle_dir = _resolve_output_path(bundle_dir, args.next_bundle_dir)
+                    next_bundle_dir.mkdir(parents=True, exist_ok=True)
+                    next_prefix = args.next_bundle_prefix or f"{output_prefix}_next"
+                    next_workbook = build_abx_workbook(
+                        pending_packet,
+                        evaluator_id=args.evaluator_id,
+                        max_items=args.max_items,
+                    )
+                    next_feedback_loop = build_human_abx_feedback_loop(
+                        pending_packet,
+                        evaluator_id=args.evaluator_id,
+                        max_items=args.max_items,
+                    )
+                    next_packet_md_path = next_bundle_dir / f"{next_prefix}_packet.md"
+                    next_packet_json_path = next_bundle_dir / f"{next_prefix}_packet.json"
+                    next_workbook_md_path = next_bundle_dir / f"{next_prefix}_workbook.md"
+                    next_workbook_json_path = next_bundle_dir / f"{next_prefix}_workbook.json"
+                    next_feedback_md_path = next_bundle_dir / f"{next_prefix}_feedback_loop.md"
+                    next_feedback_json_path = next_bundle_dir / f"{next_prefix}_feedback_loop.json"
+                    next_template_json_path = next_bundle_dir / f"{next_prefix}_response_template.json"
+                    next_responses_json_path = next_bundle_dir / f"{next_prefix}_responses.json"
+                    next_packet_md_path.write_text(
+                        render_human_abx_packet_markdown(pending_packet), encoding="utf-8"
+                    )
+                    next_packet_json_path.write_text(
+                        json.dumps(pending_packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    next_workbook_md_path.write_text(
+                        render_abx_workbook_markdown(next_workbook), encoding="utf-8"
+                    )
+                    next_workbook_json_path.write_text(
+                        json.dumps(next_workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    next_feedback_md_path.write_text(
+                        render_abx_feedback_loop_markdown(next_feedback_loop), encoding="utf-8"
+                    )
+                    next_feedback_json_path.write_text(
+                        json.dumps(next_feedback_loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+                    next_template_json_path.write_text(
+                        json.dumps(
+                            next_feedback_loop["response_template"],
+                            ensure_ascii=False,
+                            indent=2,
+                            sort_keys=True,
+                        )
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    next_responses_json_path.write_text(
+                        json.dumps(build_abx_responses_from_workbook(next_workbook), ensure_ascii=False, indent=2, sort_keys=True)
+                        + "\n",
+                        encoding="utf-8",
+                    )
+                    print(f"next_bundle_dir: {next_bundle_dir}")
+                    print(f"next_bundle_prefix: {next_prefix}")
         feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
         feedback_json_path.write_text(
             json.dumps(feedback_loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
