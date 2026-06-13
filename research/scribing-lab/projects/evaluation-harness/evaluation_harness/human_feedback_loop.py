@@ -361,6 +361,11 @@ def _next_actions(
         low_agreement_action = "reviewers の判定基準をすり合わせて low-agreement item を再レビューする"
         if low_agreement_action not in actions:
             actions.append(low_agreement_action)
+    note_count = int(response_summary.get("note_count", 0))
+    if note_count > 0:
+        note_action = "notes に書かれた違和感を次回の修正にそのまま反映する"
+        if note_action not in actions:
+            actions.append(note_action)
     return actions
 
 

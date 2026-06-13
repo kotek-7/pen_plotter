@@ -52,7 +52,7 @@
 3. generator/exporter を実行する。
 4. preview、trajectory、G-code、ログ、必要に応じて実機スキャンを artifact store に保存する。
 5. 人間レビュー用の大きめの sample book を作り、`human-feedback-ui` で確認する。
-6. human response を保存して summary / calibration / agreement を更新する。
+6. human response と note を保存して summary / calibration / agreement / note 要約を更新する。
 7. 必要に応じて preview / ABX で候補を絞り込む。
 8. 実験レポートを生成し、次に試す最小変更を提案する。
 
@@ -133,7 +133,7 @@ preview / ABX は人間レビューの前段で候補を整理する補助であ
 - preview と experiment ID が紐付く。
 - preview path、G-code、安全性、profile が metadata として残る。
 - `preview-shape-odd` と `plotter-line-quality-bad` を failure tags として記録できる。
-- Qt ベースの人間レビュー UI から response を入力し、summary を保存できる。
+- Qt ベースの人間レビュー UI から response と note を入力し、summary を保存できる。
 - review bundle の代表数を任意に増やせる。
 
 ### Experiment 6: human-guided recommendation loop

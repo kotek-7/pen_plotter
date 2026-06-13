@@ -105,6 +105,7 @@ def _format_summary_lines(summary: dict[str, Any]) -> str:
     lines = [
         "Current action: review the selected item and decide whether it is acceptable.",
         f"decision_counts: {summary['decision_counts']}",
+        f"note_count: {summary.get('note_count', 0)}",
         f"missing_response_ids: {summary['missing_response_ids']}",
         f"unknown_response_ids: {summary['unknown_response_ids']}",
         f"duplicate_response_ids: {summary['duplicate_response_ids']}",
@@ -724,6 +725,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             " | ".join(
                 [
                     f"decisions={summary['decision_counts']}",
+                    f"notes={summary.get('note_count', 0)}",
                     f"missing={len(summary['missing_response_ids'])}",
                     f"duplicates={len(summary['duplicate_response_ids'])}",
                     f"can_proceed={summary['can_proceed_to_plot']}",

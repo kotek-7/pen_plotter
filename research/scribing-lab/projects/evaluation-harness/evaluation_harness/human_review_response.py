@@ -73,6 +73,19 @@ def summarize_human_review_responses(
     reason_tag_counts = dict(
         sorted(Counter(tag for response in responses for tag in response.reason_tags).items())
     )
+    note_examples = [
+        {
+            "experiment_id": response.experiment_id,
+            "decision": response.decision,
+            "reason_tags": list(response.reason_tags),
+            "notes": response.notes.strip(),
+            "reviewer_id": response.reviewer_id,
+        }
+        for response in responses
+        if response.notes.strip()
+    ]
+    note_count = len(note_examples)
+    note_char_count = sum(len(item["notes"]) for item in note_examples)
     validation_errors = []
     validation_errors.extend(f"unknown experiment_id: {experiment_id}" for experiment_id in unknown_ids)
     validation_errors.extend(f"missing response: {experiment_id}" for experiment_id in missing_ids)
@@ -88,6 +101,9 @@ def summarize_human_review_responses(
         "response_count": len(responses),
         "decision_counts": decision_counts,
         "reason_tag_counts": reason_tag_counts,
+        "note_count": note_count,
+        "note_char_count": note_char_count,
+        "note_examples": note_examples,
         "missing_response_ids": missing_ids,
         "unknown_response_ids": unknown_ids,
         "duplicate_response_ids": duplicate_ids,
@@ -308,6 +324,8 @@ def render_human_review_response_markdown(summary: dict[str, Any]) -> str:
         f"- response_count: `{summary['response_count']}`",
         f"- decision_counts: `{summary['decision_counts']}`",
         f"- reason_tag_counts: `{summary['reason_tag_counts']}`",
+        f"- note_count: `{summary.get('note_count', 0)}`",
+        f"- note_char_count: `{summary.get('note_char_count', 0)}`",
         f"- can_proceed_to_plot: `{summary['can_proceed_to_plot']}`",
         "",
         "## Validation",
@@ -331,4 +349,18 @@ def render_human_review_response_markdown(summary: dict[str, Any]) -> str:
         )
         if response["notes"]:
             lines.append(f"  - notes: {response['notes']}")
+    lines.extend(["", "## Notes", ""])
+    note_examples = summary.get("note_examples", [])
+    if not note_examples:
+        lines.append("- none")
+    else:
+        for note in note_examples:
+            lines.append(
+                "- "
+                f"{note['experiment_id']}: "
+                f"decision=`{note['decision']}`, "
+                f"reason_tags=`{note['reason_tags']}`, "
+                f"reviewer_id=`{note['reviewer_id']}`"
+            )
+            lines.append(f"  - notes: {note['notes']}")
     return "\n".join(lines) + "\n"

@@ -268,6 +268,7 @@ python3 -m evaluation_harness human-feedback-ui \
 表示品質が Tkinter 版より安定している。
 
 `--target-count` を指定すると、`root` から束を作る場合の代表項目数を増やせる。
+各 item の note は summary と next_actions にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。
 
 既存の review packet から開く場合は `--packet-json` を使う。既存の回答を読み込んで
 続きからレビューする場合は `--responses-json`、保存先を明示したい場合は
@@ -275,7 +276,8 @@ python3 -m evaluation_harness human-feedback-ui \
 
 `human-feedback-loop` は、同じ review packet に加えて response template と validation summary を
 1 つの `human_feedback_loop.md` / `.json` にまとめる。responses を渡すと、
-`accept` / `reject` / `needs-tuning` の集計と次アクションまで出力する。
+`accept` / `reject` / `needs-tuning` の集計、自由記述の note 要約、次アクションまで出力する。
+note は summary にそのまま残るので、UI で書いた改善点を次回の修正に使いやすい。
 
 目視レビュー結果を packet と照合して集計する場合:
 
