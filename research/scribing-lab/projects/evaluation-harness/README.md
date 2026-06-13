@@ -275,6 +275,7 @@ packet の代表項目・注視点・script 分布をそのまま見せられる
 現在の brief から作った preview
 revision plan をその場で確認できる。
 `Export Review Bundle` は、responses / brief / plan / preview run をまとめて保存する。
+`Start Card` も同じ束に含まれるので、見せた内容と保存物が一致する。
 起動時に保存先を明示したい場合は `--preview-run-json` と `--preview-run-markdown` を指定する。
 `--sort-order longform-first` を使うと、長文や混在入力を先頭にした packet を UI で直接開ける。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。

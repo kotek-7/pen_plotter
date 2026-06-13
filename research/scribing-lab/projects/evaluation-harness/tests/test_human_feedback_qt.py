@@ -358,6 +358,8 @@ def test_qt_feedback_ui_exports_review_bundle(tmp_path, monkeypatch) -> None:
 
     window._export_review_bundle()
 
+    assert (root / "human_review_start_card.md").exists()
+    assert (root / "human_review_start_card.json").exists()
     assert (root / "human_review_responses.json").exists()
     assert (root / "human_review_response_summary.json").exists()
     assert (root / "human_review_revision_brief.md").exists()

@@ -1111,6 +1111,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             return
 
         packet = self._write_packet()
+        start_card = self._write_start_card()
         responses = self._write_responses_and_summary(summary)
         brief = self._write_revision_brief()
         plan = self._write_revision_plan()
@@ -1122,6 +1123,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             "Human Feedback Loop",
             "Saved review bundle:\n"
             f"- packet: {packet['markdown']}\n"
+            f"- start card: {start_card['markdown']}\n"
             f"- responses: {responses['responses']}\n"
             f"- summary: {responses['summary']}\n"
             f"- brief: {brief['markdown']}\n"
