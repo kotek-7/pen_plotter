@@ -145,6 +145,43 @@ def test_qt_feedback_ui_can_open_session_feedback_first() -> None:
     assert window._session_feedback_text.toPlainText() == ""
 
 
+def test_qt_feedback_ui_restores_session_feedback_notes(tmp_path) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": [],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+    session_feedback_json = tmp_path / "human_review_session_feedback.json"
+    session_feedback_json.write_text(
+        "{"
+        '"notes": "良い点: 長文は読みやすい\\n気になる点: 句読点まわりを詰めたい\\n優先修正: layout を再調整する"'
+        "}\n",
+        encoding="utf-8",
+    )
+
+    window = HumanFeedbackQtWindow(
+        packet=packet,
+        drafts=drafts,
+        initial_detail_tab="session-feedback",
+        session_feedback_json_path=session_feedback_json,
+    )
+
+    assert "句読点まわりを詰めたい" in window._session_feedback_text.toPlainText()
+    assert window._session_feedback_text.placeholderText() == "良い点:\n\n気になる点:\n\n優先修正:\n"
+
+
 def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None

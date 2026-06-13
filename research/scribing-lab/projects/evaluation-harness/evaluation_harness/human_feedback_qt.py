@@ -979,10 +979,31 @@ class HumanFeedbackQtWindow(QMainWindow):
         session_feedback["notes"] = self._session_feedback_text.toPlainText().strip()
         return session_feedback
 
+    def _load_session_feedback_notes(self) -> str:
+        json_path = self._session_feedback_json_path
+        if json_path is None or not json_path.exists():
+            return ""
+        try:
+            payload = json.loads(json_path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, TypeError):
+            return ""
+        return str(payload.get("notes", "")).strip()
+
     def _refresh_session_feedback(self) -> None:
         if not hasattr(self, "_session_feedback_text"):
             return
-        self._session_feedback_text.setPlaceholderText(render_human_review_session_feedback_notes_template())
+        if self._session_feedback_text.toPlainText().strip():
+            self._session_feedback_text.setPlaceholderText(render_human_review_session_feedback_notes_template())
+            return
+        notes = self._load_session_feedback_notes()
+        self._session_feedback_text.blockSignals(True)
+        try:
+            if notes:
+                self._session_feedback_text.setPlainText(notes)
+            else:
+                self._session_feedback_text.setPlaceholderText(render_human_review_session_feedback_notes_template())
+        finally:
+            self._session_feedback_text.blockSignals(False)
 
     def _current_revision_brief(self) -> dict[str, Any]:
         summary = validate_response_drafts(self._packet, self._drafts)
