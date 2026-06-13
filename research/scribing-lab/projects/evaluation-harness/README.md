@@ -193,6 +193,7 @@ python3 -m evaluation_harness human-feedback-loop \
 `human-abx-packet` は preview 由来の候補を ABX 形式にまとめる。
 `--recommendation-json` を使うと、既存の `recommend_preview_fixed_inputs` 生成物を再利用して
 再計算を避けられる。
+`--recommendation-json` を使う場合は `--root` なしでも直接実行できる。
 `--focus-areas layout,motion` のように指定すると、ABX 用の束を focus area で絞り込める。
 `--max-items 36` を併用すると、口頭 FB 用の小さな束を作りやすい。
 
@@ -208,6 +209,7 @@ response template、次アクションを 1 つの束にする。responses が�
 を埋めやすくする。
 `abx-workbook` の JSON を編集して `choice` と `confidence` を入れると、
 responses JSON としてそのまま戻せる。
+`--recommendation-json` を使う場合は `--root` なしでも直接実行できる。
 `--recommendation-json` と `--focus-areas layout,motion` を使うと、packet を挟まずに
 focused workbook を作れる。
 
