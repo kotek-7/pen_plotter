@@ -159,15 +159,18 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
         comparison_sheet_markdown_path=tmp_path / "human_review_comparison_sheet.md",
         prompt_json_path=tmp_path / "human_review_prompt.json",
         prompt_markdown_path=tmp_path / "human_review_prompt.md",
+        session_feedback_json_path=tmp_path / "human_review_session_feedback.json",
+        session_feedback_markdown_path=tmp_path / "human_review_session_feedback.md",
     )
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
-    assert window._detail_tabs.count() == 9
+    assert window._detail_tabs.count() == 10
     assert window._detail_tabs.currentIndex() == 0
     assert "Human Review Start Card" in window._start_card_text.toPlainText()
     assert "Human Review Comparison Sheet" in window._comparison_sheet_text.toPlainText()
     assert "Human Review Prompt" in window._prompt_text.toPlainText()
+    assert "Human Review Session Feedback" in window._session_feedback_text.toPlainText()
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()
     assert "Preview Run" in window._preview_run_text.toPlainText()
@@ -182,6 +185,8 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     comparison_sheet_json = (tmp_path / "human_review_comparison_sheet.json").read_text(encoding="utf-8")
     prompt_md = (tmp_path / "human_review_prompt.md").read_text(encoding="utf-8")
     prompt_json = (tmp_path / "human_review_prompt.json").read_text(encoding="utf-8")
+    session_feedback_md = (tmp_path / "human_review_session_feedback.md").read_text(encoding="utf-8")
+    session_feedback_json = (tmp_path / "human_review_session_feedback.json").read_text(encoding="utf-8")
     brief_md = (tmp_path / "human_review_revision_brief.md").read_text(encoding="utf-8")
     brief_json = (tmp_path / "human_review_revision_brief.json").read_text(encoding="utf-8")
     plan_md = (tmp_path / "human_review_revision_plan.md").read_text(encoding="utf-8")
@@ -194,6 +199,8 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     assert '"what_to_compare"' in comparison_sheet_json
     assert "Human Review Prompt" in prompt_md
     assert '"focus_questions"' in prompt_json
+    assert "Human Review Session Feedback" in session_feedback_md
+    assert '"reference_representative_ids"' in session_feedback_json
     assert "Human Review Revision Brief" in brief_md
     assert "字間が広い" in brief_md
     assert '"brief_status": "ready"' in brief_json
@@ -405,6 +412,8 @@ def test_qt_feedback_ui_exports_review_bundle(tmp_path, monkeypatch) -> None:
     assert (root / "human_review_comparison_sheet.json").exists()
     assert (root / "human_review_prompt.md").exists()
     assert (root / "human_review_prompt.json").exists()
+    assert (root / "human_review_session_feedback.md").exists()
+    assert (root / "human_review_session_feedback.json").exists()
     assert (root / "human_review_responses.json").exists()
     assert (root / "human_review_response_summary.json").exists()
     assert (root / "human_review_revision_brief.md").exists()
@@ -441,6 +450,8 @@ def test_qt_feedback_ui_accepts_preview_run_output_paths(tmp_path) -> None:
         comparison_sheet_markdown_path=tmp_path / "comparison_sheet.md",
         prompt_json_path=tmp_path / "prompt.json",
         prompt_markdown_path=tmp_path / "prompt.md",
+        session_feedback_json_path=tmp_path / "session_feedback.json",
+        session_feedback_markdown_path=tmp_path / "session_feedback.md",
     )
 
     assert window._preview_run_json_path == tmp_path / "preview_run.json"
@@ -449,6 +460,8 @@ def test_qt_feedback_ui_accepts_preview_run_output_paths(tmp_path) -> None:
     assert window._comparison_sheet_markdown_path == tmp_path / "comparison_sheet.md"
     assert window._prompt_json_path == tmp_path / "prompt.json"
     assert window._prompt_markdown_path == tmp_path / "prompt.md"
+    assert window._session_feedback_json_path == tmp_path / "session_feedback.json"
+    assert window._session_feedback_markdown_path == tmp_path / "session_feedback.md"
 
 
 def test_qt_feedback_ui_accepts_packet_output_paths(tmp_path) -> None:
@@ -558,7 +571,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 9
+    assert window._detail_tabs.count() == 10
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820

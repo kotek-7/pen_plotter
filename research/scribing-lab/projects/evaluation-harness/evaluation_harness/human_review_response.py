@@ -395,6 +395,71 @@ def render_human_review_prompt_markdown(prompt: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def build_human_review_session_feedback(packet: dict[str, Any]) -> dict[str, Any]:
+    prompt = build_human_review_prompt(packet)
+    representative_ids = [
+        str(item.get("experiment_id", "unknown"))
+        for item in list(packet.get("representatives", []))[:8]
+    ]
+    return {
+        "sort_order": str(packet.get("sort_order", "default")),
+        "record_count": int(packet.get("record_count", len(packet.get("representatives", [])))),
+        "representative_count": int(packet.get("representative_count", len(packet.get("representatives", [])))),
+        "high_priority_tags": list(prompt.get("high_priority_tags", [])),
+        "what_to_compare": list(prompt.get("what_to_compare", [])),
+        "focus_questions": list(prompt.get("focus_questions", [])),
+        "reference_representative_ids": representative_ids,
+        "notes": "",
+    }
+
+
+def render_human_review_session_feedback_markdown(session_feedback: dict[str, Any]) -> str:
+    lines = [
+        "# Human Review Session Feedback",
+        "",
+        f"- sort_order: `{session_feedback.get('sort_order', 'default')}`",
+        f"- record_count: `{session_feedback.get('record_count', 0)}`",
+        f"- representative_count: `{session_feedback.get('representative_count', 0)}`",
+        "",
+        "## Focus Questions",
+    ]
+    for item in session_feedback.get("focus_questions", []):
+        lines.append(f"- {item}")
+
+    high_priority_tags = list(session_feedback.get("high_priority_tags", []))
+    if high_priority_tags:
+        lines.extend(["", "## High Priority Tags"])
+        for tag in high_priority_tags:
+            lines.append(f"- {tag}")
+
+    what_to_compare = list(session_feedback.get("what_to_compare", []))
+    if what_to_compare:
+        lines.extend(["", "## What to Compare"])
+        for item in what_to_compare:
+            lines.append(f"- {item}")
+
+    representative_ids = list(session_feedback.get("reference_representative_ids", []))
+    if representative_ids:
+        lines.extend(["", "## Reference Representatives"])
+        for experiment_id in representative_ids:
+            lines.append(f"- {experiment_id}")
+
+    lines.extend(
+        [
+            "",
+            "## Notes",
+            "",
+            "ここに bundle 全体への FB を書く。",
+            "",
+            "- 良い点:",
+            "- 気になる点:",
+            "- 優先修正:",
+            "",
+        ]
+    )
+    return "\n".join(lines) + "\n"
+
+
 def _start_card_watch_items(failure_tag_counts: Counter[str]) -> list[str]:
     candidates = [
         ("spacing-too-wide", "字間が広すぎるか"),

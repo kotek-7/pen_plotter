@@ -78,12 +78,14 @@ from evaluation_harness.human_review_response import (
     build_human_review_start_card,
     build_human_review_comparison_sheet,
     build_human_review_prompt,
+    build_human_review_session_feedback,
     build_human_review_revision_brief,
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     load_human_review_responses,
     render_human_review_comparison_sheet_markdown,
     render_human_review_prompt_markdown,
+    render_human_review_session_feedback_markdown,
     render_human_review_start_card_markdown,
     render_human_review_response_markdown,
     render_human_review_preview_revision_plan_markdown,
@@ -438,6 +440,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_feedback_ui.add_argument("--prompt-json", help="Human review prompt JSON output path")
     human_feedback_ui.add_argument("--prompt-markdown", help="Human review prompt markdown output path")
+    human_feedback_ui.add_argument("--session-feedback-json", help="Human review session feedback JSON output path")
+    human_feedback_ui.add_argument(
+        "--session-feedback-markdown",
+        help="Human review session feedback markdown output path",
+    )
     human_feedback_ui.add_argument("--preview-run-json", help="Human review preview revision run JSON output path")
     human_feedback_ui.add_argument("--preview-run-markdown", help="Human review preview revision run markdown output path")
     human_feedback_ui.add_argument("--reviewer-id", default="")
@@ -498,6 +505,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     human_feedback_bundle.add_argument("--prompt-json", default="human_review_prompt.json")
     human_feedback_bundle.add_argument("--prompt-markdown", default="human_review_prompt.md")
+    human_feedback_bundle.add_argument("--session-feedback-json", default="human_review_session_feedback.json")
+    human_feedback_bundle.add_argument(
+        "--session-feedback-markdown",
+        default="human_review_session_feedback.md",
+    )
     human_feedback_bundle.add_argument("--guide-json", default="human_review_guide.json")
     human_feedback_bundle.add_argument("--guide-markdown", default="human_review_guide.md")
 
@@ -1255,6 +1267,10 @@ def main() -> None:
         )
         prompt_json = Path(args.prompt_json) if args.prompt_json else None
         prompt_markdown = Path(args.prompt_markdown) if args.prompt_markdown else None
+        session_feedback_json = Path(args.session_feedback_json) if args.session_feedback_json else None
+        session_feedback_markdown = (
+            Path(args.session_feedback_markdown) if args.session_feedback_markdown else None
+        )
         preview_run_json = Path(args.preview_run_json) if args.preview_run_json else None
         preview_run_markdown = Path(args.preview_run_markdown) if args.preview_run_markdown else None
         launch_human_feedback_ui(
@@ -1274,6 +1290,8 @@ def main() -> None:
             comparison_sheet_markdown=comparison_sheet_markdown,
             prompt_json=prompt_json,
             prompt_markdown=prompt_markdown,
+            session_feedback_json=session_feedback_json,
+            session_feedback_markdown=session_feedback_markdown,
             preview_run_json=preview_run_json,
             preview_run_markdown=preview_run_markdown,
             reviewer_id=args.reviewer_id,
@@ -1292,6 +1310,11 @@ def main() -> None:
             "comparison_sheet.json",
         )
         prompt_json = _find_bundle_artifact_path(bundle_dir, args.bundle_prefix, "prompt.json")
+        session_feedback_json = _find_bundle_artifact_path(
+            bundle_dir,
+            args.bundle_prefix,
+            "session_feedback.json",
+        )
         responses_json = (
             Path(args.responses_json)
             if args.responses_json
@@ -1303,6 +1326,7 @@ def main() -> None:
             responses_json=responses_json if responses_json.exists() else None,
             comparison_sheet_json=comparison_sheet_json if comparison_sheet_json.exists() else None,
             prompt_json=prompt_json if prompt_json.exists() else None,
+            session_feedback_json=session_feedback_json if session_feedback_json.exists() else None,
             reviewer_id=args.reviewer_id,
             sort_order="longform-first",
             initial_detail_tab="review-prompt",
@@ -1333,6 +1357,7 @@ def main() -> None:
         )
         comparison_sheet = build_human_review_comparison_sheet(packet)
         prompt = build_human_review_prompt(packet)
+        session_feedback = build_human_review_session_feedback(packet)
         bundle_dir = _resolve_output_path(base_dir, args.output_dir) if args.output_dir else base_dir
         bundle_dir.mkdir(parents=True, exist_ok=True)
         prefix = args.output_prefix or "human_review"
@@ -1344,6 +1369,8 @@ def main() -> None:
         comparison_json_path = bundle_dir / f"{prefix}_comparison_sheet.json"
         prompt_md_path = bundle_dir / f"{prefix}_prompt.md"
         prompt_json_path = bundle_dir / f"{prefix}_prompt.json"
+        session_feedback_md_path = bundle_dir / f"{prefix}_session_feedback.md"
+        session_feedback_json_path = bundle_dir / f"{prefix}_session_feedback.json"
         guide_md_path = bundle_dir / f"{prefix}_guide.md"
         guide_json_path = bundle_dir / f"{prefix}_guide.json"
         index_md_path = bundle_dir / f"{prefix}_index.md"
@@ -1371,6 +1398,14 @@ def main() -> None:
             json.dumps(prompt, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        session_feedback_md_path.write_text(
+            render_human_review_session_feedback_markdown(session_feedback),
+            encoding="utf-8",
+        )
+        session_feedback_json_path.write_text(
+            json.dumps(session_feedback, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
         guide_md_path.write_text(render_review_guide_markdown(), encoding="utf-8")
         guide_json_path.write_text(
             json.dumps(
@@ -1379,6 +1414,7 @@ def main() -> None:
                     "start_card": card,
                     "comparison_sheet": comparison_sheet,
                     "prompt": prompt,
+                    "session_feedback": session_feedback,
                     "packet_representative_count": packet.get("representative_count", 0),
                 },
                 ensure_ascii=False,
@@ -1403,6 +1439,7 @@ def main() -> None:
                     f"- start card: `{card_md_path.name}` / `{card_json_path.name}`",
                     f"- comparison sheet: `{comparison_md_path.name}` / `{comparison_json_path.name}`",
                     f"- prompt: `{prompt_md_path.name}` / `{prompt_json_path.name}`",
+                    f"- session feedback: `{session_feedback_md_path.name}` / `{session_feedback_json_path.name}`",
                     f"- guide: `{guide_md_path.name}` / `{guide_json_path.name}`",
                     "",
                     "## Open",
@@ -1427,6 +1464,10 @@ def main() -> None:
                         "json": comparison_json_path.name,
                     },
                     "prompt": {"markdown": prompt_md_path.name, "json": prompt_json_path.name},
+                    "session_feedback": {
+                        "markdown": session_feedback_md_path.name,
+                        "json": session_feedback_json_path.name,
+                    },
                     "guide": {"markdown": guide_md_path.name, "json": guide_json_path.name},
                 },
                 ensure_ascii=False,

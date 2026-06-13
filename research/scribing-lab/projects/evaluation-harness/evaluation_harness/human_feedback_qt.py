@@ -48,12 +48,14 @@ from evaluation_harness.human_review_response import (
     build_human_review_start_card,
     build_human_review_comparison_sheet,
     build_human_review_prompt,
+    build_human_review_session_feedback,
     build_human_review_revision_brief,
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     render_human_review_start_card_markdown,
     render_human_review_comparison_sheet_markdown,
     render_human_review_prompt_markdown,
+    render_human_review_session_feedback_markdown,
     render_human_review_revision_brief_markdown,
     render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_plan_markdown,
@@ -171,6 +173,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         comparison_sheet_markdown_path: Path | None = None,
         prompt_json_path: Path | None = None,
         prompt_markdown_path: Path | None = None,
+        session_feedback_json_path: Path | None = None,
+        session_feedback_markdown_path: Path | None = None,
         preview_run_json_path: Path | None = None,
         preview_run_markdown_path: Path | None = None,
         initial_detail_tab: str = "start-card",
@@ -195,6 +199,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._comparison_sheet_markdown_path = comparison_sheet_markdown_path
         self._prompt_json_path = prompt_json_path
         self._prompt_markdown_path = prompt_markdown_path
+        self._session_feedback_json_path = session_feedback_json_path
+        self._session_feedback_markdown_path = session_feedback_markdown_path
         self._preview_run_json_path = preview_run_json_path
         self._preview_run_markdown_path = preview_run_markdown_path
         self._initial_detail_tab = initial_detail_tab
@@ -294,6 +300,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._preview_plan_button = QPushButton("Refresh Preview Plan", header)
         self._preview_plan_button.clicked.connect(self._refresh_preview_plan)
         layout.addWidget(self._preview_plan_button, 0, Qt.AlignVCenter)
+
+        self._session_feedback_button = QPushButton("Export Session Feedback", header)
+        self._session_feedback_button.clicked.connect(self._export_session_feedback)
+        layout.addWidget(self._session_feedback_button, 0, Qt.AlignVCenter)
 
         self._packet_button = QPushButton("Export Packet", header)
         self._packet_button.clicked.connect(self._export_packet_bundle)
@@ -450,6 +460,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         tabs.addTab(self._build_start_card_box(), "Start Card")
         tabs.addTab(self._build_comparison_sheet_box(), "Comparison Sheet")
         tabs.addTab(self._build_prompt_box(), "Review Prompt")
+        tabs.addTab(self._build_session_feedback_box(), "Session Feedback")
         tabs.addTab(self._build_details_box(), "Details")
         tabs.addTab(self._build_review_box(), "Review")
         tabs.addTab(self._build_notes_box(), "Notes")
@@ -499,6 +510,18 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._prompt_text.setReadOnly(True)
         self._prompt_text.setFont(self._body_font)
         layout.addWidget(self._prompt_text)
+        return group
+
+    def _build_session_feedback_box(self) -> QGroupBox:
+        group = QGroupBox("Session Feedback", self)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self._session_feedback_text = QPlainTextEdit(group)
+        self._session_feedback_text.setFont(self._body_font)
+        self._session_feedback_text.setPlaceholderText("bundle 全体への FB を書く。")
+        self._session_feedback_text.textChanged.connect(self._sync_from_widgets)
+        layout.addWidget(self._session_feedback_text)
         return group
 
     def _build_details_box(self) -> QGroupBox:
@@ -854,6 +877,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_start_card()
         self._refresh_comparison_sheet()
         self._refresh_prompt()
+        self._refresh_session_feedback()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
 
@@ -881,6 +905,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_start_card()
         self._refresh_comparison_sheet()
         self._refresh_prompt()
+        self._refresh_session_feedback()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
         self._refresh_preview_plan()
@@ -890,6 +915,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             "start-card",
             "comparison-sheet",
             "review-prompt",
+            "session-feedback",
             "details",
             "review",
             "notes",
@@ -946,6 +972,25 @@ class HumanFeedbackQtWindow(QMainWindow):
         if not hasattr(self, "_prompt_text"):
             return
         self._prompt_text.setPlainText(render_human_review_prompt_markdown(self._current_prompt()))
+
+    def _current_session_feedback(self) -> dict[str, Any]:
+        session_feedback = build_human_review_session_feedback(self._packet)
+        session_feedback["notes"] = self._session_feedback_text.toPlainText().strip()
+        return session_feedback
+
+    def _refresh_session_feedback(self) -> None:
+        if not hasattr(self, "_session_feedback_text"):
+            return
+        if not self._session_feedback_text.toPlainText().strip():
+            self._session_feedback_text.blockSignals(True)
+            try:
+                self._session_feedback_text.setPlainText(
+                    render_human_review_session_feedback_markdown(
+                        build_human_review_session_feedback(self._packet)
+                    )
+                )
+            finally:
+                self._session_feedback_text.blockSignals(False)
 
     def _current_revision_brief(self) -> dict[str, Any]:
         summary = validate_response_drafts(self._packet, self._drafts)
@@ -1062,6 +1107,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         start_card = self._write_start_card()
         comparison_sheet = self._write_comparison_sheet()
         prompt = self._write_prompt()
+        session_feedback = self._write_session_feedback()
         responses = self._write_responses_and_summary(summary)
         brief = self._write_revision_brief()
         plan = self._write_revision_plan()
@@ -1076,6 +1122,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             f"- start card: {start_card['markdown']}\n"
             f"- comparison sheet: {comparison_sheet['markdown']}\n"
             f"- review prompt: {prompt['markdown']}\n"
+            f"- session feedback: {session_feedback['markdown']}\n"
             f"- responses: {responses['responses']}\n"
             f"- summary: {responses['summary']}\n"
             f"- brief: {brief['markdown']}\n"
@@ -1089,6 +1136,14 @@ class HumanFeedbackQtWindow(QMainWindow):
             self,
             "Human Feedback Loop",
             f"Saved packet to {packet['markdown']}",
+        )
+
+    def _export_session_feedback(self) -> None:
+        session_feedback = self._write_session_feedback()
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved session feedback to {session_feedback['markdown']}",
         )
 
     def _export_start_card(self) -> None:
@@ -1200,6 +1255,22 @@ class HumanFeedbackQtWindow(QMainWindow):
         json_path.parent.mkdir(parents=True, exist_ok=True)
         json_path.write_text(
             json.dumps(prompt, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _write_session_feedback(self) -> dict[str, Path]:
+        session_feedback = self._current_session_feedback()
+        markdown_path = self._session_feedback_markdown_path or self._default_session_feedback_markdown_path()
+        json_path = self._session_feedback_json_path or self._default_session_feedback_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(
+            render_human_review_session_feedback_markdown(session_feedback),
+            encoding="utf-8",
+        )
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(session_feedback, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
         return {"markdown": markdown_path, "json": json_path}
@@ -1345,6 +1416,16 @@ class HumanFeedbackQtWindow(QMainWindow):
             return self._responses_json_path.with_name("human_review_prompt.json")
         return Path("human_review_prompt.json")
 
+    def _default_session_feedback_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_session_feedback.md")
+        return Path("human_review_session_feedback.md")
+
+    def _default_session_feedback_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_session_feedback.json")
+        return Path("human_review_session_feedback.json")
+
     def _default_preview_run_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_preview_revision_run.md")
@@ -1436,6 +1517,8 @@ def launch_human_feedback_ui(
     comparison_sheet_markdown: Path | None = None,
     prompt_json: Path | None = None,
     prompt_markdown: Path | None = None,
+    session_feedback_json: Path | None = None,
+    session_feedback_markdown: Path | None = None,
     preview_run_json: Path | None = None,
     preview_run_markdown: Path | None = None,
     reviewer_id: str = "",
@@ -1460,6 +1543,10 @@ def launch_human_feedback_ui(
     )
     prompt_json_path = prompt_json or (base_dir / "human_review_prompt.json")
     prompt_markdown_path = prompt_markdown or (base_dir / "human_review_prompt.md")
+    session_feedback_json_path = session_feedback_json or (base_dir / "human_review_session_feedback.json")
+    session_feedback_markdown_path = (
+        session_feedback_markdown or (base_dir / "human_review_session_feedback.md")
+    )
     preview_run_json_path = preview_run_json or (base_dir / "human_review_preview_revision_run.json")
     preview_run_markdown_path = preview_run_markdown or (base_dir / "human_review_preview_revision_run.md")
     packet = load_feedback_packet(
@@ -1504,6 +1591,8 @@ def launch_human_feedback_ui(
         comparison_sheet_markdown_path=comparison_sheet_markdown_path,
         prompt_json_path=prompt_json_path,
         prompt_markdown_path=prompt_markdown_path,
+        session_feedback_json_path=session_feedback_json_path,
+        session_feedback_markdown_path=session_feedback_markdown_path,
         preview_run_json_path=preview_run_json_path,
         preview_run_markdown_path=preview_run_markdown_path,
         initial_detail_tab=initial_detail_tab,
