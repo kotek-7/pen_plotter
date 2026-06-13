@@ -405,6 +405,28 @@ def test_human_abx_bundle_chain_status_parser_accepts_paths() -> None:
     assert args.json_output == "status.json"
 
 
+def test_human_abx_bundle_sweep_status_parser_accepts_root() -> None:
+    args = build_parser().parse_args(
+        [
+            "human-abx-bundle-sweep-status",
+            "--root",
+            "runs/test",
+            "--max-depth",
+            "4",
+            "--output",
+            "sweep.md",
+            "--json-output",
+            "sweep.json",
+        ]
+    )
+
+    assert args.command == "human-abx-bundle-sweep-status"
+    assert args.root == "runs/test"
+    assert args.max_depth == 4
+    assert args.output == "sweep.md"
+    assert args.json_output == "sweep.json"
+
+
 def test_abx_workbook_parser_accepts_packet_and_response_paths() -> None:
     args = build_parser().parse_args(
         [
@@ -2603,6 +2625,119 @@ def test_human_abx_bundle_chain_status_command_writes_summary(tmp_path: Path) ->
     assert status_json["bundle_count"] == 2
     assert status_json["bundles"][0]["pending_row_count"] == 1
     assert status_json["bundles"][1]["completed_row_count"] == 1
+
+
+def test_human_abx_bundle_sweep_status_command_writes_summary(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    layout_v1 = root / "layout_bundle_v1"
+    motion_v1 = root / "motion_bundle_v1"
+    layout_v1.mkdir(parents=True)
+    motion_v1.mkdir(parents=True)
+
+    layout_packet = {
+        "abx_items": [
+            {
+                "item_id": "layout-1",
+                "prompt": "字間",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "layout-tight",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-layout",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+            }
+        ]
+    }
+    layout_workbook = {
+        "evaluator_id": "eval-1",
+        "rows": [
+            {
+                "item_id": "layout-1",
+                "prompt": "字間",
+                "candidate_profile_id": "layout-tight",
+                "selected_failure_tags": ["spacing-too-wide"],
+                "selected_next_actions": ["character advance と line spacing を詰める"],
+                "choice": "",
+                "confidence": "",
+                "note": "",
+            }
+        ],
+    }
+    motion_packet = {
+        "abx_items": [
+            {
+                "item_id": "motion-1",
+                "prompt": "提出",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "kanji-tight",
+                "baseline_experiment_id": "exp-baseline-2",
+                "candidate_experiment_id": "exp-motion",
+                "option_a_artifact": "a2.png",
+                "option_b_artifact": "b2.png",
+                "selected_failure_tags": ["terminal-too-uniform"],
+                "selected_next_actions": ["terminal 表現を強める"],
+            }
+        ]
+    }
+    motion_workbook = {
+        "evaluator_id": "eval-1",
+        "rows": [
+            {
+                "item_id": "motion-1",
+                "prompt": "提出",
+                "candidate_profile_id": "kanji-tight",
+                "selected_failure_tags": ["terminal-too-uniform"],
+                "selected_next_actions": ["terminal 表現を強める"],
+                "choice": "A",
+                "confidence": 5,
+                "note": "better spacing",
+            }
+        ],
+    }
+    (layout_v1 / "layout_abx_packet.json").write_text(
+        json.dumps(layout_packet, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (layout_v1 / "layout_abx_workbook.json").write_text(
+        json.dumps(layout_workbook, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (motion_v1 / "motion_abx_packet.json").write_text(
+        json.dumps(motion_packet, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    (motion_v1 / "motion_abx_workbook.json").write_text(
+        json.dumps(motion_workbook, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+    result = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "evaluation_harness.cli",
+            "human-abx-bundle-sweep-status",
+            "--root",
+            str(root),
+            "--max-depth",
+            "4",
+        ],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "bundle_root_count: 2" in result.stdout
+    assert "open_bundle_root_count: 1" in result.stdout
+    assert (root / "bundle_sweep_status.md").exists()
+    assert (root / "bundle_sweep_status.json").exists()
+    sweep_json = json.loads((root / "bundle_sweep_status.json").read_text(encoding="utf-8"))
+    assert sweep_json["bundle_root_count"] == 2
+    assert sweep_json["bundle_chains"][0]["bundle_count"] == 1
+    assert sweep_json["bundle_chains"][1]["bundle_count"] == 1
 
 
 def _record(

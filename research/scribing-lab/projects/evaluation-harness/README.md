@@ -232,6 +232,7 @@ python3 -m evaluation_harness human-abx-bundle-chain-status \
   --bundle-dir runs/goal-wide/layout_bundle_v1 \
   --bundle-prefix layout_abx
 ```
+`human-abx-bundle-sweep-status` は、`goal-wide` 配下の bundle 系をまとめて一覧化する。
 
 ABX の回答 JSON を集計する場合は `validate-abx-responses` を使う。
 packet と responses を渡すと、choice 集計、Bradley-Terry、次アクションを出力する。

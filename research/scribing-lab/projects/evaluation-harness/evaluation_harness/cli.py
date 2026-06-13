@@ -477,6 +477,15 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_chain_status.add_argument("--output", default="bundle_chain_status.md")
     human_abx_bundle_chain_status.add_argument("--json-output", default="bundle_chain_status.json")
 
+    human_abx_bundle_sweep_status = sub.add_parser(
+        "human-abx-bundle-sweep-status",
+        help="Summarize all bundle chains under a root directory",
+    )
+    human_abx_bundle_sweep_status.add_argument("--root", required=True, help="Run output directory")
+    human_abx_bundle_sweep_status.add_argument("--max-depth", type=int, default=8)
+    human_abx_bundle_sweep_status.add_argument("--output", default="bundle_sweep_status.md")
+    human_abx_bundle_sweep_status.add_argument("--json-output", default="bundle_sweep_status.json")
+
     abx_workbook = sub.add_parser(
         "abx-workbook",
         help="Create a fillable ABX workbook from a packet",
@@ -1345,6 +1354,20 @@ def main() -> None:
         print(f"open_bundle_count: {bundle_status['open_bundle_count']}")
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
+    elif args.command == "human-abx-bundle-sweep-status":
+        sweep_status = _summarize_abx_bundle_sweep(Path(args.root), max_depth=args.max_depth)
+        root = Path(args.root)
+        markdown_path = root / args.output
+        json_path = root / args.json_output
+        markdown_path.write_text(render_abx_bundle_sweep_status_markdown(sweep_status), encoding="utf-8")
+        json_path.write_text(
+            json.dumps(sweep_status, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        print(f"bundle_root_count: {sweep_status['bundle_root_count']}")
+        print(f"open_bundle_root_count: {sweep_status['open_bundle_root_count']}")
+        print(f"report: {markdown_path}")
+        print(f"json: {json_path}")
     elif args.command == "abx-workbook":
         packet = _load_abx_packet_from_args(args)
         responses_data = None
@@ -1764,6 +1787,34 @@ def _summarize_abx_bundle_chain(
     }
 
 
+def _summarize_abx_bundle_sweep(root: Path, *, max_depth: int) -> dict[str, object]:
+    bundle_roots = sorted(
+        {
+            path
+            for path in root.iterdir()
+            if path.is_dir() and re.match(r"^.+_bundle_v1$", path.name)
+        },
+        key=lambda path: path.name,
+    )
+    bundle_chains = [
+        _summarize_abx_bundle_chain(bundle_root, _bundle_prefix_from_dir(bundle_root), max_depth=max_depth)
+        for bundle_root in bundle_roots
+    ]
+    return {
+        "root": str(root),
+        "bundle_root_count": len(bundle_chains),
+        "open_bundle_root_count": sum(1 for chain in bundle_chains if chain["open_bundle_count"]),
+        "bundle_chains": bundle_chains,
+    }
+
+
+def _bundle_prefix_from_dir(bundle_dir: Path) -> str:
+    packet_files = sorted(bundle_dir.glob("*_packet.json"))
+    if not packet_files:
+        return bundle_dir.name[:-3]
+    return packet_files[0].name[: -len("_packet.json")]
+
+
 def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
     lines = [
         "# ABX Bundle Chain Status",
@@ -1797,6 +1848,46 @@ def render_abx_bundle_chain_status_markdown(status: dict[str, object]) -> str:
             f"{_markdown_cell(str(bundle['completion_ratio']))} | "
             f"{_markdown_cell(str(bundle['next_bundle_exists']))} |"
         )
+    return "\n".join(lines) + "\n"
+
+
+def render_abx_bundle_sweep_status_markdown(status: dict[str, object]) -> str:
+    lines = [
+        "# ABX Bundle Sweep Status",
+        "",
+        f"- root: `{status['root']}`",
+        f"- bundle_root_count: `{status['bundle_root_count']}`",
+        f"- open_bundle_root_count: `{status['open_bundle_root_count']}`",
+        "",
+        "## Bundle Chains",
+        "",
+    ]
+    chains = list(status.get("bundle_chains", []))
+    if not chains:
+        lines.append("- none")
+        return "\n".join(lines) + "\n"
+    lines.extend(
+        [
+            "| bundle_dir | bundle_prefix | bundle_count | open_bundle_count | chain_status |",
+            "| --- | --- | --- | --- | --- |",
+        ]
+    )
+    for chain in chains:
+        bundles = list(chain.get("bundles", []))
+        last_bundle = bundles[-1] if bundles else {}
+        lines.append(
+            "| "
+            f"{_markdown_cell(str(bundles[0]['bundle_dir']) if bundles else '')} | "
+            f"{_markdown_cell(str(bundles[0]['bundle_prefix']) if bundles else '')} | "
+            f"{_markdown_cell(str(chain['bundle_count']))} | "
+            f"{_markdown_cell(str(chain['open_bundle_count']))} | "
+            f"{_markdown_cell(str(chain['chain_status']))} |"
+        )
+        if last_bundle:
+            lines.append(
+                f"- latest: `{last_bundle['bundle_dir']}` / `{last_bundle['bundle_prefix']}` / "
+                f"pending=`{last_bundle['pending_row_count']}` / next=`{last_bundle['next_bundle_exists']}`"
+            )
     return "\n".join(lines) + "\n"
 
 
