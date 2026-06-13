@@ -63,6 +63,7 @@ from evaluation_harness.abx import (
     render_abx_summary_markdown,
     render_abx_workbook_markdown,
     run_abx_revision_loop,
+    summarize_abx_workbook_completion,
     summarize_abx_responses,
 )
 from evaluation_harness.human_review_response import (
@@ -1127,15 +1128,18 @@ def main() -> None:
         bundle_dir = Path(args.bundle_dir)
         packet_path = bundle_dir / f"{args.bundle_prefix}_packet.json"
         packet = json.loads(packet_path.read_text(encoding="utf-8"))
-        workbook_path = Path(args.workbook_json) if args.workbook_json else None
+        workbook_path = Path(args.workbook_json) if args.workbook_json else bundle_dir / f"{args.bundle_prefix}_workbook.json"
         responses_path = Path(args.responses_json) if args.responses_json else None
-        if workbook_path is not None:
+        workbook = None
+        if workbook_path.exists():
             workbook = json.loads(workbook_path.read_text(encoding="utf-8"))
+        if workbook is not None and args.workbook_json:
             responses_data = build_abx_responses_from_workbook(workbook)
         elif responses_path is not None:
             responses_data = json.loads(responses_path.read_text(encoding="utf-8"))
         else:
-            workbook = json.loads((bundle_dir / f"{args.bundle_prefix}_workbook.json").read_text(encoding="utf-8"))
+            if workbook is None:
+                workbook = json.loads((bundle_dir / f"{args.bundle_prefix}_workbook.json").read_text(encoding="utf-8"))
             responses_data = build_abx_responses_from_workbook(workbook)
         responses = load_abx_responses(responses_data)
         packet_items = {
@@ -1187,6 +1191,11 @@ def main() -> None:
             encoding="utf-8",
         )
         print(f"response_count: {response_summary['response_count']}")
+        if workbook is not None:
+            completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
+            print(f"completed_row_count: {completed_row_count}")
+            print(f"pending_row_count: {pending_row_count}")
+            print(f"completion_ratio: {completion_ratio}")
         print(f"selected_item_count: {plan['selected_item_count']}")
         print(f"rerun_count: {run['rerun_count']}")
         print(f"preview_changed_count: {run['preview_changed_count']}")

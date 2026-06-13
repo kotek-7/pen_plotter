@@ -289,8 +289,49 @@ def test_build_abx_workbook_renders_fillable_rows() -> None:
     workbook = build_abx_workbook(packet, max_items=1)
 
     assert workbook["loop_status"] == "pending"
+    assert workbook["completed_row_count"] == 0
+    assert workbook["pending_row_count"] == 1
+    assert workbook["completion_ratio"] == 0.0
     assert workbook["rows"][0]["choice"] == ""
     assert "ABX Workbook" in render_abx_workbook_markdown(workbook)
+
+
+def test_build_abx_workbook_counts_completed_rows() -> None:
+    packet = {
+        "abx_items": [
+            {
+                "item_id": "item-1",
+                "prompt": "永",
+                "question": "どちらが人間の手書きに近いか",
+                "candidate_profile_id": "kanji-tight",
+                "baseline_experiment_id": "exp-baseline",
+                "candidate_experiment_id": "exp-candidate",
+                "option_a_artifact": "a.png",
+                "option_b_artifact": "b.png",
+                "selected_failure_tags": ["over-jittered"],
+                "selected_next_actions": ["motion-synthesis の tremor / timing jitter を下げる"],
+            }
+        ]
+    }
+    workbook = build_abx_workbook(
+        packet,
+        responses_data={
+            "responses": [
+                {
+                    "item_id": "item-1",
+                    "evaluator_id": "eval-1",
+                    "choice": "A",
+                    "confidence": 4,
+                    "note": "ok",
+                }
+            ]
+        },
+    )
+
+    assert workbook["completed_row_count"] == 1
+    assert workbook["pending_row_count"] == 0
+    assert workbook["completion_ratio"] == 1.0
+    assert workbook["rows"][0]["choice"] == "A"
 
 
 def test_build_abx_responses_from_workbook_skips_blank_rows() -> None:

@@ -216,13 +216,31 @@ def build_abx_workbook(
         _abx_workbook_row(item, response_by_item.get(str(item.get("item_id", ""))))
         for item in feedback_loop["packet"].get("abx_items", [])
     ]
+    completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(
+        {"rows": rows}
+    )
     return {
         "loop_status": feedback_loop["loop_status"],
         "next_actions": list(feedback_loop["next_actions"]),
         "packet": feedback_loop["packet"],
         "response_template": feedback_loop["response_template"],
         "rows": rows,
+        "completed_row_count": completed_row_count,
+        "pending_row_count": pending_row_count,
+        "completion_ratio": completion_ratio,
     }
+
+
+def summarize_abx_workbook_completion(workbook: dict[str, Any]) -> tuple[int, int, float]:
+    rows = list(workbook.get("rows", []))
+    completed_row_count = sum(
+        1
+        for row in rows
+        if str(row.get("choice", "")).strip() and str(row.get("confidence", "")).strip()
+    )
+    pending_row_count = len(rows) - completed_row_count
+    completion_ratio = round(completed_row_count / len(rows), 4) if rows else 0.0
+    return completed_row_count, pending_row_count, completion_ratio
 
 
 def _limit_abx_packet(packet: dict[str, Any], *, max_items: int | None) -> dict[str, Any]:
@@ -343,12 +361,16 @@ def render_abx_feedback_loop_markdown(loop: dict[str, Any]) -> str:
 
 
 def render_abx_workbook_markdown(workbook: dict[str, Any]) -> str:
+    completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
     lines = [
         "# ABX Workbook",
         "",
         f"- loop_status: `{workbook['loop_status']}`",
         f"- next_actions: `{workbook['next_actions']}`",
         f"- row_count: `{len(workbook.get('rows', []))}`",
+        f"- completed_row_count: `{completed_row_count}`",
+        f"- pending_row_count: `{pending_row_count}`",
+        f"- completion_ratio: `{completion_ratio}`",
         "",
         "## Instructions",
         "",
