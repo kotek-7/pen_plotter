@@ -9,6 +9,7 @@ from PySide6.QtWidgets import QApplication, QGroupBox, QLabel  # noqa: E402
 
 from evaluation_harness.human_feedback_common import HumanFeedbackDraft  # noqa: E402
 from evaluation_harness.human_feedback_qt import HumanFeedbackQtWindow  # noqa: E402
+from evaluation_harness.human_review import build_human_review_packet  # noqa: E402
 from evaluation_harness.models import ExperimentRecord  # noqa: E402
 from evaluation_harness.registry import ExperimentRegistry  # noqa: E402
 
@@ -177,22 +178,10 @@ def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> N
         )
     )
 
-    packet = {
-        "representatives": [
-            {
-                "experiment_id": "exp-candidate",
-                "input_text": "永",
-                "seed": 1,
-                "reason": "test",
-                "failure_tags": ["spacing-too-wide"],
-                "metrics": {},
-                "preview": str(candidate_preview),
-            }
-        ]
-    }
+    packet = build_human_review_packet(registry.load_all(), target_count=1)
     drafts = {
-        "exp-candidate": HumanFeedbackDraft(
-            experiment_id="exp-candidate",
+        packet["representatives"][0]["experiment_id"]: HumanFeedbackDraft(
+            experiment_id=packet["representatives"][0]["experiment_id"],
             decision="needs-tuning",
             reason_tags=["spacing-too-wide"],
             notes="字間が広い",
@@ -366,6 +355,36 @@ def test_qt_feedback_ui_accepts_preview_run_output_paths(tmp_path) -> None:
 
     assert window._preview_run_json_path == tmp_path / "preview_run.json"
     assert window._preview_run_markdown_path == tmp_path / "preview_run.md"
+
+
+def test_qt_feedback_ui_accepts_packet_output_paths(tmp_path) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": [],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+
+    window = HumanFeedbackQtWindow(
+        packet=packet,
+        drafts=drafts,
+        packet_json_path=tmp_path / "packet.json",
+        packet_markdown_path=tmp_path / "packet.md",
+    )
+
+    assert window._packet_json_path == tmp_path / "packet.json"
+    assert window._packet_markdown_path == tmp_path / "packet.md"
 
 
 def test_qt_feedback_ui_defaults_to_zoomed_preview() -> None:

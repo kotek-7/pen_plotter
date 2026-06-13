@@ -54,6 +54,7 @@ from evaluation_harness.human_review_response import (
     render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_plan_markdown,
 )
+from evaluation_harness.human_review import render_human_review_packet_markdown
 from evaluation_harness.evaluation_inputs import get_evaluation_inputs
 from evaluation_harness.registry import ExperimentRegistry
 from evaluation_harness.revision_loop import (
@@ -157,6 +158,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         brief_markdown_path: Path | None = None,
         plan_json_path: Path | None = None,
         plan_markdown_path: Path | None = None,
+        packet_json_path: Path | None = None,
+        packet_markdown_path: Path | None = None,
         preview_run_json_path: Path | None = None,
         preview_run_markdown_path: Path | None = None,
         base_dir: Path | None = None,
@@ -171,6 +174,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._brief_markdown_path = brief_markdown_path
         self._plan_json_path = plan_json_path
         self._plan_markdown_path = plan_markdown_path
+        self._packet_json_path = packet_json_path
+        self._packet_markdown_path = packet_markdown_path
         self._preview_run_json_path = preview_run_json_path
         self._preview_run_markdown_path = preview_run_markdown_path
         self._base_dir = base_dir or Path.cwd()
@@ -267,6 +272,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._preview_plan_button = QPushButton("Refresh Preview Plan", header)
         self._preview_plan_button.clicked.connect(self._refresh_preview_plan)
         layout.addWidget(self._preview_plan_button, 0, Qt.AlignVCenter)
+
+        self._packet_button = QPushButton("Export Packet", header)
+        self._packet_button.clicked.connect(self._export_packet_bundle)
+        layout.addWidget(self._packet_button, 0, Qt.AlignVCenter)
 
         self._bundle_button = QPushButton("Export Review Bundle", header)
         self._bundle_button.clicked.connect(self._export_review_bundle)
@@ -939,6 +948,7 @@ class HumanFeedbackQtWindow(QMainWindow):
             )
             return
 
+        packet = self._write_packet()
         responses = self._write_responses_and_summary(summary)
         brief = self._write_revision_brief()
         plan = self._write_revision_plan()
@@ -949,11 +959,20 @@ class HumanFeedbackQtWindow(QMainWindow):
             self,
             "Human Feedback Loop",
             "Saved review bundle:\n"
+            f"- packet: {packet['markdown']}\n"
             f"- responses: {responses['responses']}\n"
             f"- summary: {responses['summary']}\n"
             f"- brief: {brief['markdown']}\n"
             f"- plan: {plan['markdown']}\n"
             f"- preview run: {preview_run['markdown']}",
+        )
+
+    def _export_packet_bundle(self) -> None:
+        packet = self._write_packet()
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved packet to {packet['markdown']}",
         )
 
     def _export_revision_brief(self) -> None:
@@ -1009,6 +1028,49 @@ class HumanFeedbackQtWindow(QMainWindow):
             encoding="utf-8",
         )
         return {"responses": output_path, "summary": summary_path}
+
+    def _write_packet(self) -> dict[str, Path]:
+        markdown_path = self._packet_markdown_path or self._default_packet_markdown_path()
+        json_path = self._packet_json_path or self._default_packet_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(self._render_packet_markdown(), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(self._packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+        return {"markdown": markdown_path, "json": json_path}
+
+    def _render_packet_markdown(self) -> str:
+        if "record_count" in self._packet and "representative_count" in self._packet:
+            return render_human_review_packet_markdown(self._packet)
+
+        lines = [
+            "# Human Review Packet",
+            "",
+            f"- representative_count: `{len(self._packet.get('representatives', []))}`",
+        ]
+        if "records_by_input" in self._packet:
+            lines.append(f"- records_by_input: `{self._packet['records_by_input']}`")
+        lines.extend(["", "## Representatives", ""])
+        representatives = self._packet.get("representatives", [])
+        if not representatives:
+            lines.append("- none")
+        for item in representatives:
+            lines.extend(
+                [
+                    f"### {item.get('experiment_id', 'unknown')}",
+                    "",
+                    f"- reason: `{item.get('reason', '')}`",
+                    f"- input_text: `{item.get('input_text', '')}`",
+                    f"- seed: `{item.get('seed', '')}`",
+                    f"- preview: `{item.get('preview', '')}`",
+                    f"- failure_tags: `{item.get('failure_tags', [])}`",
+                    f"- metrics: `{item.get('metrics', {})}`",
+                    "",
+                ]
+            )
+        return "\n".join(lines) + "\n"
 
     def _write_revision_brief(self) -> dict[str, Path]:
         brief = self._current_revision_brief()
@@ -1079,6 +1141,16 @@ class HumanFeedbackQtWindow(QMainWindow):
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_revision_plan.json")
         return Path("human_review_revision_plan.json")
+
+    def _default_packet_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_packet.md")
+        return Path("human_review_packet.md")
+
+    def _default_packet_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_packet.json")
+        return Path("human_review_packet.json")
 
     def _default_preview_run_markdown_path(self) -> Path:
         if self._responses_json_path is not None:
@@ -1163,6 +1235,8 @@ def launch_human_feedback_ui(
     brief_markdown: Path | None = None,
     plan_json: Path | None = None,
     plan_markdown: Path | None = None,
+    packet_output_json: Path | None = None,
+    packet_output_markdown: Path | None = None,
     preview_run_json: Path | None = None,
     preview_run_markdown: Path | None = None,
     reviewer_id: str = "",
@@ -1175,6 +1249,8 @@ def launch_human_feedback_ui(
     brief_markdown_path = brief_markdown or (base_dir / "human_review_revision_brief.md")
     plan_json_path = plan_json or (base_dir / "human_review_revision_plan.json")
     plan_markdown_path = plan_markdown or (base_dir / "human_review_revision_plan.md")
+    packet_json_path = packet_output_json or (base_dir / "human_review_packet.json")
+    packet_markdown_path = packet_output_markdown or (base_dir / "human_review_packet.md")
     preview_run_json_path = preview_run_json or (base_dir / "human_review_preview_revision_run.json")
     preview_run_markdown_path = preview_run_markdown or (base_dir / "human_review_preview_revision_run.md")
     packet = load_feedback_packet(root=root, packet_json=packet_json, target_count=target_count)
@@ -1197,6 +1273,8 @@ def launch_human_feedback_ui(
         brief_markdown_path=brief_markdown_path,
         plan_json_path=plan_json_path,
         plan_markdown_path=plan_markdown_path,
+        packet_json_path=packet_json_path,
+        packet_markdown_path=packet_markdown_path,
         preview_run_json_path=preview_run_json_path,
         preview_run_markdown_path=preview_run_markdown_path,
         base_dir=base_dir,

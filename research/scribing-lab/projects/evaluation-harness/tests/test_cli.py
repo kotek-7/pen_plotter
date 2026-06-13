@@ -157,23 +157,23 @@ def test_human_feedback_ui_parser_accepts_preview_run_outputs() -> None:
     assert args.preview_run_markdown == "runs/test/preview-run.md"
 
 
-def test_human_feedback_ui_parser_accepts_preview_run_output_paths() -> None:
+def test_human_feedback_ui_parser_accepts_packet_output_paths() -> None:
     args = build_parser().parse_args(
         [
             "human-feedback-ui",
             "--root",
             "runs/test",
-            "--preview-run-json",
-            "runs/test/preview-run.json",
-            "--preview-run-markdown",
-            "runs/test/preview-run.md",
+            "--packet-output-json",
+            "runs/test/packet.json",
+            "--packet-output-markdown",
+            "runs/test/packet.md",
         ]
     )
 
     assert args.command == "human-feedback-ui"
     assert args.root == "runs/test"
-    assert args.preview_run_json == "runs/test/preview-run.json"
-    assert args.preview_run_markdown == "runs/test/preview-run.md"
+    assert args.packet_output_json == "runs/test/packet.json"
+    assert args.packet_output_markdown == "runs/test/packet.md"
 
 
 def test_human_feedback_revision_plan_parser_accepts_brief_and_loop_paths() -> None:
