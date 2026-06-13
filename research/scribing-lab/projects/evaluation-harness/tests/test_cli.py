@@ -2601,12 +2601,17 @@ def test_human_feedback_review_bundle_command_writes_outputs(
     start_card_md = (bundle_dir / "longform_review_start_card.md").read_text(encoding="utf-8")
     guide_md = (bundle_dir / "longform_review_guide.md").read_text(encoding="utf-8")
     guide_json = (bundle_dir / "longform_review_guide.json").read_text(encoding="utf-8")
+    index_md = (bundle_dir / "longform_review_index.md").read_text(encoding="utf-8")
+    index_json = (bundle_dir / "longform_review_index.json").read_text(encoding="utf-8")
 
     assert "Human Review Packet" in packet_md
     assert "Human Review Start Card" in start_card_md
     assert "Review steps" in guide_md
     assert '"packet_representative_count": 2' in guide_json
     assert '"sort_order": "longform-first"' in (bundle_dir / "longform_review_start_card.json").read_text(encoding="utf-8")
+    assert "Human Review Bundle Index" in index_md
+    assert "human-feedback-review-ui" in index_md
+    assert '"bundle_prefix": "longform_review"' in index_json
 
 
 def test_human_feedback_review_ui_command_opens_bundle_packet(

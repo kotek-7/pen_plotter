@@ -1300,6 +1300,8 @@ def main() -> None:
         card_json_path = bundle_dir / f"{prefix}_start_card.json"
         guide_md_path = bundle_dir / f"{prefix}_guide.md"
         guide_json_path = bundle_dir / f"{prefix}_guide.json"
+        index_md_path = bundle_dir / f"{prefix}_index.md"
+        index_json_path = bundle_dir / f"{prefix}_index.json"
         packet_md_path.write_text(render_human_review_packet_markdown(packet), encoding="utf-8")
         packet_json_path.write_text(
             json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -1317,6 +1319,47 @@ def main() -> None:
                     "review_steps": render_review_guide_markdown().splitlines(),
                     "start_card": card,
                     "packet_representative_count": packet.get("representative_count", 0),
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        index_md_path.write_text(
+            "\n".join(
+                [
+                    "# Human Review Bundle Index",
+                    "",
+                    f"- bundle_dir: `{bundle_dir}`",
+                    f"- bundle_prefix: `{prefix}`",
+                    f"- sort_order: `{card['sort_order']}`",
+                    f"- representative_count: `{card['representative_count']}`",
+                    "",
+                    "## Files",
+                    f"- packet: `{packet_md_path.name}` / `{packet_json_path.name}`",
+                    f"- start card: `{card_md_path.name}` / `{card_json_path.name}`",
+                    f"- guide: `{guide_md_path.name}` / `{guide_json_path.name}`",
+                    "",
+                    "## Open",
+                    "python3 -m evaluation_harness human-feedback-review-ui "
+                    f"--bundle-dir {bundle_dir} --bundle-prefix {prefix}",
+                    "",
+                ]
+            ),
+            encoding="utf-8",
+        )
+        index_json_path.write_text(
+            json.dumps(
+                {
+                    "bundle_dir": str(bundle_dir),
+                    "bundle_prefix": prefix,
+                    "sort_order": card["sort_order"],
+                    "representative_count": card["representative_count"],
+                    "packet": {"markdown": packet_md_path.name, "json": packet_json_path.name},
+                    "start_card": {"markdown": card_md_path.name, "json": card_json_path.name},
+                    "guide": {"markdown": guide_md_path.name, "json": guide_json_path.name},
                 },
                 ensure_ascii=False,
                 indent=2,

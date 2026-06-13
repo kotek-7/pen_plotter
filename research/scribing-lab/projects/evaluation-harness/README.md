@@ -281,6 +281,7 @@ revision plan をその場で確認できる。
 `human-feedback-start-card` を使うと、同じ Start Card を CLI から markdown / JSON で書き出せる。
 `human-feedback-review-bundle` を使うと、packet / Start Card / review guide をまとめて出せる。
 `human-feedback-review-ui` を使うと、その bundle をそのまま Qt UI で開ける。
+bundle には `index.md/json` も出るので、見せる束と開き方が 1 枚で分かる。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。
 
