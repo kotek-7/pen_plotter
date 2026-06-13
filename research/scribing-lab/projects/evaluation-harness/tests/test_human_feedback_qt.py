@@ -9,6 +9,8 @@ from PySide6.QtWidgets import QApplication, QGroupBox, QLabel  # noqa: E402
 
 from evaluation_harness.human_feedback_common import HumanFeedbackDraft  # noqa: E402
 from evaluation_harness.human_feedback_qt import HumanFeedbackQtWindow  # noqa: E402
+from evaluation_harness.models import ExperimentRecord  # noqa: E402
+from evaluation_harness.registry import ExperimentRegistry  # noqa: E402
 
 
 def test_qt_feedback_ui_uses_regular_weight_fonts() -> None:
@@ -116,6 +118,115 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
     assert '"brief_status": "ready"' in brief_json
     assert "Human Review Revision Plan" in plan_md
     assert '"plan_status": "ready"' in plan_json
+
+
+def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    root = tmp_path / "runs"
+    root.mkdir(parents=True, exist_ok=True)
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    baseline_preview = root / "baseline.png"
+    candidate_preview = root / "candidate.png"
+    baseline_report = root / "baseline.md"
+    candidate_report = root / "candidate.md"
+    baseline_preview.write_bytes(b"baseline")
+    candidate_preview.write_bytes(b"candidate")
+    baseline_report.write_text("baseline", encoding="utf-8")
+    candidate_report.write_text("candidate", encoding="utf-8")
+    registry.append(
+        ExperimentRecord.from_dict(
+            {
+                "experiment_id": "exp-baseline",
+                "hypothesis": "baseline",
+                "input_text": "永",
+                "profile_id": "baseline-neat",
+                "seed": 1,
+                "generator": "baseline-outline",
+                "exporter": "preview",
+                "artifacts": {"preview": str(baseline_preview), "report": str(baseline_report)},
+                "metrics": {"draw_speed_cv": 0.0},
+                "failure_tags": [],
+                "next_action": "keep baseline comparison",
+                "notes": "",
+            }
+        )
+    )
+    registry.append(
+        ExperimentRecord.from_dict(
+            {
+                "experiment_id": "exp-candidate",
+                "hypothesis": "candidate",
+                "input_text": "永",
+                "profile_id": "fast-casual",
+                "seed": 1,
+                "generator": "structure-motion",
+                "exporter": "preview",
+                "artifacts": {"preview": str(candidate_preview), "report": str(candidate_report)},
+                "metrics": {
+                    "draw_speed_cv": 0.01,
+                    "shape_variation_mm": 0.6,
+                    "layout_variation_mm": 0.6,
+                },
+                "failure_tags": ["spacing-too-wide"],
+                "next_action": "adjust spacing",
+                "notes": "",
+            }
+        )
+    )
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-candidate",
+                "input_text": "永",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": ["spacing-too-wide"],
+                "metrics": {},
+                "preview": str(candidate_preview),
+            }
+        ]
+    }
+    drafts = {
+        "exp-candidate": HumanFeedbackDraft(
+            experiment_id="exp-candidate",
+            decision="needs-tuning",
+            reason_tags=["spacing-too-wide"],
+            notes="字間が広い",
+            reviewer_id="reviewer-1",
+        )
+    }
+
+    window = HumanFeedbackQtWindow(
+        packet=packet,
+        drafts=drafts,
+        responses_json_path=root / "human_review_responses.json",
+        summary_json_path=root / "human_review_response_summary.json",
+        brief_json_path=root / "human_review_revision_brief.json",
+        brief_markdown_path=root / "human_review_revision_brief.md",
+        plan_json_path=root / "human_review_revision_plan.json",
+        plan_markdown_path=root / "human_review_revision_plan.md",
+        preview_run_json_path=root / "human_review_preview_revision_run.json",
+        preview_run_markdown_path=root / "human_review_preview_revision_run.md",
+        base_dir=root,
+    )
+
+    monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
+
+    window._export_preview_revision_run()
+
+    preview_run_md = (root / "human_review_preview_revision_run.md").read_text(encoding="utf-8")
+    preview_run_json = (root / "human_review_preview_revision_run.json").read_text(encoding="utf-8")
+    brief_md = (root / "human_review_revision_brief.md").read_text(encoding="utf-8")
+    plan_md = (root / "human_review_revision_plan.md").read_text(encoding="utf-8")
+
+    assert "Preview Revision Loop" in preview_run_md
+    assert '"rerun_count": 1' in preview_run_json
+    assert '"rerun_plan_count": 1' in preview_run_json
+    assert "Human Review Revision Brief" in brief_md
+    assert "Human Review Revision Plan" in plan_md
 
 
 def test_qt_feedback_ui_defaults_to_zoomed_preview() -> None:

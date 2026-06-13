@@ -44,12 +44,20 @@ from evaluation_harness.human_feedback_common import (
     serialize_response_drafts,
     validate_response_drafts,
 )
+from evaluation_harness.compare import propose_preview_fixed_input_set
 from evaluation_harness.human_feedback_loop import ALLOWED_REASON_TAGS
 from evaluation_harness.human_review_response import (
     build_human_review_revision_brief,
+    build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     render_human_review_revision_brief_markdown,
     render_human_review_revision_plan_markdown,
+)
+from evaluation_harness.evaluation_inputs import get_evaluation_inputs
+from evaluation_harness.registry import ExperimentRegistry
+from evaluation_harness.revision_loop import (
+    render_preview_revision_loop_markdown,
+    run_preview_revision_loop_fixed_input_set,
 )
 from evaluation_harness.taxonomy import describe_failure_tag, failure_tag_group
 
@@ -148,6 +156,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         brief_markdown_path: Path | None = None,
         plan_json_path: Path | None = None,
         plan_markdown_path: Path | None = None,
+        preview_run_json_path: Path | None = None,
+        preview_run_markdown_path: Path | None = None,
         base_dir: Path | None = None,
     ) -> None:
         super().__init__()
@@ -160,6 +170,8 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._brief_markdown_path = brief_markdown_path
         self._plan_json_path = plan_json_path
         self._plan_markdown_path = plan_markdown_path
+        self._preview_run_json_path = preview_run_json_path
+        self._preview_run_markdown_path = preview_run_markdown_path
         self._base_dir = base_dir or Path.cwd()
         self._current_experiment_id = self._first_experiment_id()
         self._preview_pixmap: QPixmap | None = None
@@ -250,6 +262,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._plan_button = QPushButton("Export Plan", header)
         self._plan_button.clicked.connect(self._export_revision_plan)
         layout.addWidget(self._plan_button, 0, Qt.AlignVCenter)
+
+        self._preview_run_button = QPushButton("Export Preview Run", header)
+        self._preview_run_button.clicked.connect(self._export_preview_revision_run)
+        layout.addWidget(self._preview_run_button, 0, Qt.AlignVCenter)
 
         self._refresh_button = QPushButton("Refresh Summary", header)
         self._refresh_button.clicked.connect(self._refresh_summary)
@@ -870,6 +886,47 @@ class HumanFeedbackQtWindow(QMainWindow):
             f"Saved revision plan to {self._plan_markdown_path or self._default_plan_markdown_path()}",
         )
 
+    def _export_preview_revision_run(self) -> None:
+        self._capture_current_draft()
+        summary = validate_response_drafts(self._packet, self._drafts)
+        if summary["validation_errors"]:
+            QMessageBox.warning(
+                self,
+                "Human Feedback Loop",
+                "Preview revision run requires valid responses. Fix validation errors first.",
+            )
+            return
+
+        self._write_revision_brief()
+        self._write_revision_plan()
+        payload = self._current_preview_revision_run(summary=summary)
+        run = payload["preview_revision_run"]
+        markdown_path = self._preview_run_markdown_path or self._default_preview_run_markdown_path()
+        json_path = self._preview_run_json_path or self._default_preview_run_json_path()
+        markdown_path.parent.mkdir(parents=True, exist_ok=True)
+        markdown_path.write_text(render_preview_revision_loop_markdown(run), encoding="utf-8")
+        json_path.parent.mkdir(parents=True, exist_ok=True)
+        json_path.write_text(
+            json.dumps(
+                {
+                    "human_revision_plan": payload["human_revision_plan"],
+                    "preview_revision_run": payload["preview_revision_run"],
+                    "rerun_plan_count": payload["rerun_plan_count"],
+                    "focus_areas": payload["focus_areas"],
+                },
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        QMessageBox.information(
+            self,
+            "Human Feedback Loop",
+            f"Saved preview revision run to {markdown_path}",
+        )
+
     def _write_revision_brief(self) -> None:
         brief = self._current_revision_brief()
         markdown_path = self._brief_markdown_path or self._default_brief_markdown_path()
@@ -913,6 +970,53 @@ class HumanFeedbackQtWindow(QMainWindow):
         if self._responses_json_path is not None:
             return self._responses_json_path.with_name("human_review_revision_plan.json")
         return Path("human_review_revision_plan.json")
+
+    def _default_preview_run_markdown_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_preview_revision_run.md")
+        return Path("human_review_preview_revision_run.md")
+
+    def _default_preview_run_json_path(self) -> Path:
+        if self._responses_json_path is not None:
+            return self._responses_json_path.with_name("human_review_preview_revision_run.json")
+        return Path("human_review_preview_revision_run.json")
+
+    def _current_preview_revision_run(
+        self,
+        *,
+        summary: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        if summary is None:
+            self._capture_current_draft()
+            summary = validate_response_drafts(self._packet, self._drafts)
+        brief = build_human_review_revision_brief(summary)
+        registry = ExperimentRegistry(self._base_dir / "registry.jsonl")
+        preview_proposal = propose_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator="baseline-outline",
+            expected_input_texts=tuple(get_evaluation_inputs("wide")),
+            expected_seeds=(1, 2, 3),
+        )
+        preview_plan = build_human_review_preview_revision_plan(brief, preview_proposal)
+        preview_revision_plans = list(preview_plan.get("preview_revision_plans", []))
+        run = run_preview_revision_loop_fixed_input_set(
+            self._base_dir,
+            expected_input_texts=tuple(get_evaluation_inputs("wide")),
+            expected_seeds=(1, 2, 3),
+            baseline_generator="baseline-outline",
+            revision_plans=preview_revision_plans,
+        )
+        return {
+            "human_revision_plan": preview_plan,
+            "preview_revision_run": run,
+            "rerun_plan_count": len(preview_revision_plans),
+            "focus_areas": sorted(
+                {
+                    str(plan.get("focus_area", "preview") or "preview")
+                    for plan in preview_revision_plans
+                }
+            ),
+        }
 
 
 def launch_human_feedback_ui(
