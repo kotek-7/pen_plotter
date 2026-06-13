@@ -459,6 +459,7 @@ def build_parser() -> argparse.ArgumentParser:
     human_abx_bundle_followup.add_argument("--responses-json", default="")
     human_abx_bundle_followup.add_argument("--evaluator-id", default="")
     human_abx_bundle_followup.add_argument("--max-items", type=int, default=36)
+    human_abx_bundle_followup.add_argument("--pending-only", action="store_true")
     human_abx_bundle_followup.add_argument("--output-prefix", default="")
 
     abx_workbook = sub.add_parser(
@@ -1165,6 +1166,8 @@ def main() -> None:
         summary_md_path = bundle_dir / f"{output_prefix}_response_summary.md"
         summary_json_path = bundle_dir / f"{output_prefix}_response_summary.json"
         responses_json_path = bundle_dir / f"{output_prefix}_responses.json"
+        pending_workbook_md_path = bundle_dir / f"{output_prefix}_pending_workbook.md"
+        pending_workbook_json_path = bundle_dir / f"{output_prefix}_pending_workbook.json"
         feedback_md_path = bundle_dir / f"{output_prefix}_feedback_loop.md"
         feedback_json_path = bundle_dir / f"{output_prefix}_feedback_loop.json"
         plan_md_path = bundle_dir / f"{output_prefix}_revision_plan.md"
@@ -1180,6 +1183,33 @@ def main() -> None:
             json.dumps(responses_data, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
             encoding="utf-8",
         )
+        if workbook is not None:
+            completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
+            print(f"completed_row_count: {completed_row_count}")
+            print(f"pending_row_count: {pending_row_count}")
+            print(f"completion_ratio: {completion_ratio}")
+            if args.pending_only:
+                pending_rows = [
+                    row
+                    for row in workbook.get("rows", [])
+                    if not str(row.get("choice", "")).strip() or not str(row.get("confidence", "")).strip()
+                ]
+                pending_workbook = {
+                    **workbook,
+                    "loop_status": workbook.get("loop_status", feedback_loop["loop_status"]),
+                    "next_actions": workbook.get("next_actions", feedback_loop["next_actions"]),
+                    "response_template": workbook.get("response_template", feedback_loop["response_template"]),
+                    "packet": workbook.get("packet", feedback_loop["packet"]),
+                    "rows": pending_rows,
+                }
+                pending_workbook_md_path.write_text(
+                    render_abx_workbook_markdown(pending_workbook), encoding="utf-8"
+                )
+                pending_workbook_json_path.write_text(
+                    json.dumps(pending_workbook, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                    encoding="utf-8",
+                )
+                print(f"pending_workbook_rows: {len(pending_rows)}")
         feedback_md_path.write_text(render_abx_feedback_loop_markdown(feedback_loop), encoding="utf-8")
         feedback_json_path.write_text(
             json.dumps(feedback_loop, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
@@ -1196,11 +1226,6 @@ def main() -> None:
             encoding="utf-8",
         )
         print(f"response_count: {response_summary['response_count']}")
-        if workbook is not None:
-            completed_row_count, pending_row_count, completion_ratio = summarize_abx_workbook_completion(workbook)
-            print(f"completed_row_count: {completed_row_count}")
-            print(f"pending_row_count: {pending_row_count}")
-            print(f"completion_ratio: {completion_ratio}")
         print(f"selected_item_count: {plan['selected_item_count']}")
         print(f"rerun_count: {run['rerun_count']}")
         print(f"preview_changed_count: {run['preview_changed_count']}")
