@@ -169,6 +169,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         comparison_sheet_markdown_path: Path | None = None,
         preview_run_json_path: Path | None = None,
         preview_run_markdown_path: Path | None = None,
+        initial_detail_tab: str = "start-card",
         base_dir: Path | None = None,
     ) -> None:
         super().__init__()
@@ -190,6 +191,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._comparison_sheet_markdown_path = comparison_sheet_markdown_path
         self._preview_run_json_path = preview_run_json_path
         self._preview_run_markdown_path = preview_run_markdown_path
+        self._initial_detail_tab = initial_detail_tab
         self._base_dir = base_dir or Path.cwd()
         self._current_experiment_id = self._first_experiment_id()
         self._preview_pixmap: QPixmap | None = None
@@ -855,13 +857,29 @@ class HumanFeedbackQtWindow(QMainWindow):
         else:
             self._refresh_summary()
         if hasattr(self, "_detail_tabs"):
-            self._detail_tabs.setCurrentIndex(0)
+            self._detail_tabs.setCurrentIndex(self._detail_tab_index(self._initial_detail_tab))
         self._refresh_summary()
         self._refresh_start_card()
         self._refresh_comparison_sheet()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
         self._refresh_preview_plan()
+
+    def _detail_tab_index(self, tab_name: str) -> int:
+        tab_order = [
+            "start-card",
+            "comparison-sheet",
+            "details",
+            "review",
+            "notes",
+            "brief",
+            "plan",
+            "preview-run",
+        ]
+        try:
+            return tab_order.index(tab_name)
+        except ValueError:
+            return 0
 
     def _refresh_summary(self) -> None:
         self._capture_current_draft()
@@ -1367,6 +1385,7 @@ def launch_human_feedback_ui(
     reviewer_id: str = "",
     target_count: int | None = None,
     sort_order: str = "default",
+    initial_detail_tab: str = "start-card",
 ) -> None:
     base_dir = root or (packet_json.parent if packet_json is not None else Path.cwd())
     responses_path = responses_json or (base_dir / "human_review_responses.json")
@@ -1391,6 +1410,8 @@ def launch_human_feedback_ui(
         target_count=target_count,
         sort_order=sort_order,
     )
+    if initial_detail_tab == "start-card" and packet_json is not None and root is not None and packet_json.name.endswith("_packet.json"):
+        initial_detail_tab = "comparison-sheet"
     sort_order = str(packet.get("sort_order", sort_order) or "default")
     drafts = load_response_drafts(
         packet=packet,
@@ -1420,6 +1441,7 @@ def launch_human_feedback_ui(
         comparison_sheet_markdown_path=comparison_sheet_markdown_path,
         preview_run_json_path=preview_run_json_path,
         preview_run_markdown_path=preview_run_markdown_path,
+        initial_detail_tab=initial_detail_tab,
         base_dir=base_dir,
     )
     window.show()

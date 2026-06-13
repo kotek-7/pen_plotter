@@ -93,6 +93,31 @@ def test_qt_feedback_ui_infers_sort_order_from_packet(tmp_path) -> None:
     assert "sort_order=longform-first" in window.statusBar().currentMessage()
 
 
+def test_qt_feedback_ui_can_open_comparison_sheet_first() -> None:
+    app = QApplication.instance() or QApplication([])
+    assert app is not None
+
+    packet = {
+        "representatives": [
+            {
+                "experiment_id": "exp-a",
+                "input_text": "今日はよい天気です。",
+                "seed": 1,
+                "reason": "test",
+                "failure_tags": [],
+                "metrics": {},
+                "preview": "",
+            }
+        ]
+    }
+    drafts = {"exp-a": HumanFeedbackDraft(experiment_id="exp-a")}
+
+    window = HumanFeedbackQtWindow(packet=packet, drafts=drafts, initial_detail_tab="comparison-sheet")
+
+    assert window._detail_tabs.currentIndex() == 1
+    assert "Human Review Comparison Sheet" in window._comparison_sheet_text.toPlainText()
+
+
 def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatch) -> None:
     app = QApplication.instance() or QApplication([])
     assert app is not None

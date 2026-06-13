@@ -1293,6 +1293,7 @@ def main() -> None:
             comparison_sheet_json=comparison_sheet_json if comparison_sheet_json.exists() else None,
             reviewer_id=args.reviewer_id,
             sort_order="longform-first",
+            initial_detail_tab="comparison-sheet",
         )
     elif args.command == "human-feedback-review-bundle":
         root = Path(args.root) if args.root else None

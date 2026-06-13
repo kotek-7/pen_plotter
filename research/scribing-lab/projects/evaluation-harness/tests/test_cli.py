@@ -2716,6 +2716,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
     assert captured["comparison_sheet_json"] == comparison_sheet_json
     assert captured["sort_order"] == "longform-first"
     assert captured["root"] == bundle_dir.parent
+    assert captured["initial_detail_tab"] == "comparison-sheet"
 
 
 def test_human_feedback_loop_command_writes_revision_brief(
