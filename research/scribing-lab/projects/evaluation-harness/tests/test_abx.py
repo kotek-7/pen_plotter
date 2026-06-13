@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import pytest
 
 from evaluation_harness.abx import (
@@ -9,6 +11,7 @@ from evaluation_harness.abx import (
     build_abx_response_template,
     build_human_abx_feedback_loop,
     load_abx_responses,
+    run_abx_revision_loop,
     render_abx_summary_markdown,
     render_abx_revision_plan_markdown,
     render_abx_workbook_markdown,
@@ -17,6 +20,8 @@ from evaluation_harness.abx import (
     summarize_abx_responses,
     validate_abx_response,
 )
+from evaluation_harness.models import ExperimentRecord
+from evaluation_harness.registry import ExperimentRegistry
 
 
 def test_summarize_abx_responses_counts_choices() -> None:
@@ -302,3 +307,86 @@ def test_build_abx_responses_from_workbook_skips_blank_rows() -> None:
     assert responses["evaluator_id"] == "eval-1"
     assert len(responses["responses"]) == 1
     assert responses["responses"][0]["choice"] == "A"
+
+
+def test_run_abx_revision_loop_generates_unique_revision_ids(tmp_path: Path) -> None:
+    root = tmp_path / "runs"
+    candidate_preview = tmp_path / "candidate.png"
+    candidate_preview.write_bytes(b"candidate-preview")
+    registry = ExperimentRegistry(root / "registry.jsonl")
+    registry.append(
+        ExperimentRecord(
+            experiment_id="exp-motion-symbol",
+            hypothesis="test",
+            input_text="，",
+            profile_id="symbol-neat",
+            seed=1,
+            generator="structure-motion",
+            exporter="xdraw-gcode",
+            artifacts={"preview": str(candidate_preview), "report": str(tmp_path / "candidate.md")},
+            metrics={
+                "draw_speed_cv": 0.16,
+                "baseline_drift_mm": 0.24,
+                "penup_distance_mm": 13.2,
+                "visible_char_count": 1,
+            },
+            failure_tags=["spacing-too-wide"],
+            next_action="test",
+        )
+    )
+
+    loop = {
+        "loop_status": "ready",
+        "packet": {
+            "abx_items": [
+                {
+                    "item_id": "item-1",
+                    "prompt": "，",
+                    "candidate_profile_id": "symbol-neat",
+                    "candidate_experiment_id": "exp-motion-symbol",
+                    "selected_failure_tags": ["spacing-too-wide"],
+                    "selected_next_actions": ["character advance と line spacing を詰める"],
+                    "proposed_changes": [
+                        {
+                            "target": "layout",
+                            "parameter": "spacing_mean_mm",
+                            "direction": "decrease",
+                            "amount_hint": 0.15,
+                            "reason": "字間を詰めて広がりすぎを抑える",
+                        }
+                    ],
+                },
+                {
+                    "item_id": "item-2",
+                    "prompt": "，",
+                    "candidate_profile_id": "symbol-neat",
+                    "candidate_experiment_id": "exp-motion-symbol",
+                    "selected_failure_tags": ["spacing-too-wide"],
+                    "selected_next_actions": ["character advance と line spacing を詰める"],
+                    "proposed_changes": [
+                        {
+                            "target": "layout",
+                            "parameter": "spacing_mean_mm",
+                            "direction": "decrease",
+                            "amount_hint": 0.15,
+                            "reason": "字間を詰めて広がりすぎを抑える",
+                        }
+                    ],
+                },
+            ]
+        },
+    }
+
+    run = run_abx_revision_loop(root, feedback_loop=loop)
+
+    assert run["rerun_count"] == 2
+    assert run["preview_changed_count"] == 2
+    revision_ids = [
+        item["revision_experiment_id"]
+        for item in run["applications"]
+        if item["status"] == "rerun"
+    ]
+    assert len(revision_ids) == 2
+    assert len(set(revision_ids)) == 2
+    assert revision_ids[0] == "abx-exp-motion-symbol-rev"
+    assert revision_ids[1] == "abx-exp-motion-symbol-rev-r002"

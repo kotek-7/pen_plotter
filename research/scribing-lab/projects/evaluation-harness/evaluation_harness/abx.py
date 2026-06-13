@@ -474,6 +474,7 @@ def run_abx_revision_loop(
     registry = ExperimentRegistry(root_path / "registry.jsonl")
     before_records = registry.load_all()
     before_by_id = {record.experiment_id: record for record in before_records}
+    reserved_experiment_ids = {record.experiment_id for record in before_records}
     plan = build_abx_revision_plan(feedback_loop)
     applications: list[dict[str, Any]] = []
     rerun_records = []
@@ -544,7 +545,10 @@ def run_abx_revision_loop(
             )
             continue
 
-        experiment_id = f"abx-{candidate_record.experiment_id}-rev"
+        experiment_id = _unique_revision_experiment_id(
+            f"abx-{candidate_record.experiment_id}-rev",
+            reserved_experiment_ids,
+        )
         record = run_structure_motion(
             root=root_path,
             experiment_id=experiment_id,
@@ -552,6 +556,7 @@ def run_abx_revision_loop(
             seed=candidate_record.seed,
             writer_profile=revision["profile"],
         )
+        reserved_experiment_ids.add(record.experiment_id)
         rerun_records.append(record)
         preview_before = _file_sha256(candidate_record.artifacts.get("preview", ""))
         preview_after = _file_sha256(record.artifacts.get("preview", ""))
@@ -803,6 +808,17 @@ def _file_sha256(path: str) -> str | None:
         for chunk in iter(lambda: f.read(8192), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _unique_revision_experiment_id(base_id: str, reserved_ids: set[str]) -> str:
+    if base_id not in reserved_ids:
+        return base_id
+    index = 2
+    while True:
+        candidate = f"{base_id}-r{index:03d}"
+        if candidate not in reserved_ids:
+            return candidate
+        index += 1
 
 
 def _markdown_cell(value: Any) -> str:
