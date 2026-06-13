@@ -102,9 +102,10 @@ def test_qt_feedback_ui_shows_revision_brief_and_exports_it(tmp_path, monkeypatc
 
     monkeypatch.setattr("evaluation_harness.human_feedback_qt.QMessageBox.information", lambda *args, **kwargs: None)
 
-    assert window._detail_tabs.count() == 5
+    assert window._detail_tabs.count() == 6
     assert "Revision Brief" in window._brief_text.toPlainText()
     assert "Revision Plan" in window._plan_text.toPlainText()
+    assert "Preview Run" in window._preview_run_text.toPlainText()
 
     window._export_revision_brief()
 
@@ -223,6 +224,7 @@ def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> N
     plan_md = (root / "human_review_revision_plan.md").read_text(encoding="utf-8")
 
     assert "Preview Revision Loop" in preview_run_md
+    assert "Human Review Preview Revision Plan" in window._preview_run_text.toPlainText()
     assert '"expected_input_texts": [\n      "永"\n    ]' in preview_run_json
     assert '"expected_seeds": [\n      1\n    ]' in preview_run_json
     assert '"rerun_count": 1' in preview_run_json
@@ -308,7 +310,7 @@ def test_qt_feedback_ui_uses_tabbed_detail_panel() -> None:
 
     window = HumanFeedbackQtWindow(packet=packet, drafts=drafts)
 
-    assert window._detail_tabs.count() == 5
+    assert window._detail_tabs.count() == 6
     assert window._detail_tabs.minimumWidth() >= 360
     assert window._preview_view.minimumWidth() >= 760
     assert window._preview_view.minimumHeight() >= 820

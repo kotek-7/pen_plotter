@@ -51,6 +51,7 @@ from evaluation_harness.human_review_response import (
     build_human_review_preview_revision_plan,
     build_human_review_revision_plan,
     render_human_review_revision_brief_markdown,
+    render_human_review_preview_revision_plan_markdown,
     render_human_review_revision_plan_markdown,
 )
 from evaluation_harness.evaluation_inputs import get_evaluation_inputs
@@ -263,6 +264,10 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._plan_button.clicked.connect(self._export_revision_plan)
         layout.addWidget(self._plan_button, 0, Qt.AlignVCenter)
 
+        self._preview_plan_button = QPushButton("Refresh Preview Plan", header)
+        self._preview_plan_button.clicked.connect(self._refresh_preview_plan)
+        layout.addWidget(self._preview_plan_button, 0, Qt.AlignVCenter)
+
         self._preview_run_button = QPushButton("Export Preview Run", header)
         self._preview_run_button.clicked.connect(self._export_preview_revision_run)
         layout.addWidget(self._preview_run_button, 0, Qt.AlignVCenter)
@@ -417,6 +422,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         tabs.addTab(self._build_notes_box(), "Notes")
         tabs.addTab(self._build_brief_box(), "Brief")
         tabs.addTab(self._build_plan_box(), "Plan")
+        tabs.addTab(self._build_preview_run_box(), "Preview Run")
         return tabs
 
     def _build_review_box(self) -> QWidget:
@@ -516,6 +522,17 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._plan_text.setReadOnly(True)
         self._plan_text.setFont(self._body_font)
         layout.addWidget(self._plan_text)
+        return group
+
+    def _build_preview_run_box(self) -> QGroupBox:
+        group = QGroupBox("Preview Run", self)
+        layout = QVBoxLayout(group)
+        layout.setContentsMargins(10, 10, 10, 10)
+
+        self._preview_run_text = QPlainTextEdit(group)
+        self._preview_run_text.setReadOnly(True)
+        self._preview_run_text.setFont(self._body_font)
+        layout.addWidget(self._preview_run_text)
         return group
 
     def _first_experiment_id(self) -> str:
@@ -646,6 +663,7 @@ class HumanFeedbackQtWindow(QMainWindow):
 
             self._detail_text.setPlainText(self._render_detail_text(item))
             self._set_preview_image(item.get("preview", ""))
+            self._refresh_preview_plan()
         finally:
             self._loading = False
 
@@ -789,6 +807,7 @@ class HumanFeedbackQtWindow(QMainWindow):
         self._refresh_summary()
         self._refresh_revision_brief()
         self._refresh_revision_plan()
+        self._refresh_preview_plan()
 
     def _refresh_summary(self) -> None:
         self._capture_current_draft()
@@ -824,6 +843,42 @@ class HumanFeedbackQtWindow(QMainWindow):
             return
         plan = self._current_revision_plan()
         self._plan_text.setPlainText(render_human_review_revision_plan_markdown(plan))
+
+    def _current_preview_revision_plan(self) -> dict[str, Any]:
+        brief = self._current_revision_brief()
+        expected_input_texts, expected_seeds = self._packet_preview_axes()
+        registry = ExperimentRegistry(self._base_dir / "registry.jsonl")
+        preview_proposal = propose_preview_fixed_input_set(
+            registry.load_all(),
+            baseline_generator="baseline-outline",
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
+        )
+        return build_human_review_preview_revision_plan(brief, preview_proposal)
+
+    def _refresh_preview_plan(self) -> None:
+        if not hasattr(self, "_preview_run_text"):
+            return
+        preview_plan = self._current_preview_revision_plan()
+        self._preview_run_text.setPlainText(
+            "\n".join(
+                [
+                    "# Preview Run",
+                    "",
+                    f"- human_focus_area: `{preview_plan['human_focus_area']}`",
+                    f"- preview_selected_candidate_count: `{preview_plan['preview_selected_candidate_count']}`",
+                    f"- preview_focus_area_counts: `{preview_plan['preview_focus_area_counts']}`",
+                    "",
+                    "## Human Revision Plan",
+                    "",
+                    render_human_review_revision_plan_markdown(preview_plan["human_revision_plan"]),
+                    "",
+                    "## Preview Revision Plan",
+                    "",
+                    render_human_review_preview_revision_plan_markdown(preview_plan),
+                ]
+            )
+        )
 
     def _validate_current(self) -> None:
         self._refresh_summary()
