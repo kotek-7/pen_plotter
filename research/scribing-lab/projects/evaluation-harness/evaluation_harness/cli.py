@@ -375,7 +375,7 @@ def build_parser() -> argparse.ArgumentParser:
         "human-abx-packet",
         help="Create an ABX packet from preview-selected candidate pairs",
     )
-    human_abx.add_argument("--root", required=True, help="Run output directory")
+    human_abx.add_argument("--root", default="", help="Run output directory")
     human_abx.add_argument(
         "--input-set",
         choices=("fixed", "review", "wide"),
@@ -931,16 +931,20 @@ def main() -> None:
         print(f"report: {markdown_path}")
         print(f"json: {json_path}")
     elif args.command == "human-abx-packet":
-        root = Path(args.root)
         focus_areas = tuple(_parse_csv(args.focus_areas))
         if args.recommendation_json:
-            recommendation = json.loads(Path(args.recommendation_json).read_text(encoding="utf-8"))
+            recommendation_path = Path(args.recommendation_json)
+            recommendation = json.loads(recommendation_path.read_text(encoding="utf-8"))
             packet = build_human_abx_packet(
                 recommendation=recommendation,
                 focus_areas=focus_areas,
                 max_items=args.max_items or None,
             )
+            base_dir = recommendation_path.parent
         else:
+            if not args.root:
+                raise ValueError("--root is required when --recommendation-json is not set")
+            root = Path(args.root)
             registry = ExperimentRegistry(root / "registry.jsonl")
             packet = build_human_abx_packet(
                 registry.load_all(),
@@ -950,8 +954,9 @@ def main() -> None:
                 focus_areas=focus_areas,
                 max_items=args.max_items or None,
             )
-        markdown_path = root / args.output
-        json_path = root / args.json_output
+            base_dir = root
+        markdown_path = _resolve_output_path(base_dir, args.output)
+        json_path = _resolve_output_path(base_dir, args.json_output)
         markdown_path.write_text(render_human_abx_packet_markdown(packet), encoding="utf-8")
         json_path.write_text(
             json.dumps(packet, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
