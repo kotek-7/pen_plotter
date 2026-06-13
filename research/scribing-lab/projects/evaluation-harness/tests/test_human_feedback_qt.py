@@ -223,6 +223,8 @@ def test_qt_feedback_ui_exports_preview_revision_run(tmp_path, monkeypatch) -> N
     plan_md = (root / "human_review_revision_plan.md").read_text(encoding="utf-8")
 
     assert "Preview Revision Loop" in preview_run_md
+    assert '"expected_input_texts": [\n      "永"\n    ]' in preview_run_json
+    assert '"expected_seeds": [\n      1\n    ]' in preview_run_json
     assert '"rerun_count": 1' in preview_run_json
     assert '"rerun_plan_count": 1' in preview_run_json
     assert "Human Review Revision Brief" in brief_md

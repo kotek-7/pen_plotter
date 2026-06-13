@@ -266,8 +266,9 @@ python3 -m evaluation_harness human-feedback-ui \
 `needs-tuning` と reason tags を入力し、`human_review_responses.json` と
 `human_review_response_summary.json` を保存する。`Revision Brief` タブと `Export Brief`
 ボタンで、note をそのまま次回修正用の brief に書き出せる。`Export Preview Run`
-ボタンを使うと、その brief と plan をまとめて preview rerun まで出力できる。UI は
-Qt ベースなので、日本語と英字の表示品質が Tkinter 版より安定している。
+ボタンを使うと、今開いている packet の input / seed 軸に沿って brief と plan を
+まとめて preview rerun まで出力できる。UI は Qt ベースなので、日本語と英字の表示品質が
+Tkinter 版より安定している。
 `Revision Plan` は `human-feedback-preview-revision-plan` で preview revision plan に直結できる。
 その plan は `apply-preview-revision-fixed-inputs --revision-plan-json ...` に渡して rerun まで進められる。
 

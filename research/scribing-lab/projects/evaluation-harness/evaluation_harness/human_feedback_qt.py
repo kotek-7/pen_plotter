@@ -990,19 +990,20 @@ class HumanFeedbackQtWindow(QMainWindow):
             self._capture_current_draft()
             summary = validate_response_drafts(self._packet, self._drafts)
         brief = build_human_review_revision_brief(summary)
+        expected_input_texts, expected_seeds = self._packet_preview_axes()
         registry = ExperimentRegistry(self._base_dir / "registry.jsonl")
         preview_proposal = propose_preview_fixed_input_set(
             registry.load_all(),
             baseline_generator="baseline-outline",
-            expected_input_texts=tuple(get_evaluation_inputs("wide")),
-            expected_seeds=(1, 2, 3),
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
         )
         preview_plan = build_human_review_preview_revision_plan(brief, preview_proposal)
         preview_revision_plans = list(preview_plan.get("preview_revision_plans", []))
         run = run_preview_revision_loop_fixed_input_set(
             self._base_dir,
-            expected_input_texts=tuple(get_evaluation_inputs("wide")),
-            expected_seeds=(1, 2, 3),
+            expected_input_texts=expected_input_texts,
+            expected_seeds=expected_seeds,
             baseline_generator="baseline-outline",
             revision_plans=preview_revision_plans,
         )
@@ -1010,6 +1011,8 @@ class HumanFeedbackQtWindow(QMainWindow):
             "human_revision_plan": preview_plan,
             "preview_revision_run": run,
             "rerun_plan_count": len(preview_revision_plans),
+            "expected_input_texts": list(expected_input_texts),
+            "expected_seeds": list(expected_seeds),
             "focus_areas": sorted(
                 {
                     str(plan.get("focus_area", "preview") or "preview")
@@ -1017,6 +1020,28 @@ class HumanFeedbackQtWindow(QMainWindow):
                 }
             ),
         }
+
+    def _packet_preview_axes(self) -> tuple[tuple[str, ...], tuple[int, ...]]:
+        representatives = self._packet.get("representatives", [])
+        input_texts = tuple(
+            dict.fromkeys(
+                str(item.get("input_text", ""))
+                for item in representatives
+                if str(item.get("input_text", "")).strip()
+            )
+        )
+        seeds = tuple(
+            dict.fromkeys(
+                int(item.get("seed", 0))
+                for item in representatives
+                if str(item.get("seed", "")).strip()
+            )
+        )
+        if not input_texts:
+            input_texts = tuple(get_evaluation_inputs("wide"))
+        if not seeds:
+            seeds = (1, 2, 3)
+        return input_texts, seeds
 
 
 def launch_human_feedback_ui(
