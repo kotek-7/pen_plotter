@@ -389,6 +389,17 @@ def build_parser() -> argparse.ArgumentParser:
         default="",
         help="Reuse an existing preview recommendation JSON instead of recomputing it",
     )
+    human_abx.add_argument(
+        "--focus-areas",
+        default="",
+        help="Comma-separated focus areas to keep, such as layout,motion",
+    )
+    human_abx.add_argument(
+        "--max-items",
+        type=int,
+        default=0,
+        help="Limit the number of ABX items after filtering",
+    )
     human_abx.add_argument("--output", default="human_abx_packet.md")
     human_abx.add_argument("--json-output", default="human_abx_packet.json")
 
@@ -897,9 +908,14 @@ def main() -> None:
         print(f"json: {json_path}")
     elif args.command == "human-abx-packet":
         root = Path(args.root)
+        focus_areas = tuple(_parse_csv(args.focus_areas))
         if args.recommendation_json:
             recommendation = json.loads(Path(args.recommendation_json).read_text(encoding="utf-8"))
-            packet = build_human_abx_packet(recommendation=recommendation)
+            packet = build_human_abx_packet(
+                recommendation=recommendation,
+                focus_areas=focus_areas,
+                max_items=args.max_items or None,
+            )
         else:
             registry = ExperimentRegistry(root / "registry.jsonl")
             packet = build_human_abx_packet(
@@ -907,6 +923,8 @@ def main() -> None:
                 expected_input_texts=get_evaluation_inputs(args.input_set),
                 expected_seeds=tuple(_parse_seeds(args.seeds)),
                 baseline_generator=args.baseline_generator,
+                focus_areas=focus_areas,
+                max_items=args.max_items or None,
             )
         markdown_path = root / args.output
         json_path = root / args.json_output
@@ -1244,6 +1262,10 @@ def _parse_seeds(raw: str) -> list[int]:
     if any(seed < 0 for seed in seeds):
         raise ValueError("seeds must be non-negative")
     return seeds
+
+
+def _parse_csv(raw: str) -> list[str]:
+    return [part.strip() for part in raw.split(",") if part.strip()]
 
 
 def _abx_item_from_packet(item: dict[str, object]) -> AbxItem:

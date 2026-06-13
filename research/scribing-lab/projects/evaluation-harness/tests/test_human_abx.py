@@ -114,6 +114,112 @@ def test_build_human_abx_packet_can_reuse_recommendation(tmp_path: Path) -> None
     assert packet["abx_items"][0]["option_b_artifact"].endswith("fast.png")
 
 
+def test_build_human_abx_packet_filters_focus_areas_and_limits_items(tmp_path: Path) -> None:
+    baseline_preview_a = tmp_path / "baseline-a.png"
+    baseline_preview_b = tmp_path / "baseline-b.png"
+    candidate_preview_a = tmp_path / "candidate-a.png"
+    candidate_preview_b = tmp_path / "candidate-b.png"
+    for path, payload in [
+        (baseline_preview_a, b"baseline-a"),
+        (baseline_preview_b, b"baseline-b"),
+        (candidate_preview_a, b"candidate-a"),
+        (candidate_preview_b, b"candidate-b"),
+    ]:
+        path.write_bytes(payload)
+
+    recommendation = {
+        "baseline_generator": "baseline-outline",
+        "expected_input_texts": ["日本", "字間"],
+        "expected_seeds": [1],
+        "expected_group_count": 2,
+        "selected_candidate_count": 2,
+        "selected_coverage_ratio": 1.0,
+        "selected_profile_counts": {"textured-casual": 1, "kanji-tight": 1},
+        "candidate_profile_counts": {"textured-casual": 1, "kanji-tight": 1},
+        "focus_area_counts": {"layout": 2},
+        "recommended_action_counts": {"character advance と line spacing を詰める": 2},
+        "preview_comparisons": [
+            {
+                "input_text": "日本",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-a",
+                "baseline_preview": {"path": str(baseline_preview_a)},
+                "candidate_experiment_id": "exp-candidate-a",
+                "candidate_preview": {"path": str(candidate_preview_a)},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+            {
+                "input_text": "字間",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-b",
+                "baseline_preview": {"path": str(baseline_preview_b)},
+                "candidate_experiment_id": "exp-candidate-b",
+                "candidate_preview": {"path": str(candidate_preview_b)},
+                "preview_comparable": True,
+                "preview_hash_changed": True,
+                "preview_similarity": {"score": 1.0},
+                "preview_size_delta": 0,
+            },
+        ],
+        "recommendations": [
+            {
+                "input_text": "日本",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-a",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-a",
+                    "profile_id": "textured-casual",
+                    "preview": {"path": str(candidate_preview_a)},
+                    "inferred_failure_tags": ["spacing-too-wide"],
+                    "suggested_next_actions": ["character advance と line spacing を詰める"],
+                    "focus_area": "layout",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+            {
+                "input_text": "字間",
+                "seed": 1,
+                "baseline_experiment_id": "exp-baseline-b",
+                "selection_status": "selected",
+                "selected_candidate": {
+                    "experiment_id": "exp-candidate-b",
+                    "profile_id": "kanji-tight",
+                    "preview": {"path": str(candidate_preview_b)},
+                    "inferred_failure_tags": [],
+                    "suggested_next_actions": [],
+                    "focus_area": "preview",
+                },
+                "candidate_count": 1,
+                "preview_candidate_count": 1,
+                "candidate_items": [],
+            },
+        ],
+    }
+
+    packet = build_human_abx_packet(
+        recommendation=recommendation,
+        focus_areas=("layout",),
+        max_items=1,
+    )
+
+    assert packet["selected_candidate_count"] == 1
+    assert packet["packet_focus_areas"] == ["layout"]
+    assert packet["packet_max_items"] == 1
+    assert packet["source_selected_candidate_count"] == 2
+    assert packet["selected_profile_counts"] == {"textured-casual": 1}
+    assert packet["focus_area_counts"] == {"layout": 1}
+    assert packet["recommended_action_counts"] == {"character advance と line spacing を詰める": 1}
+    assert len(packet["abx_items"]) == 1
+    assert packet["abx_items"][0]["candidate_profile_id"] == "textured-casual"
+    assert packet["abx_items"][0]["focus_area"] == "layout"
+
+
 def _record(
     experiment_id: str,
     *,

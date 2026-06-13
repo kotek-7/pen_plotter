@@ -150,6 +150,10 @@ def test_human_abx_packet_parser_accepts_recommendation_json() -> None:
             "runs/test",
             "--recommendation-json",
             "runs/test/wide_profile_recommendation.json",
+            "--focus-areas",
+            "layout,motion",
+            "--max-items",
+            "12",
             "--output",
             "abx.md",
             "--json-output",
@@ -160,6 +164,8 @@ def test_human_abx_packet_parser_accepts_recommendation_json() -> None:
     assert args.command == "human-abx-packet"
     assert args.root == "runs/test"
     assert args.recommendation_json == "runs/test/wide_profile_recommendation.json"
+    assert args.focus_areas == "layout,motion"
+    assert args.max_items == 12
     assert args.output == "abx.md"
     assert args.json_output == "abx.json"
 

@@ -7,6 +7,8 @@ from evaluation_harness.abx import (
     build_abx_response_template,
     build_human_abx_feedback_loop,
     load_abx_responses,
+    _focus_area_from_actions,
+    _focus_area_from_tags,
     render_abx_feedback_loop_markdown,
     render_abx_response_template_markdown,
 )
@@ -22,6 +24,8 @@ def build_human_abx_packet(
     baseline_generator: str = "baseline-outline",
     question: str = "どちらが人間の手書きに近いか",
     recommendation: dict[str, Any] | None = None,
+    focus_areas: tuple[str, ...] | None = None,
+    max_items: int | None = None,
 ) -> dict[str, Any]:
     if recommendation is None:
         if records is None:
@@ -50,10 +54,14 @@ def build_human_abx_packet(
         packet_expected_input_texts = list(recommendation.get("expected_input_texts", []))
         packet_expected_seeds = list(recommendation.get("expected_seeds", []))
 
+    focus_area_filter = {area for area in (focus_areas or ()) if area}
     items: list[dict[str, Any]] = []
     for item in recommendation["recommendations"]:
         selected = item["selected_candidate"]
         if selected is None:
+            continue
+        selected_focus_area = _selected_candidate_focus_area(selected, item)
+        if focus_area_filter and selected_focus_area not in focus_area_filter:
             continue
         baseline_preview = baseline_preview_by_group.get((item["input_text"], item["seed"]), "")
         if not baseline_preview:
@@ -72,9 +80,17 @@ def build_human_abx_packet(
                 expected_preference="B",
                 selected_failure_tags=list(selected["inferred_failure_tags"]),
                 selected_next_actions=list(selected["suggested_next_actions"]),
+                focus_area=selected_focus_area,
                 selection_status=item["selection_status"],
             )
         )
+
+    if max_items is not None and max_items > 0:
+        items = items[:max_items]
+
+    selected_profile_counts = _count_by(items, "candidate_profile_id")
+    focus_area_counts = _count_by(items, "focus_area")
+    recommended_action_counts = _count_by_nested_lists(items, "selected_next_actions")
 
     return {
         "record_count": record_count,
@@ -82,13 +98,16 @@ def build_human_abx_packet(
         "expected_input_texts": packet_expected_input_texts,
         "expected_seeds": packet_expected_seeds,
         "expected_group_count": recommendation["expected_group_count"],
-        "selected_candidate_count": recommendation["selected_candidate_count"],
+        "selected_candidate_count": len(items),
         "selected_coverage_ratio": recommendation["selected_coverage_ratio"],
-        "selected_profile_counts": recommendation.get("selected_profile_counts", {}),
+        "selected_profile_counts": selected_profile_counts,
         "candidate_profile_counts": recommendation.get("candidate_profile_counts", {}),
-        "focus_area_counts": recommendation["focus_area_counts"],
-        "recommended_action_counts": recommendation["recommended_action_counts"],
+        "focus_area_counts": focus_area_counts,
+        "recommended_action_counts": recommended_action_counts,
         "abx_items": items,
+        "packet_focus_areas": sorted(focus_area_filter),
+        "packet_max_items": max_items,
+        "source_selected_candidate_count": recommendation["selected_candidate_count"],
     }
 
 
@@ -104,6 +123,9 @@ def render_human_abx_packet_markdown(packet: dict[str, Any]) -> str:
         f"- candidate_profile_counts: `{packet.get('candidate_profile_counts', {})}`",
         f"- focus_area_counts: `{packet['focus_area_counts']}`",
         f"- recommended_action_counts: `{packet['recommended_action_counts']}`",
+        f"- packet_focus_areas: `{packet.get('packet_focus_areas', [])}`",
+        f"- packet_max_items: `{packet.get('packet_max_items', None)}`",
+        f"- source_selected_candidate_count: `{packet.get('source_selected_candidate_count', packet['selected_candidate_count'])}`",
         "",
         "## ABX Items",
         "",
@@ -125,6 +147,7 @@ def render_human_abx_packet_markdown(packet: dict[str, Any]) -> str:
                 f"- expected_preference: `{item['expected_preference']}`",
                 f"- selected_failure_tags: `{item['selected_failure_tags']}`",
                 f"- selected_next_actions: `{item['selected_next_actions']}`",
+                f"- focus_area: `{item['focus_area']}`",
                 f"- selection_status: `{item['selection_status']}`",
                 f"- option_a_artifact: `{item['option_a_artifact']}`",
                 f"- option_b_artifact: `{item['option_b_artifact']}`",
@@ -147,6 +170,7 @@ def _build_item(
     expected_preference: str | None,
     selected_failure_tags: list[str],
     selected_next_actions: list[str],
+    focus_area: str,
     selection_status: str,
 ) -> dict[str, Any]:
     return AbxItem(
@@ -162,6 +186,7 @@ def _build_item(
         "candidate_profile_id": candidate_profile_id,
         "selected_failure_tags": selected_failure_tags,
         "selected_next_actions": selected_next_actions,
+        "focus_area": focus_area,
         "selection_status": selection_status,
     }
 
@@ -214,6 +239,41 @@ def _infer_record_count_from_recommendation(recommendation: dict[str, Any]) -> i
         if candidate_id:
             experiment_ids.add(candidate_id)
     return len(experiment_ids)
+
+
+def _selected_candidate_focus_area(selected: dict[str, Any], item: dict[str, Any]) -> str:
+    focus_area = selected.get("focus_area", "")
+    if focus_area:
+        return str(focus_area)
+    actions_focus_area = _focus_area_from_actions(selected.get("suggested_next_actions", []))
+    if actions_focus_area:
+        return actions_focus_area
+    failure_focus_area = _focus_area_from_tags(list(selected.get("inferred_failure_tags", [])))
+    if failure_focus_area:
+        return failure_focus_area
+    return _focus_area_from_tags(list(item.get("selected_failure_tags", [])))
+
+
+def _count_by(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        value = str(item.get(key, "")).strip()
+        if not value:
+            continue
+        counts[value] = counts.get(value, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def _count_by_nested_lists(items: list[dict[str, Any]], key: str) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for item in items:
+        values = item.get(key, [])
+        for value in values:
+            text = str(value).strip()
+            if not text:
+                continue
+            counts[text] = counts.get(text, 0) + 1
+    return dict(sorted(counts.items()))
 
 
 __all__ = [
