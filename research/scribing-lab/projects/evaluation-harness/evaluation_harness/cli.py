@@ -1329,7 +1329,7 @@ def main() -> None:
             session_feedback_json=session_feedback_json if session_feedback_json.exists() else None,
             reviewer_id=args.reviewer_id,
             sort_order="longform-first",
-            initial_detail_tab="review-prompt",
+            initial_detail_tab="session-feedback",
         )
     elif args.command == "human-feedback-review-bundle":
         root = Path(args.root) if args.root else None

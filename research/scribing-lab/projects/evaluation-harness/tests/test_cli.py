@@ -2806,7 +2806,7 @@ def test_human_feedback_review_ui_command_opens_bundle_packet(
     assert captured["session_feedback_json"] == session_feedback_json
     assert captured["sort_order"] == "longform-first"
     assert captured["root"] == bundle_dir.parent
-    assert captured["initial_detail_tab"] == "review-prompt"
+    assert captured["initial_detail_tab"] == "session-feedback"
 
 
 def test_human_feedback_loop_command_writes_revision_brief(
