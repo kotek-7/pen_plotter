@@ -33,5 +33,5 @@ CLI(既存 run の `trajectory.json` から `output.gcode` と `safety.json` を
 ```sh
 cd research/scribing-lab/plotter
 uv sync --extra dev
-uv run scribe-gcode ../runs/20260626T123456_example
+uv run scribe-export ../runs/20260626T123456_example
 ```

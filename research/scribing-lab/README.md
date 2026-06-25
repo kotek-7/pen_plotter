@@ -36,7 +36,7 @@ projects-archived/  旧研究コードの参照用アーカイブ
 切り離し、`preview/`・`plotter/` という独立基盤が担う。これは「生成軌跡とプロッタ固有命令は
 分離する」という方針に沿う。`runner/` は engine から trajectory を受け取り、両基盤を使って
 `runs/` に `trajectory.json`、`preview.svg`、`output.gcode`、`safety.json`、`memo.md` を
-書き出す。既存 run からは `scribe-preview` / `scribe-gcode` で preview・G-code を再生成できる。
+書き出す。既存 run からは `scribe-render` / `scribe-export` で preview・G-code を再生成できる。
 
 `runs/` は出力を見るための置き場である。過度に規格化された実験台帳ではなく、実行条件は
 `memo.md` に軽く残し、preview 確認や試し書きに使う。標準の run directory は

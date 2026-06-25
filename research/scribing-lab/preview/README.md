@@ -26,5 +26,5 @@ CLI(既存 run の `trajectory.json` から `preview.svg` を再生成):
 ```sh
 cd research/scribing-lab/preview
 uv sync --extra dev
-uv run scribe-preview ../runs/20260626T123456_example
+uv run scribe-render ../runs/20260626T123456_example
 ```

@@ -28,7 +28,7 @@ runner が書く標準成果物は次の通り。
 このうち `preview.svg`、`output.gcode`、`safety.json` は engine が作るのではなく、
 `trajectory` から専用基盤(`../preview`、`../plotter`)が生成する。runner は engine から
 `trajectory` を受け取り、両基盤を使って残りの成果物を書き出す。既存 run の `trajectory.json`
-からは `scribe-preview` / `scribe-gcode` で再生成できる。
+からは `scribe-render` / `scribe-export` で再生成できる。
 
 run は成果物を見るための単位であり、厳密な実験 schema ではない。後段の評価は、この成果物群を読む。
 

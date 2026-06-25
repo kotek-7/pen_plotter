@@ -13,7 +13,7 @@ dependencies = []
 dev = ["pytest", "ruff"]
 
 [project.scripts]
-scribe-preview = "scribing_preview.cli:main"
+scribe-render = "scribing_preview.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
