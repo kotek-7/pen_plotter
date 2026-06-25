@@ -11,6 +11,18 @@ from HersheyFonts import HersheyFonts
 HERSHEY_FONT_NAME = "futural"
 HERSHEY_LICENSE = "Hershey Fonts"
 HERSHEY_SOURCE = "hershey"
+HERSHEY_METRICS = {
+    "cap_top": -12.0,
+    "x_height_top": -5.0,
+    "baseline": 9.0,
+    "descender": 16.0,
+}
+UNIT_METRICS = {
+    "cap_top": 0.08,
+    "x_height_top": 0.32,
+    "baseline": 0.78,
+    "descender": 0.96,
+}
 LITERALS = tuple(
     [*(chr(code) for code in range(ord("0"), ord("9") + 1))]
     + [*(chr(code) for code in range(ord("A"), ord("Z") + 1))]
@@ -52,6 +64,8 @@ def build_hershey_asset(*, font_name: str) -> dict[str, object]:
         "font_name": font_name,
         "character_count": len(entries),
         "font_frame": [round(value, 6) for value in frame],
+        "font_metrics": HERSHEY_METRICS,
+        "unit_metrics": UNIT_METRICS,
         "characters": entries,
     }
 
@@ -92,9 +106,8 @@ def _template_entry(literal: str, glyph: object, *, frame: tuple[float, float, f
 
 
 def _font_frame(glyphs: dict[str, object]) -> tuple[float, float, float, float]:
-    y_values = [float(y) for glyph in glyphs.values() for stroke in glyph.strokes for _, y in stroke]
     max_width = max(float(getattr(glyph, "char_width", 20.0)) for glyph in glyphs.values())
-    return (-max_width / 2.0, min(y_values), max_width, max(y_values) - min(y_values))
+    return (-max_width / 2.0, HERSHEY_METRICS["cap_top"], max_width, HERSHEY_METRICS["descender"] - HERSHEY_METRICS["cap_top"])
 
 
 def _normalize_strokes_to_font_frame(
@@ -107,17 +120,46 @@ def _normalize_strokes_to_font_frame(
     min_x, min_y, width, height = frame
     size = max(width, height, 1e-9)
     offset_x = (size - width) / 2.0
-    offset_y = (size - height) / 2.0
     return [
         tuple(
             (
                 _clamp_unit((x - min_x + offset_x) / size),
-                _clamp_unit((y - min_y + offset_y) / size),
+                _clamp_unit(_normalize_y(y)),
             )
             for x, y in stroke
         )
         for stroke in strokes
     ]
+
+
+def _normalize_y(y: float) -> float:
+    if y <= HERSHEY_METRICS["x_height_top"]:
+        return _map_range(
+            y,
+            HERSHEY_METRICS["cap_top"],
+            HERSHEY_METRICS["x_height_top"],
+            UNIT_METRICS["cap_top"],
+            UNIT_METRICS["x_height_top"],
+        )
+    if y <= HERSHEY_METRICS["baseline"]:
+        return _map_range(
+            y,
+            HERSHEY_METRICS["x_height_top"],
+            HERSHEY_METRICS["baseline"],
+            UNIT_METRICS["x_height_top"],
+            UNIT_METRICS["baseline"],
+        )
+    return _map_range(
+        y,
+        HERSHEY_METRICS["baseline"],
+        HERSHEY_METRICS["descender"],
+        UNIT_METRICS["baseline"],
+        UNIT_METRICS["descender"],
+    )
+
+
+def _map_range(value: float, src_min: float, src_max: float, dst_min: float, dst_max: float) -> float:
+    return dst_min + (value - src_min) / (src_max - src_min) * (dst_max - dst_min)
 
 
 def _bbox_from_strokes(strokes: list[tuple[tuple[float, float], ...]]) -> tuple[float, float, float, float]:
