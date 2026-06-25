@@ -109,6 +109,7 @@ def _template_entry(literal: str, svg_text: str) -> dict[str, object]:
 
 def _parse_svg_template(svg_text: str) -> tuple[list[dict[str, object]], tuple[float, float, float, float]]:
     root = ET.fromstring(svg_text)
+    view_box = _view_box(root)
     stroke_paths_group = _find_stroke_paths_group(root)
     path_elements = [element for element in stroke_paths_group.iter() if _local_name(element.tag) == "path"]
 
@@ -134,7 +135,7 @@ def _parse_svg_template(svg_text: str) -> tuple[list[dict[str, object]], tuple[f
             }
         )
 
-    normalized_strokes = _normalize_strokes_to_unit_square(sampled_strokes)
+    normalized_strokes = _normalize_strokes_to_view_box(sampled_strokes, view_box)
     if len(normalized_strokes) != len(raw_strokes):
         raise ValueError("stroke count mismatch")
 
@@ -333,17 +334,14 @@ def _dedupe_points(points: list[tuple[float, float]]) -> list[tuple[float, float
     return deduped
 
 
-def _normalize_strokes_to_unit_square(strokes: list[list[tuple[float, float]]]) -> list[list[tuple[float, float]]]:
+def _normalize_strokes_to_view_box(
+    strokes: list[list[tuple[float, float]]],
+    view_box: tuple[float, float, float, float],
+) -> list[list[tuple[float, float]]]:
     if not strokes:
         return []
 
-    all_points = [point for stroke in strokes for point in stroke]
-    min_x = min(x for x, _ in all_points)
-    max_x = max(x for x, _ in all_points)
-    min_y = min(y for _, y in all_points)
-    max_y = max(y for _, y in all_points)
-    width = max(max_x - min_x, 1e-9)
-    height = max(max_y - min_y, 1e-9)
+    min_x, min_y, width, height = view_box
     size = max(width, height, 1e-9)
     offset_x = (size - width) / 2.0
     offset_y = (size - height) / 2.0
@@ -358,6 +356,18 @@ def _normalize_strokes_to_unit_square(strokes: list[list[tuple[float, float]]]) 
         ]
         for stroke in strokes
     ]
+
+
+def _view_box(root: ET.Element) -> tuple[float, float, float, float]:
+    raw = str(root.attrib.get("viewBox", "")).strip()
+    if raw:
+        values = [float(value) for value in re.split(r"[,\s]+", raw) if value]
+        if len(values) == 4 and values[2] > 0.0 and values[3] > 0.0:
+            return (values[0], values[1], values[2], values[3])
+
+    width = float(str(root.attrib.get("width", "109")).removesuffix("px"))
+    height = float(str(root.attrib.get("height", "109")).removesuffix("px"))
+    return (0.0, 0.0, width, height)
 
 
 def _bbox_from_strokes(strokes: list[list[tuple[float, float]]]) -> tuple[float, float, float, float]:
