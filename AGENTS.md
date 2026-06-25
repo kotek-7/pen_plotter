@@ -38,9 +38,9 @@ make format
 直接実行する場合:
 
 ```sh
-python scripts/text_to_gcode.py --text "Hello" -o output.gcode --preview preview.png
-python scripts/run_plotter_gui.py
-python -m src.plotter_gui
+uv run python scripts/text_to_gcode.py --text "Hello" -o output.gcode --preview preview.png
+uv run python scripts/run_plotter_gui.py
+uv run python -m src.plotter_gui
 ```
 
 ## ディレクトリ構成
@@ -82,4 +82,5 @@ python -m src.plotter_gui
 - 実機境界は `src/gcode/`, `src/comm/`, `src/plotter_gui/` に閉じ込める。
 - `src/textplot` は G-code 文字列を扱わず、紙面 mm ストロークだけを返す。
 - `research/scribing-lab/` は既存 `src/` を実装基盤にしない独立研究領域として扱う。
-- 研究プロジェクトの実装・テスト・計画は、原則として対応する `research/scribing-lab/projects/<name>/` 配下にまとめる。
+- 現行の日本語筆記研究は `research/scribing-lab/engines/`, `runner/`, `runs/`, `evaluation/` を中心に進める。
+- `research/scribing-lab/projects-archived/` は旧研究コードの参照用アーカイブとして扱い、新規実装の基盤にしない。

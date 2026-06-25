@@ -1,5 +1,7 @@
 # Evaluation Harness
 
+> Archived: このプロジェクトは旧 `projects/` 分割と evaluation-harness 中心の研究運用を前提にした参照用コードである。現行の `engines/`、`runner/`、`runs/`、`evaluation/` 方針とは意図的にズレている。
+
 手書きらしさを自動評価と人間評価で測る研究プロジェクトである。
 
 詳細は [research_plan.md](research_plan.md) を参照する。

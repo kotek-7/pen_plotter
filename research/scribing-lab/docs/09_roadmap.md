@@ -1,5 +1,9 @@
 # 09 Roadmap
 
+> 現行メモ: このロードマップには、旧 `projects/` 分割と evaluation-harness を先に作る
+> 方針が残っている。現在は `engines/` と `runner/` による最小実行基盤を優先し、
+> 評価は `runs/` の出力を見てから `evaluation/` で再設計する。
+
 ## 原則
 
 研究を反復的に進めるため、最初に評価基盤と実験記録基盤を作る。生成モデル、writer adaptation、neural variation は、比較可能な実験単位で評価できる状態になってから進める。

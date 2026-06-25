@@ -1,5 +1,9 @@
 # 00 Overview
 
+> 現行メモ: この文書には、旧 `projects/` 分割と evaluation-harness 中心の研究運用を
+> 前提にした記述が残っている。現在の実装導線は `engines/`、`runner/`、`runs/`、
+> `evaluation/` であり、旧実装は `projects-archived/` に置く。
+
 ## 目的
 
 この研究は、テキストからペンプロッタ向けの筆記軌跡を生成し、紙面上で人間の手書きと判別されにくい日本語文字を書くことを目的とする。

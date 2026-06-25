@@ -1,5 +1,8 @@
 # 11 Glossary
 
+> 現行メモ: 一部の用語は旧 evaluation-harness と `projects/` 分割を前提にしている。
+> 現在の中心語は `engine`、`runner`、`run`、`evaluation` である。
+
 この文書は、`scribing-lab` で頻出する用語の前提知識をまとめた用語集である。
 
 ## 前提知識

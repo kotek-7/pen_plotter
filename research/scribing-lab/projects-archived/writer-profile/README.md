@@ -1,5 +1,7 @@
 # Writer Profile
 
+> Archived: このプロジェクトは旧 `projects/` 分割と evaluation-harness 中心の研究運用を前提にした参照用コードである。現行の `engines/`、`runner/`、`runs/`、`evaluation/` 方針とは意図的にズレている。
+
 筆者ごとの癖を推定・保存・適用する研究プロジェクトである。
 
 実装済みの MVP は、`baseline-neat` / `glyph-neat` / `kana-neat` / `latin-neat` / `symbol-neat` / `kanji-neat` / `kanji-tight` / `steady-neat` / `fast-casual` / `compact-casual` / `micro-casual` / `flow-casual` / `textured-casual` / `textured-steady` / `textured-tight` / `shaky-slow` の 16 種類の手動 profile を登録し、

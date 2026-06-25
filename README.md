@@ -70,8 +70,7 @@ research/scribing-lab/
 ```
 
 That research project is independent from the application code in `src/`. It has its own
-documents, experiment harness, and per-project plans. See
-`research/scribing-lab/README.md`.
+documents, engines, runner, run outputs, and evaluation area. See `research/scribing-lab/README.md`.
 
 `docs/scribing_engine.md` is an entry point for the research project. The maintained
 research documents are under `research/scribing-lab/docs/`.

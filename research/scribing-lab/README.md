@@ -1,8 +1,8 @@
 # Scribing Lab
 
-テキストから、ペンプロッタで人間の手書きと判別されにくい日本語筆記を生成するための独立研究プロジェクトである。
+テキストから、ペンプロッタで人間の手書きと判別されにくい日本語筆記を生成するための独立研究領域である。
 
-この研究領域は既存アプリケーションの `src/` を直接使わない。既存コードベースは xDraw A4 送信や G-code 生成の参考実装として扱い、研究用のモデル、データ契約、評価、実験計画はこの配下で独立して管理する。
+この研究領域は既存アプリケーションの `src/` を直接使わない。既存コードベースは xDraw A4 送信や G-code 生成の参考実装として扱い、研究用の engine、runner、run 出力、評価はこの配下で独立して管理する。
 
 この配下の文書を、日本語筆記エンジン研究の正本とする。ルートの `docs/scribing_engine.md` は、この研究領域への導線として管理する。
 
@@ -18,23 +18,45 @@ x_mm, y_mm, t_ms, pen_state, pressure
 
 最終目標は単文字の自然さではなく、文章として紙面に出力したときに人間の手書きと判別されにくいことである。そのため、初期段階から短文、字間、行方向の揺れ、同じ文字の反復差分、実機出力スキャンを評価対象に含める。
 
-## 評価駆動の研究ワークフロー
+## 現行の構成
 
-この研究は、仮説立案、実験設定、実装、評価、次実験の提案を反復して進める。そのため、生成モデルや辞書実装へ着手する前に、評価基盤と実験記録基盤を先に作る。
+```text
+engines/            開発中の筆記 engine
+runner/             engine を実行して成果物を runs/ に書く最小基盤
+runs/               engine 実行結果の置き場（git 管理しない）
+evaluation/         runs/ を読む評価領域（後段で設計）
+docs/               研究文書
+projects-archived/  旧研究コードの参照用アーカイブ
+```
 
-この研究で進める単位は、機能追加ではなく実験である。各作業は必ず比較対象、失敗分類、次の仮説まで含めて完結させる。実装だけが増えて比較と再実行が増えない状態は、研究の前進として扱わない。
+`engines/` 配下の各 engine は、1 つの生成方式として扱う。engine 内部では文字構造、
+レイアウト、運動生成、export、preview などを自由に分けてよい。`runner/` は engine を
+同じ作法で実行し、`runs/` に `trajectory.json`、`preview.svg`、`output.gcode`、
+`safety.json`、`memo.md` などを書き出す。
 
-motion model、writer adaptation、neural variation の本格実装は、次の基盤が利用できる状態で進める。
+`runs/` は出力を見るための置き場である。過度に規格化された実験台帳ではなく、実行条件は
+`memo.md` に軽く残し、preview 確認や試し書きに使う。評価は `evaluation/` で後から設計する。
 
-- experiment registry: 実験 ID、仮説、設定、seed、入力文字列、成果物を記録する。
-- artifact store: trajectory、preview、G-code、実機スキャン、ログ、評価結果を対応付ける。
-- metric runner: 生成物に対して最低限の自動評価を実行する。
-- report template: 実験結果、失敗分類、次に試す変更を同じ形式で残す。
-- profile registry: writer profile と生成結果・評価結果の対応を追跡する。
+旧 `projects/` 配下の研究コードは `projects-archived/` に移した。これは参照用であり、
+現行の新規実装の基盤にはしない。
+
+## 実行
+
+runner は独立した `uv` project である。
+
+```sh
+cd research/scribing-lab/runner
+uv sync --extra dev
+uv run scribing-runner run \
+  --engine ../engines/basic_stroke_engine \
+  --text "今日はよい天気です。" \
+  --seed 1 \
+  --out ../runs/example-basic
+```
 
 ## ドキュメント
 
-推奨する読み順は、`00_overview.md`、`09_roadmap.md`、`07_evaluation.md`、各 `projects/*/research_plan.md` である。
+推奨する読み順は、`00_overview.md`、`09_roadmap.md`、`07_evaluation.md`、`runner/README.md` である。
 
 - [00_overview.md](docs/00_overview.md): 全体像と研究分割
 - [01_prior_research.md](docs/01_prior_research.md): 先行研究と技術領域
@@ -46,29 +68,26 @@ motion model、writer adaptation、neural variation の本格実装は、次の�
 - [07_evaluation.md](docs/07_evaluation.md): 評価設計
 - [08_ethics_and_misuse.md](docs/08_ethics_and_misuse.md): 倫理・濫用対策
 - [09_roadmap.md](docs/09_roadmap.md): ロードマップ
-- [10_research_flow.md](docs/10_research_flow.md): 研究フローと CLI の実務ガイド
+- [10_research_flow.md](docs/10_research_flow.md): 旧 evaluation-harness 中心の研究フロー。参照用
 - [11_glossary.md](docs/11_glossary.md): 用語集と前提知識
 - [12_research_plan.md](docs/12_research_plan.md): 研究計画書
 
-## 個別研究プロジェクト
+## アーカイブ
 
-各研究プロジェクトは、実装、テスト、計画、実験出力の除外設定を対応する `projects/<name>/` 配下にまとめる。
+旧研究コードは `projects-archived/` に残す。
 
-- [character-dictionary](projects/character-dictionary/research_plan.md): 日本語文字から画列・筆順・画種を得る
-- [motion-synthesis](projects/motion-synthesis/research_plan.md): 人間らしい筆記運動を生成する
-- [writer-profile](projects/writer-profile/research_plan.md): 筆者ごとの癖を推定・保存・適用する
-- [plotter-export](projects/plotter-export/research_plan.md): 生成軌跡をプロッタ制御へ変換する
-- [evaluation-harness](projects/evaluation-harness/research_plan.md): 自動評価と主観評価を設計する
-- [neural-variation](projects/neural-variation/research_plan.md): 神経モデルを補助的に導入する
+- [character-dictionary](projects-archived/character-dictionary/research_plan.md): 日本語文字から画列・筆順・画種を得る旧実装
+- [motion-synthesis](projects-archived/motion-synthesis/research_plan.md): 人間らしい筆記運動を生成する旧実装
+- [writer-profile](projects-archived/writer-profile/research_plan.md): 筆者ごとの癖を推定・保存・適用する旧実装
+- [plotter-export](projects-archived/plotter-export/research_plan.md): 生成軌跡をプロッタ制御へ変換する旧実装
+- [evaluation-harness](projects-archived/evaluation-harness/research_plan.md): 自動評価と主観評価を設計する旧実装
+- [neural-variation](projects-archived/neural-variation/research_plan.md): 神経モデルを補助的に導入する旧計画
 
 ## 基本方針
 
-- 評価基盤と実験記録基盤を最初に作る。
-- 現行の font outline + jitter/wobble を `baseline-outline` として固定し、以後の方式は同じ入力・seed・report で比較する。
-- 単文字だけで採択せず、短文と実機スキャンを初期評価に含める。
-- 文字内容は構造辞書で拘束する。
-- 運動の自然さは Sigma-Lognormal 系モデルで作る。
-- 個人差は writer profile として明示的に扱う。
-- 神経モデルは最初から主系にせず、画形状の変動や few-shot 適応の補助として使う。
-- 生成軌跡とプロッタ固有命令を分離する。
+- まず engine を実行し、trajectory、preview、G-code を出せる状態を優先する。
+- run の主役は成果物であり、実行条件は自由形式に近い `memo.md` に留める。
+- 評価、比較、失敗分類、実験台帳は `runs/` の出力を見てから後段で設計する。
+- engine ごとの内部構成は自由にし、研究上は engine 全体を 1 つの生成方式として扱う。
+- 生成軌跡とプロッタ固有命令は分離する。
 - データライセンスと本人同意を研究計画の一部として扱う。
