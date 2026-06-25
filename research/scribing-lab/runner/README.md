@@ -9,7 +9,8 @@ run の主役は成果物であり、条件は `memo.md` に自由形式に近�
 
 ```sh
 cd research/scribing-lab/runner
-python3 -m scribing_runner run \
+uv sync --extra dev
+uv run scribing-runner run \
   --text "今日はよい天気です。" \
   --seed 1
 ```
@@ -17,11 +18,10 @@ python3 -m scribing_runner run \
 出力先を指定する場合:
 
 ```sh
-python3 -m scribing_runner run \
+uv run scribing-runner run \
   --engine ../engines/basic_stroke_engine \
   --text "Hello" \
   --seed 1 \
   --param char_size=10 \
   --out ../runs/hello-basic
 ```
-

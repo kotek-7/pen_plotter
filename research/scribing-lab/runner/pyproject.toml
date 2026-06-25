@@ -1,9 +1,16 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
 [project]
 name = "scribing-runner"
 version = "0.1.0"
 description = "Minimal runner for scribing engines"
 requires-python = ">=3.11"
 dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest", "ruff"]
 
 [project.scripts]
 scribing-runner = "scribing_runner.cli:main"
@@ -16,3 +23,5 @@ testpaths = ["tests"]
 line-length = 100
 target-version = "py311"
 
+[tool.hatch.build.targets.wheel]
+packages = ["scribing_runner"]

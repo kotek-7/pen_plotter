@@ -14,14 +14,14 @@ uv sync --extra dev
 ## Generate G-code
 
 ```sh
-python scripts/text_to_gcode.py --text "Hello" -o output.gcode --preview preview.png
+uv run python scripts/text_to_gcode.py --text "Hello" -o output.gcode --preview preview.png
 ```
 
 For Japanese text, specify a font installed on your system if the default font does not
 contain the glyphs.
 
 ```sh
-python scripts/text_to_gcode.py \
+uv run python scripts/text_to_gcode.py \
   --text "こんにちは" \
   --font-name "Noto Sans CJK JP" \
   -o hello.gcode \
@@ -41,13 +41,13 @@ Useful options:
 Run the sender on Windows native Python when using the xDraw A4 over USB.
 
 ```sh
-python scripts/run_plotter_gui.py
+uv run python scripts/run_plotter_gui.py
 ```
 
 or:
 
 ```sh
-python -m src.plotter_gui
+uv run python -m src.plotter_gui
 ```
 
 ## Development
