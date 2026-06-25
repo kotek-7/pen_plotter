@@ -18,7 +18,7 @@ def default_engine_path() -> Path:
 
 
 def default_run_dir(engine_id: str, *, run_name: str | None = None) -> Path:
-    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now().strftime("%Y%m%dT%H%M%S")
     label = _safe_run_label(run_name or engine_id)
     runs_dir = default_lab_root() / "runs"
     candidate = runs_dir / f"{stamp}_{label}"

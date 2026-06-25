@@ -7,7 +7,7 @@ run の主役は成果物であり、条件は `memo.md` に自由形式に近�
 
 ## Run Directory
 
-標準の run directory は `../runs/YYYYMMDD-HHMMSS_<name>/` である。
+標準の run directory は `../runs/YYYYMMDDTHHMMSS_<name>/` である。
 
 `--name` を指定すると、日時 prefix の後ろに付く label を決められる。`--name` を省略した場合は、
 engine id から label を作る。同じ秒に同名 run がある場合は `-02`、`-03` のような suffix を付ける。

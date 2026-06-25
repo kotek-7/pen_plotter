@@ -31,7 +31,7 @@ def test_default_run_dir_uses_datetime_prefix_and_name() -> None:
     run_dir = default_run_dir("basic/stroke engine", run_name="smoke test")
 
     assert run_dir.parent == default_lab_root() / "runs"
-    assert re.fullmatch(r"\d{8}-\d{6}_smoke-test", run_dir.name)
+    assert re.fullmatch(r"\d{8}T\d{6}_smoke-test", run_dir.name)
 
 
 def test_default_run_dir_avoids_existing_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -47,5 +47,5 @@ def test_default_run_dir_avoids_existing_name(monkeypatch: pytest.MonkeyPatch, t
 
     second = default_run_dir("engine")
 
-    assert first.name == "20260626-123456_engine"
+    assert first.name == "20260626T123456_engine"
     assert second.name == f"{first.name}-02"
