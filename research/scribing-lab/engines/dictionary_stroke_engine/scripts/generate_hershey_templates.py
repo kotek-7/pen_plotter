@@ -83,6 +83,7 @@ def _template_entry(literal: str, glyph: object, *, frame: tuple[float, float, f
 
     return {
         "advance_ratio": advance_ratio,
+        "baseline_y": UNIT_METRICS["baseline"],
         "bbox": [round(value, 6) for value in bbox],
         "char_id": f"U+{ord(literal):04X}",
         "display_scale": display_scale,

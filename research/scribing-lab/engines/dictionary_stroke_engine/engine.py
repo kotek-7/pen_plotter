@@ -51,6 +51,7 @@ class CharacterTemplate:
     script_group: str = "unknown"
     advance_ratio: float = 1.0
     display_scale: float = 1.0
+    baseline_y: float | None = None
 
 
 @dataclass(frozen=True)
@@ -130,12 +131,14 @@ def _layout_text(
         template = _template_for(char)
         used_templates.add(template.literal)
         char_size = config.char_size * _template_scale(template, config)
+        draw_size = char_size * template.display_scale
         strokes.extend(
             _position_template(
                 template,
                 x=x,
                 y_top=y_top,
-                size=char_size * template.display_scale,
+                nominal_size=char_size,
+                draw_size=draw_size,
                 seed=seed,
                 index=visible_index,
                 drift=config.drift,
@@ -152,7 +155,8 @@ def _position_template(
     *,
     x: float,
     y_top: float,
-    size: float,
+    nominal_size: float,
+    draw_size: float,
     seed: int,
     index: int,
     drift: float,
@@ -160,9 +164,13 @@ def _position_template(
     rng = random.Random(f"{seed}:{index}:{template.literal}:layout")
     dx = rng.uniform(-drift, drift)
     dy = rng.uniform(-drift, drift)
+    origin_y = y_top
+    if template.baseline_y is not None:
+        baseline_y = y_top - template.baseline_y * nominal_size
+        origin_y = baseline_y + template.baseline_y * draw_size
     positioned: list[PositionedStroke] = []
     for stroke in sorted(template.strokes, key=lambda item: item.order):
-        points = tuple((x + nx * size + dx, y_top - ny * size + dy) for nx, ny in stroke.skeleton_points)
+        points = tuple((x + nx * draw_size + dx, origin_y - ny * draw_size + dy) for nx, ny in stroke.skeleton_points)
         positioned.append(
             PositionedStroke(
                 points=points,
@@ -342,6 +350,7 @@ def _load_template_dictionary(filename: str, *, default_source: str, default_lic
             script_group=str(item.get("script_group", _classify_script(literal))),
             advance_ratio=float(item.get("advance_ratio", 1.0)),
             display_scale=float(item.get("display_scale", 1.0)),
+            baseline_y=_optional_float(item.get("baseline_y")),
         )
     return templates
 
@@ -360,6 +369,12 @@ def _normalize_stroke_type(value: str) -> str:
         "line": "none",
         "none": "none",
     }.get(first, "none")
+
+
+def _optional_float(value: object) -> float | None:
+    if value is None:
+        return None
+    return float(value)
 
 
 def _classify_script(char: str) -> str:
