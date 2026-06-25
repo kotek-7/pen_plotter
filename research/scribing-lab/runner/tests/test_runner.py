@@ -41,8 +41,12 @@ def test_runner_loads_dictionary_stroke_engine() -> None:
     assert result["engine_id"] == "dictionary-stroke-engine"
     assert result["trajectory"]
     sources = result["engine_parameters"]["dictionary"]["sources"]
-    assert {"source": "kanjivg", "license": "CC BY-SA 3.0"} in sources
-    assert {"source": "hershey", "license": "Hershey Fonts"} in sources
+    kanjivg_source = next(source for source in sources if source["source"] == "kanjivg")
+    hershey_source = next(source for source in sources if source["source"] == "hershey")
+    assert kanjivg_source["license"] == "CC BY-SA 3.0"
+    assert kanjivg_source["release"] == "r20250816"
+    assert int(kanjivg_source["character_count"]) >= 6700
+    assert hershey_source["license"] == "Hershey Fonts"
     assert "A" in result["engine_parameters"]["dictionary"]["used_chars"]
 
 

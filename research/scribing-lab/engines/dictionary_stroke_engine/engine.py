@@ -311,6 +311,13 @@ def _template_scale(template: CharacterTemplate, config: EngineConfig) -> float:
 def _load_template_dictionary(filename: str, *, default_source: str, default_license: str) -> dict[str, CharacterTemplate]:
     path = Path(__file__).with_name("data") / filename
     raw = json.loads(path.read_text(encoding="utf-8"))
+    _ASSET_METADATA[filename] = {
+        "source": str(raw.get("source", default_source)),
+        "license": str(raw.get("license", default_license)),
+        "release": str(raw.get("release", "")),
+        "source_url": str(raw.get("source_url", "")),
+        "character_count": int(raw.get("character_count", len(raw.get("characters", [])))),
+    }
     templates: dict[str, CharacterTemplate] = {}
     for item in raw["characters"]:
         literal = str(item["literal"])
@@ -340,6 +347,7 @@ def _load_template_dictionary(filename: str, *, default_source: str, default_lic
 
 
 def _normalize_stroke_type(value: str) -> str:
+    first = value.split("/", maxsplit=1)[0]
     return {
         "㇔": "ten",
         "㇐": "yoko",
@@ -351,7 +359,7 @@ def _normalize_stroke_type(value: str) -> str:
         "㇇": "ori",
         "line": "none",
         "none": "none",
-    }.get(value, "none")
+    }.get(first, "none")
 
 
 def _classify_script(char: str) -> str:
@@ -370,9 +378,11 @@ def _classify_script(char: str) -> str:
 
 
 def _dictionary_sources() -> list[dict[str, str]]:
+    kanjivg = _ASSET_METADATA.get("kanjivg_templates.json", {})
+    hershey = _ASSET_METADATA.get("hershey_templates.json", {})
     return [
-        {"source": "kanjivg", "license": "CC BY-SA 3.0"},
-        {"source": "hershey", "license": "Hershey Fonts"},
+        {key: str(value) for key, value in kanjivg.items() if value},
+        {key: str(value) for key, value in hershey.items() if value},
         {"source": "hand-authored-symbols", "license": "project-local"},
     ]
 
@@ -444,6 +454,8 @@ _SYMBOL_TEMPLATES: dict[str, CharacterTemplate] = {
     "[": _symbol_template("[", (_stroke(1, "ori", "tome", ((0.66, 0.18), (0.40, 0.18), (0.40, 0.82), (0.66, 0.82))),), advance_ratio=0.45),
     "]": _symbol_template("]", (_stroke(1, "ori", "tome", ((0.34, 0.18), (0.60, 0.18), (0.60, 0.82), (0.34, 0.82))),), advance_ratio=0.45),
 }
+
+_ASSET_METADATA: dict[str, dict[str, str | int]] = {}
 
 _DICTIONARY: dict[str, CharacterTemplate] = {
     **_load_template_dictionary("kanjivg_templates.json", default_source="kanjivg", default_license="CC BY-SA 3.0"),

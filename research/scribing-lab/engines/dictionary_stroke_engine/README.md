@@ -1,9 +1,10 @@
 # Dictionary Stroke Engine
 
-小さな文字構造辞書から、筆順付き stroke skeleton を A4 紙面上の正準 `trajectory` に変換する MVP engine。
+文字構造辞書から、筆順付き stroke skeleton を A4 紙面上の正準 `trajectory` に変換する MVP engine。
 
 この engine は `docs/03_character_structure.md` の最小データモデルを確認するための実装である。
-KanjiVG 由来の正規化済みテンプレートを `data/kanjivg_templates.json` として同梱し、stroke order、
+KanjiVG `r20250816` の main release から生成した正規化済みテンプレートを
+`data/kanjivg_templates.json` として同梱し、stroke order、
 skeleton points、terminal event を使う。英数字は Hershey 由来の stroke template を使い、
 句読点・括弧・演算記号などの基本記号は hand-authored template を使う。未収録文字は簡易 fallback へ落とす。
 
@@ -55,4 +56,10 @@ cd research/scribing-lab
 make run TEXT="今日はABC123、カナもOK！" NAME=dict-smoke ENGINE=engines/dictionary_stroke_engine
 make convert RUN=runs/<run-dir>
 make view RUN=runs/<run-dir>
+```
+
+KanjiVG asset を更新する場合:
+
+```sh
+python engines/dictionary_stroke_engine/scripts/generate_kanjivg_templates.py
 ```
