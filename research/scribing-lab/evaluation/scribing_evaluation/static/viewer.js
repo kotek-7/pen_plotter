@@ -50,7 +50,7 @@ function resetPreview() {
 async function loadRuns() {
   const response = await fetch('/api/runs');
   const payload = await response.json();
-  state.runs = payload.runs;
+  state.runs = payload.runs.toSorted((a, b) => b.name.localeCompare(a.name, "en", { sensitivity: "base" }));
   renderRuns();
   if (!state.active && state.runs.length) {
     selectRun(state.runs[0].name);
