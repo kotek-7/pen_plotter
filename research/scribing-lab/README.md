@@ -67,6 +67,7 @@ uv run scribing-runner run \
 - [05_writer_profile.md](docs/05_writer_profile.md): writer profile
 - [06_plotter_output.md](docs/06_plotter_output.md): プロッタ出力
 - [07_evaluation.md](docs/07_evaluation.md): 評価設計
+- [evaluation/README.md](evaluation/README.md): run preview viewer
 - [08_ethics_and_misuse.md](docs/08_ethics_and_misuse.md): 倫理・濫用対策
 - [09_roadmap.md](docs/09_roadmap.md): ロードマップ
 - [10_research_flow.md](docs/10_research_flow.md): 旧 evaluation-harness 中心の研究フロー。参照用
