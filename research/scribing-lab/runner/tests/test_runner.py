@@ -20,11 +20,15 @@ def test_runner_writes_minimal_artifacts(tmp_path: Path) -> None:
     result = _run_engine(engine, request)
     artifacts = write_run_artifacts(run_dir=tmp_path / "run", request=request, result=result)
 
-    assert artifacts.preview.exists()
-    assert artifacts.gcode.exists()
     assert artifacts.trajectory.exists()
     assert artifacts.memo.exists()
-    assert json.loads(artifacts.safety.read_text(encoding="utf-8"))["ok"] is True
+    assert artifacts.input_text.exists()
+    # runner stays decoupled: preview / gcode / safety are not produced here.
+    assert not (artifacts.run_dir / "preview.svg").exists()
+    assert not (artifacts.run_dir / "output.gcode").exists()
+    assert not (artifacts.run_dir / "safety.json").exists()
+    trajectory = json.loads(artifacts.trajectory.read_text(encoding="utf-8"))
+    assert trajectory and "pen_state" in trajectory[0]
 
 
 def test_default_run_dir_uses_datetime_prefix_and_name() -> None:

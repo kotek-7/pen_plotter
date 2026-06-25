@@ -24,7 +24,7 @@ x_mm, y_mm, t_ms, pen_state, pressure
 engines/            開発中の筆記 engine（text → trajectory）
 renderer/            trajectory → preview.svg の変換基盤
 exporter/            trajectory → G-code + safety の変換基盤
-runner/             engine を実行し、変換基盤を使って成果物を runs/ に書く最小基盤
+runner/             engine を実行し trajectory を runs/ に書く最小基盤
 runs/               engine 実行結果の置き場（git 管理しない）
 evaluation/         runs/ を読む評価領域（後段で設計）
 docs/               研究文書
@@ -34,9 +34,12 @@ projects-archived/  旧研究コードの参照用アーカイブ
 `engines/` 配下の各 engine は、1 つの生成方式として扱う。engine の責務は正準軌跡
 （`x,y,t,pen_state,pressure`）の生成までで、preview と実機 G-code への変換は engine から
 切り離し、`renderer/`・`exporter/` という独立基盤が担う。これは「生成軌跡とプロッタ固有命令は
-分離する」という方針に沿う。`runner/` は engine から trajectory を受け取り、両基盤を使って
-`runs/` に `trajectory.json`、`preview.svg`、`output.gcode`、`safety.json`、`memo.md` を
-書き出す。既存 run からは `scribe-render` / `scribe-export` で preview・G-code を再生成できる。
+分離する」という方針に沿う。
+
+各基盤は互いに依存しない。`runner/` は engine を実行して `runs/` に `trajectory.json`、
+`input.txt`、`memo.md` を書く。preview・G-code は run 後に `renderer/`・`exporter/` の
+`scribe-render` / `scribe-export` を `trajectory.json` へ適用して生成する
+（`preview.svg`、`output.gcode`、`safety.json`）。
 
 `runs/` は出力を見るための置き場である。過度に規格化された実験台帳ではなく、実行条件は
 `memo.md` に軽く残し、preview 確認や試し書きに使う。標準の run directory は

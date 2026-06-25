@@ -37,9 +37,8 @@ def main() -> None:
     run_dir = args.out or default_run_dir(engine_id, run_name=args.name)
     artifacts = write_run_artifacts(run_dir=run_dir, request=request, result=result)
     print(f"run: {artifacts.run_dir}")
-    print(f"preview: {artifacts.preview}")
-    print(f"gcode: {artifacts.gcode}")
-    print(f"safety: {artifacts.safety}")
+    print(f"trajectory: {artifacts.trajectory}")
+    print("next: scribe-render / scribe-export <run> で preview / gcode を生成")
 
 
 def _read_text(text: str | None, file: Path | None) -> str:

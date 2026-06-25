@@ -21,14 +21,11 @@ runner が書く標準成果物は次の通り。
 - `memo.md`: engine、seed、入力ファイル、手動指定 parameter、engine parameter snapshot を書く自由形式に近いメモ
 - `input.txt`: engine に渡した入力テキスト
 - `trajectory.json`: engine が生成した内部軌跡
-- `preview.svg`: 目視確認用 preview
-- `output.gcode`: xDraw/GRBL で試し書きするための G-code
-- `safety.json`: G-code と紙面範囲の最低限の安全確認結果
 
-このうち `preview.svg`、`output.gcode`、`safety.json` は engine が作るのではなく、
-`trajectory` から専用基盤(`../renderer`、`../exporter`)が生成する。runner は engine から
-`trajectory` を受け取り、両基盤を使って残りの成果物を書き出す。既存 run の `trajectory.json`
-からは `scribe-render` / `scribe-export` で再生成できる。
+runner の責務は engine を実行し、正準軌跡(`trajectory`)と run メタデータを書き出すまでである。
+preview / G-code への変換は runner の責務ではなく、独立した renderer / exporter 基盤が担う。
+runner はこれらに依存しない。run 後に `scribe-render` / `scribe-export` を `trajectory.json`
+へ適用して `preview.svg` / `output.gcode` / `safety.json` を生成する。
 
 run は成果物を見るための単位であり、厳密な実験 schema ではない。後段の評価は、この成果物群を読む。
 

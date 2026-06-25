@@ -6,10 +6,6 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from scribing_exporter.gcode import trajectory_to_gcode
-from scribing_exporter.safety import validate_gcode
-from scribing_renderer.svg import trajectory_to_svg
-
 from scribing_runner.contracts import RunArtifacts, RunRequest
 
 
@@ -47,18 +43,12 @@ def write_run_artifacts(
     trajectory = result.get("trajectory", [])
     engine_parameters = result.get("engine_parameters", {})
 
-    # preview / gcode / safety are derived from the canonical trajectory by the
-    # dedicated bases, not by the engine. An engine may still override them.
-    gcode = result.get("gcode") or trajectory_to_gcode(trajectory)
-    safety = result.get("safety") or validate_gcode(gcode)
-    preview_svg = result.get("preview_svg") or trajectory_to_svg(trajectory)
-
+    # runner only persists the canonical trajectory and run metadata. preview /
+    # gcode / safety are produced separately by the renderer / exporter bases,
+    # which read this trajectory.json. runner stays decoupled from them.
     input_path = run_dir / "input.txt"
     memo_path = run_dir / "memo.md"
     trajectory_path = run_dir / "trajectory.json"
-    preview_path = run_dir / "preview.svg"
-    gcode_path = run_dir / "output.gcode"
-    safety_path = run_dir / "safety.json"
 
     input_path.write_text(request.text, encoding="utf-8")
     memo_path.write_text(
@@ -70,18 +60,12 @@ def write_run_artifacts(
         encoding="utf-8",
     )
     trajectory_path.write_text(_json_dumps(trajectory), encoding="utf-8")
-    preview_path.write_text(preview_svg, encoding="utf-8")
-    gcode_path.write_text("\n".join(str(line) for line in gcode) + "\n", encoding="utf-8")
-    safety_path.write_text(_json_dumps(safety), encoding="utf-8")
 
     return RunArtifacts(
         run_dir=run_dir,
         memo=memo_path,
         input_text=input_path,
         trajectory=trajectory_path,
-        preview=preview_path,
-        gcode=gcode_path,
-        safety=safety_path,
     )
 
 

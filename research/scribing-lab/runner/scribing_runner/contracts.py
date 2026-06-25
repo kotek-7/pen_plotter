@@ -26,7 +26,4 @@ class RunArtifacts:
     memo: Path
     input_text: Path
     trajectory: Path
-    preview: Path
-    gcode: Path
-    safety: Path
 

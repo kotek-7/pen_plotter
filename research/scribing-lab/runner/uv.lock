@@ -89,37 +89,9 @@ wheels = [
 ]
 
 [[package]]
-name = "scribing-exporter"
-version = "0.1.0"
-source = { editable = "../exporter" }
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev"]
-
-[[package]]
-name = "scribing-renderer"
-version = "0.1.0"
-source = { editable = "../renderer" }
-
-[package.metadata]
-requires-dist = [
-    { name = "pytest", marker = "extra == 'dev'" },
-    { name = "ruff", marker = "extra == 'dev'" },
-]
-provides-extras = ["dev"]
-
-[[package]]
 name = "scribing-runner"
 version = "0.1.0"
 source = { editable = "." }
-dependencies = [
-    { name = "scribing-exporter" },
-    { name = "scribing-renderer" },
-]
 
 [package.optional-dependencies]
 dev = [
@@ -131,7 +103,5 @@ dev = [
 requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "scribing-exporter", editable = "../exporter" },
-    { name = "scribing-renderer", editable = "../renderer" },
 ]
 provides-extras = ["dev"]
