@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from scribing_runner.cli import _load_engine, _run_engine
+from scribing_runner.cli import _load_engine, _read_text, _run_engine, build_parser
 from scribing_runner.contracts import RunRequest
 from scribing_runner.artifacts import default_lab_root, default_run_dir, write_run_artifacts
 
@@ -49,3 +49,18 @@ def test_default_run_dir_avoids_existing_name(monkeypatch: pytest.MonkeyPatch, t
 
     assert first.name == "20260626T123456_engine"
     assert second.name == f"{first.name}-02"
+
+
+def test_cli_accepts_text_as_positional_argument() -> None:
+    args = build_parser().parse_args(["Hello", "--seed", "7", "--name", "smoke"])
+
+    assert args.text == "Hello"
+    assert args.seed == 7
+    assert args.name == "smoke"
+
+
+def test_read_text_accepts_file(tmp_path: Path) -> None:
+    text_file = tmp_path / "input.txt"
+    text_file.write_text("From file", encoding="utf-8")
+
+    assert _read_text(None, text_file) == "From file"

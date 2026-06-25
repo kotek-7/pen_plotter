@@ -48,9 +48,8 @@ runner は独立した `uv` project である。
 ```sh
 cd research/scribing-lab/runner
 uv sync --extra dev
-uv run scribing-runner run \
+uv run scribe-run "今日はよい天気です。" \
   --engine ../engines/basic_stroke_engine \
-  --text "今日はよい天気です。" \
   --seed 1 \
   --name example-basic
 ```

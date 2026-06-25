@@ -63,8 +63,7 @@ runner から見る実行単位は engine 全体である。
 ```sh
 cd research/scribing-lab/runner
 uv sync --extra dev
-uv run scribing-runner run \
-  --text "今日はよい天気です。" \
+uv run scribe-run "今日はよい天気です。" \
   --seed 1 \
   --name first-smoke
 ```
@@ -72,9 +71,8 @@ uv run scribing-runner run \
 出力先を完全に指定する場合:
 
 ```sh
-uv run scribing-runner run \
+uv run scribe-run "Hello" \
   --engine ../engines/basic_stroke_engine \
-  --text "Hello" \
   --seed 1 \
   --param char_size=10 \
   --out ../runs/hello-basic

@@ -12,13 +12,13 @@
 ```sh
 cd research/scribing-lab/evaluation
 uv sync --extra dev
-uv run scribing-evaluate view
+uv run scribe-view
 ```
 
 既定では `../runs/` を読む。1 つの run directory だけを見る場合:
 
 ```sh
-uv run scribing-evaluate view --run ../runs/20260626T123456_example-basic
+uv run scribe-view ../runs/20260626T123456_example-basic
 ```
 
 起動後、表示された `http://127.0.0.1:8765/` をブラウザで開く。

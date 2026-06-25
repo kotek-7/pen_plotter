@@ -12,46 +12,42 @@ from scribing_runner.contracts import RunRequest
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Run a scribing engine and write artifacts.")
-    sub = parser.add_subparsers(dest="command", required=True)
-
-    run = sub.add_parser("run", help="Run one engine")
-    run.add_argument("--engine", type=Path, default=default_engine_path())
-    run.add_argument("--text", default="")
-    run.add_argument("--text-file", type=Path)
-    run.add_argument("--seed", type=int, default=1)
-    run.add_argument("--param", action="append", default=[], help="Engine parameter as key=value")
-    run.add_argument("--name", help="Run label used after the timestamp prefix")
-    run.add_argument("--out", type=Path, help="Output run directory")
+    parser = argparse.ArgumentParser(description="Run a scribing engine.")
+    parser.add_argument("text", nargs="?", help="Input text")
+    parser.add_argument("-f", "--file", type=Path, help="Read input text from a file")
+    parser.add_argument("-e", "--engine", type=Path, default=default_engine_path())
+    parser.add_argument("-s", "--seed", type=int, default=1)
+    parser.add_argument("-p", "--param", action="append", default=[], help="Engine parameter as key=value")
+    parser.add_argument("-n", "--name", help="Run label used after the timestamp prefix")
+    parser.add_argument("-o", "--out", type=Path, help="Output run directory")
     return parser
 
 
 def main() -> None:
     args = build_parser().parse_args()
-    if args.command == "run":
-        request = RunRequest(
-            text=_read_text(args.text, args.text_file),
-            seed=args.seed,
-            params=_parse_params(args.param),
-            engine_path=args.engine,
-        )
-        engine = _load_engine(args.engine)
-        result = _run_engine(engine, request)
-        engine_id = str(result.get("engine_id", getattr(engine, "ENGINE_ID", "unknown-engine")))
-        run_dir = args.out or default_run_dir(engine_id, run_name=args.name)
-        artifacts = write_run_artifacts(run_dir=run_dir, request=request, result=result)
-        print(f"run_dir: {artifacts.run_dir}")
-        print(f"preview: {artifacts.preview}")
-        print(f"gcode: {artifacts.gcode}")
-        print(f"safety: {artifacts.safety}")
+    request = RunRequest(
+        text=_read_text(args.text, args.file),
+        seed=args.seed,
+        params=_parse_params(args.param),
+        engine_path=args.engine,
+    )
+    engine = _load_engine(args.engine)
+    result = _run_engine(engine, request)
+    engine_id = str(result.get("engine_id", getattr(engine, "ENGINE_ID", "unknown-engine")))
+    run_dir = args.out or default_run_dir(engine_id, run_name=args.name)
+    artifacts = write_run_artifacts(run_dir=run_dir, request=request, result=result)
+    print(f"run: {artifacts.run_dir}")
+    print(f"preview: {artifacts.preview}")
+    print(f"gcode: {artifacts.gcode}")
+    print(f"safety: {artifacts.safety}")
 
 
-def _read_text(text: str, text_file: Path | None) -> str:
-    if text_file is not None:
-        return text_file.read_text(encoding="utf-8")
+def _read_text(text: str | None, file: Path | None) -> str:
+    if file is not None:
+        return file.read_text(encoding="utf-8")
     if text:
         return text
-    raise SystemExit("--text or --text-file is required")
+    raise SystemExit("text or --file is required")
 
 
 def _parse_params(items: list[str]) -> dict[str, str]:
