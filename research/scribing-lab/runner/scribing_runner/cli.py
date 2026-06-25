@@ -21,6 +21,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--text-file", type=Path)
     run.add_argument("--seed", type=int, default=1)
     run.add_argument("--param", action="append", default=[], help="Engine parameter as key=value")
+    run.add_argument("--name", help="Run label used after the timestamp prefix")
     run.add_argument("--out", type=Path, help="Output run directory")
     return parser
 
@@ -37,7 +38,7 @@ def main() -> None:
         engine = _load_engine(args.engine)
         result = _run_engine(engine, request)
         engine_id = str(result.get("engine_id", getattr(engine, "ENGINE_ID", "unknown-engine")))
-        run_dir = args.out or default_run_dir(engine_id)
+        run_dir = args.out or default_run_dir(engine_id, run_name=args.name)
         artifacts = write_run_artifacts(run_dir=run_dir, request=request, result=result)
         print(f"run_dir: {artifacts.run_dir}")
         print(f"preview: {artifacts.preview}")

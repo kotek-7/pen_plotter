@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import json
+import re
+from datetime import datetime
 from pathlib import Path
+
+import pytest
 
 from scribing_runner.cli import _load_engine, _run_engine
 from scribing_runner.contracts import RunRequest
-from scribing_runner.artifacts import write_run_artifacts
+from scribing_runner.artifacts import default_lab_root, default_run_dir, write_run_artifacts
 
 
 def test_runner_writes_minimal_artifacts(tmp_path: Path) -> None:
@@ -22,3 +26,26 @@ def test_runner_writes_minimal_artifacts(tmp_path: Path) -> None:
     assert artifacts.memo.exists()
     assert json.loads(artifacts.safety.read_text(encoding="utf-8"))["ok"] is True
 
+
+def test_default_run_dir_uses_datetime_prefix_and_name() -> None:
+    run_dir = default_run_dir("basic/stroke engine", run_name="smoke test")
+
+    assert run_dir.parent == default_lab_root() / "runs"
+    assert re.fullmatch(r"\d{8}-\d{6}_smoke-test", run_dir.name)
+
+
+def test_default_run_dir_avoids_existing_name(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    class FixedDateTime(datetime):
+        @classmethod
+        def now(cls) -> datetime:
+            return cls(2026, 6, 26, 12, 34, 56)
+
+    monkeypatch.setattr("scribing_runner.artifacts.default_lab_root", lambda: tmp_path)
+    monkeypatch.setattr("scribing_runner.artifacts.datetime", FixedDateTime)
+    first = default_run_dir("engine")
+    first.mkdir(parents=True)
+
+    second = default_run_dir("engine")
+
+    assert first.name == "20260626-123456_engine"
+    assert second.name == f"{first.name}-02"

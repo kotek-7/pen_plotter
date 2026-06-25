@@ -35,7 +35,8 @@ projects-archived/  旧研究コードの参照用アーカイブ
 `safety.json`、`memo.md` などを書き出す。
 
 `runs/` は出力を見るための置き場である。過度に規格化された実験台帳ではなく、実行条件は
-`memo.md` に軽く残し、preview 確認や試し書きに使う。評価は `evaluation/` で後から設計する。
+`memo.md` に軽く残し、preview 確認や試し書きに使う。標準の run directory は
+`YYYYMMDD-HHMMSS_<name>` 形式にする。評価は `evaluation/` で後から設計する。
 
 旧 `projects/` 配下の研究コードは `projects-archived/` に移した。これは参照用であり、
 現行の新規実装の基盤にはしない。
@@ -51,7 +52,7 @@ uv run scribing-runner run \
   --engine ../engines/basic_stroke_engine \
   --text "今日はよい天気です。" \
   --seed 1 \
-  --out ../runs/example-basic
+  --name example-basic
 ```
 
 ## ドキュメント

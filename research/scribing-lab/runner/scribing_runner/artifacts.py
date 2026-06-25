@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -16,10 +17,18 @@ def default_engine_path() -> Path:
     return default_lab_root() / "engines" / "basic_stroke_engine"
 
 
-def default_run_dir(engine_id: str) -> Path:
+def default_run_dir(engine_id: str, *, run_name: str | None = None) -> Path:
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-    safe_engine = engine_id.replace("/", "-").replace(" ", "-")
-    return default_lab_root() / "runs" / f"{stamp}_{safe_engine}"
+    label = _safe_run_label(run_name or engine_id)
+    runs_dir = default_lab_root() / "runs"
+    candidate = runs_dir / f"{stamp}_{label}"
+    if not candidate.exists():
+        return candidate
+    for index in range(2, 100):
+        suffixed = runs_dir / f"{stamp}_{label}-{index:02d}"
+        if not suffixed.exists():
+            return suffixed
+    raise RuntimeError(f"failed to allocate run directory for {stamp}_{label}")
 
 
 def write_run_artifacts(
@@ -108,3 +117,8 @@ def render_memo(
 def _json_dumps(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
 
+
+def _safe_run_label(value: str) -> str:
+    label = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip())
+    label = label.strip(".-_")
+    return label or "run"
