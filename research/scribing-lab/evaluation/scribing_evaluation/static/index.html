@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Scribing Run Viewer</title>
+  <link rel="stylesheet" href="/static/viewer.css">
+</head>
+<body>
+  <aside class="sidebar">
+    <header class="topbar">
+      <h1>Runs</h1>
+      <button id="reload" title="Reload">R</button>
+    </header>
+    <div id="runList" class="run-list"></div>
+  </aside>
+  <main class="workspace">
+    <header class="toolbar">
+      <div id="activeRun" class="active-run"></div>
+      <div class="tools">
+        <button id="zoomOut" title="Zoom out">-</button>
+        <button id="zoomIn" title="Zoom in">+</button>
+        <button id="fit" title="Fit">Fit</button>
+        <button id="reset" title="Reset">Reset</button>
+      </div>
+    </header>
+    <section id="viewport" class="viewport">
+      <img id="preview" alt="">
+      <div id="empty" class="empty">No preview</div>
+    </section>
+    <pre id="memo" class="memo"></pre>
+  </main>
+  <script src="/static/viewer.js"></script>
+</body>
+</html>
