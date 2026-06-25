@@ -53,7 +53,8 @@ engine は次の key を持つ dict を返す。
 }
 ```
 
-`trajectory` の各点は、原則として `x_mm`、`y_mm`、`t_ms`、`pen_state`、`pressure` を持つ。
+`trajectory` の各点は、原則として `x`、`y`、`t`、`pen_state`、`pressure` を持つ
+（`x`・`y` は紙面 mm の Y-UP 座標、`t` は ms、`pen_state` は 0=up / 1=down、`pressure` は 0..1 の仮想筆圧）。
 engine の責務はこの正準軌跡の生成までで、preview と G-code への変換は専用基盤が担う。
 engine 内部では文字構造、レイアウト、運動生成を自由に分けてよいが、runner から見る実行単位は
 engine 全体である。`preview_svg` / `gcode` / `safety` を engine が返した場合は、基盤による

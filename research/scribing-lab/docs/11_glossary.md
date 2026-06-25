@@ -1,92 +1,101 @@
 # 11 Glossary
 
-> 現行メモ: 一部の用語は旧 evaluation-harness と `projects/` 分割を前提にしている。
-> 現在の中心語は `engine`、`runner`、`run`、`evaluation` である。
+この文書は `scribing-lab` で頻出する用語をまとめる。語彙は「現行語彙」と「アーカイブ語彙」に
+分ける。現行の実装・運用で使うのは現行語彙である。アーカイブ語彙は、`projects-archived/` の旧
+コードや旧方針の docs（`00`、`07`、`09`、`10` など）を読むためだけに残す。
 
-この文書は、`scribing-lab` で頻出する用語の前提知識をまとめた用語集である。
+用語の正本は `13_rebuild_summary.md`、`README.md`、各現行 project の README、実際の CLI とする。
 
-## 前提知識
+## 現行語彙
 
-### experiment registry
+### engine
 
-`experiment registry` は、実験の台帳である。各実験の識別子、仮説、入力、seed、生成器、出力器、成果物、メトリクス、失敗タグ、次の一手を 1 レコードとして保存する。
+text から trajectory を生成する研究上の実行単位。`engines/<name>/engine.py` が
+`generate(request)` を公開する。内部で文字構造・layout・motion などを自由に分けてよいが、
+研究上は engine 全体を 1 つの生成方式として扱う。（旧語の `generator` に相当する。）
 
-このプロジェクトでは JSONL 形式を使う。JSONL は「1 行 = 1 JSON オブジェクト」の保存形式で、追記しやすく、差分比較しやすい。研究では、後から「何を試したか」を復元できることが重要なので、実験ログを表計算ではなく台帳として持つ。
+### runner
 
-### artifact store
+engine をロードして実行し、`runs/` に trajectory と run メタデータ（`input.txt`、`memo.md`）を
+書く最小基盤。preview や G-code は生成しない。CLI は `scribe-run`。
 
-`artifact store` は、実験ごとの成果物置き場である。画像、G-code、軌跡 JSON、設定 JSON、レポートなどを、同じ `experiment_id` の下にまとめる。
+### run
 
-ここでの成果物は「結果を説明する証拠」である。生成物そのものだけでなく、生成条件や安全性の検査結果も同じ実験 ID に紐付けることで、再実行時の比較対象が揃う。
-
-### experiment_id
-
-`experiment_id` は、1 回の実験を一意に識別する ID である。例: `exp-baseline-000001`。
-
-この ID が実験全体の主キーになる。registry、artifact、report、scan を全部この ID でつなぐため、途中で名前を変えないことが重要である。
-
-### generator
-
-`generator` は、何が生成したかを表すラベルである。`baseline-outline`、`structure-uniform`、`structure-motion` のように、研究上の方式単位で固定する。
-
-この値が変わると比較の意味も変わる。したがって「同じ入力・同じ seed で generator だけを変える」ことが、研究の基本比較になる。
-
-### exporter
-
-`exporter` は、内部表現をどの実機向け命令へ変換したかを示す。現在の主な値は `xdraw-gcode` である。
-
-研究では、生成器と出力器を分離して扱う。これは、文字の自然さと機械命令の安全性を別々に評価したいからである。
+1 回の engine 実行の出力単位。`runs/YYYYMMDDTHHMMSS_<name>/` に置く。厳密な実験 record では
+なく、出力を確認するための置き場であり、実行条件は `memo.md` に軽く残す。（旧語の experiment /
+experiment_id に相当するが、台帳化はしない。）
 
 ### trajectory
 
-`trajectory` は、`x_mm, y_mm, t_ms, pen_state, pressure` を持つ時系列データである。
+engine が出力する正準軌跡。`x, y, t, pen_state, pressure` を持つ点の時系列で、
+`runs/<run>/trajectory.json` に保存する。renderer / exporter はこのキーを直接読む。
 
-`x_mm` と `y_mm` は紙面上の座標、`t_ms` は時刻、`pen_state` はペンが紙に触れているかどうか、`pressure` は筆圧の代替量である。xDraw では真の筆圧がないため、pressure は Z 高さや feedrate に写像する前提で扱う。
+- `x`, `y`: 紙面座標（mm, Y-UP, A4 左下原点）
+- `t`: 累積時刻（ms, 単調非減少。ペン遷移で同値が連続しうる）
+- `pen_state`: 接地状態（0=up / 1=down）
+- `pressure`: 仮想筆圧（0..1）。xDraw に真の筆圧はないため、exporter が Z 高さや feed へ写像する
 
-### metrics
+### motion
 
-`metrics` は、実験結果を数値で要約したものだ。速度ピーク数、加速度、jerk、字間のばらつき、baseline drift などを含む。
+trajectory のうち時間軸に関わる側面。速度変化、終筆（払い・はね・とめ）の抜き、ペンアップの
+間合いなどを指す。engine 内部の関心であり、独立した基盤ではない。finish 種別などの意味ラベルは
+下流へ渡さず、engine が `pressure` と `t` の配分として trajectory に焼き込む。
 
-自動メトリクスは主観評価の代替ではないが、退行検知には有効である。研究では「見た目が良い気がする」だけでは足りず、同じ条件で再現できる比較指標が必要になる。
+### stroke
 
-### failure tags
+`pen_state == 1` が連続する 1 画ぶんの点列。renderer はこの単位でポリラインを描く。
 
-`failure tags` は、失敗の型を短いラベルで表す。例として `too-uniform`、`line-too-mechanical`、`plotter-unsafe` などがある。
+### renderer
 
-タグの役割は、問題を「どの層で直すべきか」に分けることにある。字形の問題なのか、運動の問題なのか、機械安全の問題なのかを分離できると、次の修正方針が立てやすい。
+trajectory から `preview.svg` を生成する基盤。見た目の調整はここに閉じる。CLI は `scribe-render`。
 
-### report
+### exporter
 
-`report` は、1 実験の要約文書である。仮説、設定、成果物、メトリクス、失敗タグ、次のアクションを 1 ページにまとめる。
+trajectory から `output.gcode` と `safety.json` を生成する基盤。実機（xDraw A4 / GRBL）の安全
+境界はここに閉じる。CLI は `scribe-export`。（旧語では「実機命令への変換ラベル」を指したが、
+現在は基盤そのものを指す。）
 
-研究では、コードだけでなくレポートも成果物である。実験の意味が残らないと、後で比較できないからである。
+### preview
 
-### baseline-outline
+trajectory の目視確認用 SVG（`preview.svg`）。現在の主評価は、`scribe-view` でこれを確認する
+ことである。
 
-`baseline-outline` は、現行の font outline + jitter/wobble を固定した比較基準である。
+### safety
 
-これは「最初の基準線」であって、最終目標ではない。研究では、まず基準を固定してから、その上で構造辞書や運動モデルがどれだけ改善するかを測る。
+exporter が出す `safety.json`。紙面範囲・Z・feed が許容内かの最低限の検査結果。
 
-### structure-uniform
+### evaluation
 
-`structure-uniform` は、`character-dictionary` の骨格を使って、終端イベントを保ちながら均一なタイミングで出力する比較方式である。
+`runs/` を読む領域。現在は `scribe-view` で preview を確認するのみで、評価 schema や metrics は
+出力の実態が見えてから後段で設計する。
 
-ここでは、文字構造の効果を見たい。つまり「字形の制約だけでどこまで行けるか」を確認する段階である。
+## アーカイブ語彙
 
-### structure-motion
+次の語は旧 evaluation-harness と `projects/` 分割を前提にした語彙である。現行の実行導線では
+使わない。`projects-archived/` や旧 docs を読むときの参照として残す。
 
-`structure-motion` は、文字構造に運動時間と終端変化を加えた方式である。
+### generator
 
-この段階では、`motion-synthesis` と `plotter-export` が入る。研究上は「構造だけ」より一段上で、自然な速度変化や終筆の抜きが見えるかを評価する。
+生成方式のラベル。`baseline-outline`、`structure-uniform`、`structure-motion` のように方式単位で
+固定していた。現行では `engine` がこの役割を担う。
 
-### ScanMetadata
+### experiment registry / experiment_id / artifact store
 
-`ScanMetadata` は、実機スキャンの条件を記録するメタデータである。スキャナ、解像度、紙種、ペン種、プロッタ名、撮影日時などを含む。
+実験を JSONL 台帳に記録し、一意の `experiment_id` で入力・seed・生成器・成果物・評価を紐付ける旧
+基盤。現行では `run` と `runs/` がこれに代わるが、台帳化はしない。
 
-スキャン画像だけでは再現条件が分からない。評価では、成果物そのものと同じくらい、どの条件で取得したかが重要である。
+### metrics / failure tags / report
 
-### profile_id
+自動メトリクス（速度ピーク数、jerk、字間ばらつき等）、失敗の型ラベル（`too-uniform`、
+`plotter-unsafe` 等）、1 実験の要約文書。評価を先に固める旧方針の中心要素。現行では出力を見てから
+設計する。
 
-`profile_id` は、writer profile や baseline profile を識別する ID である。
+### baseline-outline / structure-uniform / structure-motion
 
-将来の個人差研究では、同じ文字でも筆者ごとの癖を比較したい。そのため、入力文や seed だけでなく、どの profile を使ったかも実験条件になる。
+旧 generator の方式名。font outline + jitter/wobble、文字構造のみで均一タイミング、文字構造に運動
+時間と終端変化を加えた方式、という段階区分を表す。
+
+### ScanMetadata / profile_id
+
+実機スキャン条件のメタデータ（スキャナ、解像度、紙種、ペン種など）と、writer profile の識別子。
+後段の実機評価・個人差研究で使う想定だった旧語。
