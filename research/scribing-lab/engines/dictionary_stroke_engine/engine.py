@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import math
 import random
+import unicodedata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,6 +21,9 @@ class EngineConfig:
     char_size: float = 12.0
     char_spacing: float = 2.5
     line_height: float = 1.45
+    kana_scale: float = 0.92
+    latin_scale: float = 0.62
+    symbol_scale: float = 0.45
     draw_speed_mm_s: float = 32.0
     penup_speed_mm_s: float = 110.0
     tremor: float = 0.03
@@ -44,6 +48,9 @@ class CharacterTemplate:
     license: str
     bbox: tuple[float, float, float, float]
     strokes: tuple[StrokeTemplate, ...]
+    script_group: str = "unknown"
+    advance_ratio: float = 1.0
+    display_scale: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -56,7 +63,7 @@ class PositionedStroke:
 
 
 def generate(request: dict[str, Any]) -> dict[str, Any]:
-    text = str(request.get("text", ""))
+    text = _normalize_text(str(request.get("text", "")))
     seed = int(request.get("seed", 1))
     params = dict(request.get("params", {}))
     config = _config_from_params(params)
@@ -71,8 +78,7 @@ def generate(request: dict[str, Any]) -> dict[str, Any]:
             "config": config.__dict__,
             "params": params,
             "dictionary": {
-                "source": "kanjivg",
-                "license": "CC BY-SA 3.0",
+                "sources": _dictionary_sources(),
                 "template_count": len(_DICTIONARY),
                 "used_chars": sorted(used_templates),
                 "fallback": "ascii-frame-or-missing-box",
@@ -89,6 +95,10 @@ def _config_from_params(params: dict[str, Any]) -> EngineConfig:
             continue
         values[key] = float(raw)
     return EngineConfig(**values)
+
+
+def _normalize_text(text: str) -> str:
+    return unicodedata.normalize("NFKC", text)
 
 
 def _layout_text(
@@ -119,19 +129,20 @@ def _layout_text(
 
         template = _template_for(char)
         used_templates.add(template.literal)
+        char_size = config.char_size * _template_scale(template, config)
         strokes.extend(
             _position_template(
                 template,
                 x=x,
                 y_top=y_top,
-                size=config.char_size,
+                size=char_size * template.display_scale,
                 seed=seed,
                 index=visible_index,
                 drift=config.drift,
             )
         )
         visible_index += 1
-        x += config.char_size + config.char_spacing
+        x += char_size * template.advance_ratio + config.char_spacing
 
     return strokes, used_templates
 
@@ -280,13 +291,25 @@ def _distance(a: tuple[float, float], b: tuple[float, float]) -> float:
 def _template_for(char: str) -> CharacterTemplate:
     if char in _DICTIONARY:
         return _DICTIONARY[char]
-    if char.isascii() and not char.isspace():
+    if char in _SYMBOL_TEMPLATES:
+        return _SYMBOL_TEMPLATES[char]
+    if char.isascii() and char.isprintable():
         return _ASCII_FALLBACK
     return _MISSING_FALLBACK
 
 
-def _load_kanjivg_dictionary() -> dict[str, CharacterTemplate]:
-    path = Path(__file__).with_name("data") / "kanjivg_templates.json"
+def _template_scale(template: CharacterTemplate, config: EngineConfig) -> float:
+    if template.script_group in {"hiragana", "katakana"}:
+        return config.kana_scale
+    if template.script_group in {"latin", "digit"}:
+        return config.latin_scale
+    if template.script_group == "symbol":
+        return config.symbol_scale
+    return 1.0
+
+
+def _load_template_dictionary(filename: str, *, default_source: str, default_license: str) -> dict[str, CharacterTemplate]:
+    path = Path(__file__).with_name("data") / filename
     raw = json.loads(path.read_text(encoding="utf-8"))
     templates: dict[str, CharacterTemplate] = {}
     for item in raw["characters"]:
@@ -305,10 +328,13 @@ def _load_kanjivg_dictionary() -> dict[str, CharacterTemplate]:
         templates[literal] = CharacterTemplate(
             char_id=str(item["char_id"]),
             literal=literal,
-            source=str(item.get("source", "kanjivg")),
-            license=str(item.get("license", "CC BY-SA 3.0")),
+            source=str(item.get("source", default_source)),
+            license=str(item.get("license", default_license)),
             bbox=tuple(float(value) for value in item.get("bbox", [0.0, 0.0, 1.0, 1.0])),
             strokes=strokes,
+            script_group=str(item.get("script_group", _classify_script(literal))),
+            advance_ratio=float(item.get("advance_ratio", 1.0)),
+            display_scale=float(item.get("display_scale", 1.0)),
         )
     return templates
 
@@ -326,6 +352,29 @@ def _normalize_stroke_type(value: str) -> str:
         "line": "none",
         "none": "none",
     }.get(value, "none")
+
+
+def _classify_script(char: str) -> str:
+    code = ord(char)
+    if 0x3040 <= code <= 0x309F:
+        return "hiragana"
+    if 0x30A0 <= code <= 0x30FF:
+        return "katakana"
+    if "0" <= char <= "9":
+        return "digit"
+    if ("A" <= char <= "Z") or ("a" <= char <= "z"):
+        return "latin"
+    if char in _SYMBOL_CHARS:
+        return "symbol"
+    return "kanji"
+
+
+def _dictionary_sources() -> list[dict[str, str]]:
+    return [
+        {"source": "kanjivg", "license": "CC BY-SA 3.0"},
+        {"source": "hershey", "license": "Hershey Fonts"},
+        {"source": "hand-authored-symbols", "license": "project-local"},
+    ]
 
 
 def _stroke(
@@ -351,10 +400,56 @@ def _char(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTemplat
         license="project-local",
         bbox=(0.0, 0.0, 1.0, 1.0),
         strokes=strokes,
+        script_group=_classify_script(literal),
     )
 
 
-_DICTIONARY: dict[str, CharacterTemplate] = _load_kanjivg_dictionary()
+def _symbol_template(literal: str, strokes: tuple[StrokeTemplate, ...], *, advance_ratio: float = 0.55) -> CharacterTemplate:
+    return CharacterTemplate(
+        char_id=f"U+{ord(literal):04X}",
+        literal=literal,
+        source="hand-authored-symbols",
+        license="project-local",
+        bbox=(0.0, 0.0, 1.0, 1.0),
+        strokes=strokes,
+        script_group="symbol",
+        advance_ratio=advance_ratio,
+    )
+
+
+_SYMBOL_CHARS = set("。、,.!?ー・「」『』()[]+-=*/:;")
+
+_SYMBOL_TEMPLATES: dict[str, CharacterTemplate] = {
+    "。": _symbol_template("。", (_stroke(1, "none", "none", ((0.42, 0.68), (0.58, 0.68), (0.58, 0.84), (0.42, 0.84), (0.42, 0.68))),)),
+    ".": _symbol_template(".", (_stroke(1, "ten", "tome", ((0.48, 0.80), (0.52, 0.84))),), advance_ratio=0.35),
+    "、": _symbol_template("、", (_stroke(1, "ten", "harai", ((0.50, 0.66), (0.42, 0.84))),), advance_ratio=0.4),
+    ",": _symbol_template(",", (_stroke(1, "ten", "harai", ((0.52, 0.74), (0.44, 0.92))),), advance_ratio=0.35),
+    "!": _symbol_template("!", (_stroke(1, "tate", "tome", ((0.50, 0.18), (0.50, 0.62))), _stroke(2, "ten", "tome", ((0.50, 0.80), (0.50, 0.84)))), advance_ratio=0.4),
+    "?": _symbol_template("?", (_stroke(1, "none", "none", ((0.34, 0.28), (0.48, 0.16), (0.66, 0.28), (0.58, 0.48), (0.50, 0.58))), _stroke(2, "ten", "tome", ((0.50, 0.80), (0.50, 0.84)))), advance_ratio=0.62),
+    "ー": _symbol_template("ー", (_stroke(1, "yoko", "tome", ((0.18, 0.50), (0.82, 0.50))),), advance_ratio=0.8),
+    "-": _symbol_template("-", (_stroke(1, "yoko", "tome", ((0.24, 0.52), (0.76, 0.52))),), advance_ratio=0.58),
+    "+": _symbol_template("+", (_stroke(1, "yoko", "tome", ((0.24, 0.50), (0.76, 0.50))), _stroke(2, "tate", "tome", ((0.50, 0.24), (0.50, 0.76)))), advance_ratio=0.62),
+    "=": _symbol_template("=", (_stroke(1, "yoko", "tome", ((0.24, 0.42), (0.76, 0.42))), _stroke(2, "yoko", "tome", ((0.24, 0.62), (0.76, 0.62)))), advance_ratio=0.62),
+    "*": _symbol_template("*", (_stroke(1, "none", "tome", ((0.50, 0.24), (0.50, 0.76))), _stroke(2, "none", "tome", ((0.27, 0.36), (0.73, 0.64))), _stroke(3, "none", "tome", ((0.73, 0.36), (0.27, 0.64)))), advance_ratio=0.62),
+    "/": _symbol_template("/", (_stroke(1, "hidari", "harai", ((0.74, 0.18), (0.26, 0.84))),), advance_ratio=0.55),
+    ":": _symbol_template(":", (_stroke(1, "ten", "tome", ((0.50, 0.38), (0.50, 0.42))), _stroke(2, "ten", "tome", ((0.50, 0.70), (0.50, 0.74)))), advance_ratio=0.35),
+    ";": _symbol_template(";", (_stroke(1, "ten", "tome", ((0.50, 0.38), (0.50, 0.42))), _stroke(2, "ten", "harai", ((0.52, 0.70), (0.44, 0.90)))), advance_ratio=0.35),
+    "・": _symbol_template("・", (_stroke(1, "ten", "tome", ((0.48, 0.48), (0.52, 0.52))),), advance_ratio=0.4),
+    "「": _symbol_template("「", (_stroke(1, "ori", "tome", ((0.68, 0.20), (0.38, 0.20), (0.38, 0.50))),), advance_ratio=0.42),
+    "」": _symbol_template("」", (_stroke(1, "ori", "tome", ((0.62, 0.50), (0.62, 0.80), (0.32, 0.80))),), advance_ratio=0.42),
+    "『": _symbol_template("『", (_stroke(1, "ori", "tome", ((0.72, 0.16), (0.34, 0.16), (0.34, 0.56))), _stroke(2, "ori", "tome", ((0.58, 0.30), (0.44, 0.30), (0.44, 0.50)))), advance_ratio=0.5),
+    "』": _symbol_template("』", (_stroke(1, "ori", "tome", ((0.66, 0.44), (0.66, 0.84), (0.28, 0.84))), _stroke(2, "ori", "tome", ((0.56, 0.50), (0.56, 0.70), (0.42, 0.70)))), advance_ratio=0.5),
+    "(": _symbol_template("(", (_stroke(1, "none", "none", ((0.64, 0.16), (0.42, 0.34), (0.38, 0.66), (0.64, 0.84))),), advance_ratio=0.45),
+    ")": _symbol_template(")", (_stroke(1, "none", "none", ((0.36, 0.16), (0.58, 0.34), (0.62, 0.66), (0.36, 0.84))),), advance_ratio=0.45),
+    "[": _symbol_template("[", (_stroke(1, "ori", "tome", ((0.66, 0.18), (0.40, 0.18), (0.40, 0.82), (0.66, 0.82))),), advance_ratio=0.45),
+    "]": _symbol_template("]", (_stroke(1, "ori", "tome", ((0.34, 0.18), (0.60, 0.18), (0.60, 0.82), (0.34, 0.82))),), advance_ratio=0.45),
+}
+
+_DICTIONARY: dict[str, CharacterTemplate] = {
+    **_load_template_dictionary("kanjivg_templates.json", default_source="kanjivg", default_license="CC BY-SA 3.0"),
+    **_load_template_dictionary("hershey_templates.json", default_source="hershey", default_license="Hershey Fonts"),
+    **_SYMBOL_TEMPLATES,
+}
 
 _ASCII_FALLBACK = _char(
     "?",

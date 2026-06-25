@@ -4,10 +4,11 @@
 
 この engine は `docs/03_character_structure.md` の最小データモデルを確認するための実装である。
 KanjiVG 由来の正規化済みテンプレートを `data/kanjivg_templates.json` として同梱し、stroke order、
-skeleton points、terminal event を使う。未収録文字は簡易 fallback へ落とす。
+skeleton points、terminal event を使う。英数字は Hershey 由来の stroke template を使い、
+句読点・括弧・演算記号などの基本記号は hand-authored template を使う。未収録文字は簡易 fallback へ落とす。
 
-KanjiVG 由来データの license は CC BY-SA 3.0 である。`engine_parameters.dictionary` に source /
-license metadata を残す。
+KanjiVG 由来データの license は CC BY-SA 3.0 である。`engine_parameters.dictionary.sources` に
+source / license metadata を残す。
 
 ## Contract
 
@@ -39,6 +40,9 @@ license metadata を残す。
 - `char_spacing`: 字間 mm。既定値 `2.5`
 - `margin_left`: 左余白 mm。既定値 `12.0`
 - `margin_top`: 上余白 mm。既定値 `16.0`
+- `kana_scale`: かな・カナの文字サイズ比。既定値 `0.92`
+- `latin_scale`: 英数字の文字サイズ比。既定値 `0.62`
+- `symbol_scale`: 記号の文字サイズ比。既定値 `0.45`
 - `draw_speed_mm_s`: 筆記速度。既定値 `32.0`
 - `penup_speed_mm_s`: ペンアップ移動速度。既定値 `110.0`
 - `tremor`: 局所揺れ mm。既定値 `0.03`
@@ -48,7 +52,7 @@ license metadata を残す。
 
 ```sh
 cd research/scribing-lab
-make run TEXT="永あいうえお" NAME=dict-smoke ENGINE=engines/dictionary_stroke_engine
+make run TEXT="今日はABC123、カナもOK！" NAME=dict-smoke ENGINE=engines/dictionary_stroke_engine
 make convert RUN=runs/<run-dir>
 make view RUN=runs/<run-dir>
 ```

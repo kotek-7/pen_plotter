@@ -34,13 +34,16 @@ def test_runner_writes_minimal_artifacts(tmp_path: Path) -> None:
 def test_runner_loads_dictionary_stroke_engine() -> None:
     engine_path = Path(__file__).resolve().parents[2] / "engines" / "dictionary_stroke_engine"
     engine = _load_engine(engine_path)
-    request = RunRequest(text="永あいうえお", seed=1)
+    request = RunRequest(text="永あいうえおカタカナABC123!?+-=()", seed=1)
 
     result = _run_engine(engine, request)
 
     assert result["engine_id"] == "dictionary-stroke-engine"
     assert result["trajectory"]
-    assert result["engine_parameters"]["dictionary"]["source"] == "kanjivg"
+    sources = result["engine_parameters"]["dictionary"]["sources"]
+    assert {"source": "kanjivg", "license": "CC BY-SA 3.0"} in sources
+    assert {"source": "hershey", "license": "Hershey Fonts"} in sources
+    assert "A" in result["engine_parameters"]["dictionary"]["used_chars"]
 
 
 def test_default_run_dir_uses_datetime_prefix_and_name() -> None:
