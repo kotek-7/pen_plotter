@@ -91,6 +91,7 @@ uv run scribe-run "今日はよい天気です。" --seed 1 --name example-basic
 - [10_research_flow.md](docs/10_research_flow.md): 旧 evaluation-harness 中心の研究フロー。参照用
 - [11_glossary.md](docs/11_glossary.md): 用語集と前提知識
 - [12_research_plan.md](docs/12_research_plan.md): 研究計画書
+- [13_rebuild_summary.md](docs/13_rebuild_summary.md): 再構成の動機と現行構成
 
 ## アーカイブ
 

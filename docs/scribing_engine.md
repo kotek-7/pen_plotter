@@ -12,7 +12,8 @@
 - 日本語筆記エンジンの研究ドキュメントは `research/scribing-lab/` に置く。
 - 先行研究の要約と参照リンクは [01_prior_research.md](../research/scribing-lab/docs/01_prior_research.md) を正本にする。
 - データ資産とライセンスの整理は [02_data_assets.md](../research/scribing-lab/docs/02_data_assets.md) を正本にする。
-- 研究 engine の実行は `research/scribing-lab/runner/` から行い、出力は `research/scribing-lab/runs/` に置く。
+- 研究 engine の実行は `research/scribing-lab/runner/` から行い、preview と G-code への変換は `renderer/` と `exporter/` が担う。
+- 通常の実行導線は `research/scribing-lab/Makefile` から `run`、`convert`、`view` を使う。
 - 旧 `projects/` 配下の研究コードは `research/scribing-lab/projects-archived/` に移し、参照用アーカイブとして扱う。
 
 ## 研究の概要
@@ -25,14 +26,14 @@
 - 筆記運動は Sigma-Lognormal 系の運動モデルを中心に扱う。
 - 個人差は writer profile として明示的に管理する。
 - 神経モデルは最初から主系にせず、画形状の変動や profile 推定の補助として扱う。
-- まず engine を実行して trajectory、preview、G-code を生成できる最小基盤を整える。
+- まず engine を実行して trajectory を生成し、preview と G-code へ変換して確認できる最小基盤を整える。
 - 評価基盤は `runs/` の出力を読む後段として設計する。
 
 ## 読む順序
 
 1. [research/scribing-lab/README.md](../research/scribing-lab/README.md)
-2. [00_overview.md](../research/scribing-lab/docs/00_overview.md)
-3. [09_roadmap.md](../research/scribing-lab/docs/09_roadmap.md)
+2. [13_rebuild_summary.md](../research/scribing-lab/docs/13_rebuild_summary.md)
+3. [00_overview.md](../research/scribing-lab/docs/00_overview.md)
 4. [runner README](../research/scribing-lab/runner/README.md)
 5. 必要に応じて `research/scribing-lab/docs/` と `research/scribing-lab/projects-archived/` の各文書
 

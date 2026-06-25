@@ -6,6 +6,7 @@
 
 - [plotter_gui_checklist.md](plotter_gui_checklist.md): Windows ネイティブ Python で実機 GUI を確認するためのチェックリスト。
 - [scribing_engine.md](scribing_engine.md): 日本語筆記エンジン研究への導線。研究の正本ではない。
+- [../research/scribing-lab/docs/13_rebuild_summary.md](../research/scribing-lab/docs/13_rebuild_summary.md): 研究領域再構成の動機と現行構成。
 - [../research/scribing-lab/docs/11_glossary.md](../research/scribing-lab/docs/11_glossary.md): 研究用語の前提知識。
 
 ## 研究ドキュメント
