@@ -13,5 +13,7 @@
 
 - Source: Hershey Fonts
 - License: Hershey Fonts
+- Regeneration:
+  `uv run --with Hershey-Fonts python engines/dictionary_stroke_engine/scripts/generate_hershey_templates.py`
 
 The engine preserves source and license metadata in `engine_parameters.dictionary.sources`.

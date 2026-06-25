@@ -63,3 +63,9 @@ KanjiVG asset を更新する場合:
 ```sh
 python engines/dictionary_stroke_engine/scripts/generate_kanjivg_templates.py
 ```
+
+Hershey asset を更新する場合:
+
+```sh
+uv run --with Hershey-Fonts python engines/dictionary_stroke_engine/scripts/generate_hershey_templates.py
+```
