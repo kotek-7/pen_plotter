@@ -85,9 +85,8 @@ def _run_engine(engine: ModuleType, request: RunRequest) -> dict[str, Any]:
     result = generate(request.to_engine_dict())
     if not isinstance(result, dict):
         raise SystemExit("engine generate(request) must return dict")
-    for key in ("trajectory", "preview_svg", "gcode", "safety"):
-        if key not in result:
-            raise SystemExit(f"engine result missing required key: {key}")
+    if "trajectory" not in result:
+        raise SystemExit("engine result missing required key: trajectory")
     return result
 
 

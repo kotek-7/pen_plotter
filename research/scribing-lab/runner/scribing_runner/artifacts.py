@@ -6,6 +6,10 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from scribing_plotter.gcode import trajectory_to_gcode
+from scribing_plotter.safety import validate_gcode
+from scribing_preview.svg import trajectory_to_svg
+
 from scribing_runner.contracts import RunArtifacts, RunRequest
 
 
@@ -41,10 +45,13 @@ def write_run_artifacts(
 
     engine_id = str(result.get("engine_id", "unknown-engine"))
     trajectory = result.get("trajectory", [])
-    preview_svg = str(result.get("preview_svg", ""))
-    gcode = result.get("gcode", [])
-    safety = result.get("safety", {})
     engine_parameters = result.get("engine_parameters", {})
+
+    # preview / gcode / safety are derived from the canonical trajectory by the
+    # dedicated bases, not by the engine. An engine may still override them.
+    gcode = result.get("gcode") or trajectory_to_gcode(trajectory)
+    safety = result.get("safety") or validate_gcode(gcode)
+    preview_svg = result.get("preview_svg") or trajectory_to_svg(trajectory)
 
     input_path = run_dir / "input.txt"
     memo_path = run_dir / "memo.md"

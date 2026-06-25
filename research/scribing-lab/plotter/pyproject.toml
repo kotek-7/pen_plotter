@@ -3,24 +3,17 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "scribing-runner"
+name = "scribing-plotter"
 version = "0.1.0"
-description = "Minimal runner for scribing engines"
+description = "Trajectory to xDraw A4 G-code for scribing lab"
 requires-python = ">=3.11"
-dependencies = [
-    "scribing-preview",
-    "scribing-plotter",
-]
+dependencies = []
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
 
-[tool.uv.sources]
-scribing-preview = { path = "../preview", editable = true }
-scribing-plotter = { path = "../plotter", editable = true }
-
 [project.scripts]
-scribe-run = "scribing_runner.cli:main"
+scribe-gcode = "scribing_plotter.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -31,4 +24,4 @@ line-length = 100
 target-version = "py311"
 
 [tool.hatch.build.targets.wheel]
-packages = ["scribing_runner"]
+packages = ["scribing_plotter"]

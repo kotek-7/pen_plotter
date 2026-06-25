@@ -25,6 +25,11 @@ runner が書く標準成果物は次の通り。
 - `output.gcode`: xDraw/GRBL で試し書きするための G-code
 - `safety.json`: G-code と紙面範囲の最低限の安全確認結果
 
+このうち `preview.svg`、`output.gcode`、`safety.json` は engine が作るのではなく、
+`trajectory` から専用基盤(`../preview`、`../plotter`)が生成する。runner は engine から
+`trajectory` を受け取り、両基盤を使って残りの成果物を書き出す。既存 run の `trajectory.json`
+からは `scribe-preview` / `scribe-gcode` で再生成できる。
+
 run は成果物を見るための単位であり、厳密な実験 schema ではない。後段の評価は、この成果物群を読む。
 
 ## Engine Interface
@@ -47,16 +52,15 @@ engine は次の key を持つ dict を返す。
 {
     "engine_id": str,                 # 任意。省略時は unknown-engine 扱い
     "engine_parameters": dict,        # 任意。memo.md に snapshot として残る
-    "trajectory": list[dict],
-    "preview_svg": str,
-    "gcode": list[str],
-    "safety": dict,
+    "trajectory": list[dict],         # 必須
 }
 ```
 
 `trajectory` の各点は、原則として `x_mm`、`y_mm`、`t_ms`、`pen_state`、`pressure` を持つ。
-engine 内部では文字構造、レイアウト、運動生成、export、preview を自由に分けてよいが、
-runner から見る実行単位は engine 全体である。
+engine の責務はこの正準軌跡の生成までで、preview と G-code への変換は専用基盤が担う。
+engine 内部では文字構造、レイアウト、運動生成を自由に分けてよいが、runner から見る実行単位は
+engine 全体である。`preview_svg` / `gcode` / `safety` を engine が返した場合は、基盤による
+生成を上書きする escape hatch として扱う。
 
 ## Example
 
