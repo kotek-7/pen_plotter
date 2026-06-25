@@ -6,9 +6,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any
 
-from scribing_plotter.gcode import trajectory_to_gcode
-from scribing_plotter.safety import validate_gcode
-from scribing_preview.svg import trajectory_to_svg
+from scribing_exporter.gcode import trajectory_to_gcode
+from scribing_exporter.safety import validate_gcode
+from scribing_renderer.svg import trajectory_to_svg
 
 from scribing_runner.contracts import RunArtifacts, RunRequest
 

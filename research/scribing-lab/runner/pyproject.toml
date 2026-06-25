@@ -8,16 +8,16 @@ version = "0.1.0"
 description = "Minimal runner for scribing engines"
 requires-python = ">=3.11"
 dependencies = [
-    "scribing-preview",
-    "scribing-plotter",
+    "scribing-renderer",
+    "scribing-exporter",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest", "ruff"]
 
 [tool.uv.sources]
-scribing-preview = { path = "../preview", editable = true }
-scribing-plotter = { path = "../plotter", editable = true }
+scribing-renderer = { path = "../renderer", editable = true }
+scribing-exporter = { path = "../exporter", editable = true }
 
 [project.scripts]
 scribe-run = "scribing_runner.cli:main"

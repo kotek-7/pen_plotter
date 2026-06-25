@@ -4,7 +4,7 @@ import argparse
 import json
 from pathlib import Path
 
-from scribing_preview.svg import trajectory_to_svg
+from scribing_renderer.svg import trajectory_to_svg
 
 
 def build_parser() -> argparse.ArgumentParser:

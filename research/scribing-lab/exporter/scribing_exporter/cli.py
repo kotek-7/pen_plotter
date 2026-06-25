@@ -4,9 +4,9 @@ import argparse
 import json
 from pathlib import Path
 
-from scribing_plotter.config import PlotterConfig
-from scribing_plotter.gcode import trajectory_to_gcode
-from scribing_plotter.safety import validate_gcode
+from scribing_exporter.config import PlotterConfig
+from scribing_exporter.gcode import trajectory_to_gcode
+from scribing_exporter.safety import validate_gcode
 
 
 def build_parser() -> argparse.ArgumentParser:

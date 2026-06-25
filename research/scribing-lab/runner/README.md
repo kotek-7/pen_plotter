@@ -26,7 +26,7 @@ runner が書く標準成果物は次の通り。
 - `safety.json`: G-code と紙面範囲の最低限の安全確認結果
 
 このうち `preview.svg`、`output.gcode`、`safety.json` は engine が作るのではなく、
-`trajectory` から専用基盤(`../preview`、`../plotter`)が生成する。runner は engine から
+`trajectory` から専用基盤(`../renderer`、`../exporter`)が生成する。runner は engine から
 `trajectory` を受け取り、両基盤を使って残りの成果物を書き出す。既存 run の `trajectory.json`
 からは `scribe-render` / `scribe-export` で再生成できる。
 

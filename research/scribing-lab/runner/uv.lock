@@ -89,9 +89,9 @@ wheels = [
 ]
 
 [[package]]
-name = "scribing-plotter"
+name = "scribing-exporter"
 version = "0.1.0"
-source = { editable = "../plotter" }
+source = { editable = "../exporter" }
 
 [package.metadata]
 requires-dist = [
@@ -101,9 +101,9 @@ requires-dist = [
 provides-extras = ["dev"]
 
 [[package]]
-name = "scribing-preview"
+name = "scribing-renderer"
 version = "0.1.0"
-source = { editable = "../preview" }
+source = { editable = "../renderer" }
 
 [package.metadata]
 requires-dist = [
@@ -117,8 +117,8 @@ name = "scribing-runner"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "scribing-plotter" },
-    { name = "scribing-preview" },
+    { name = "scribing-exporter" },
+    { name = "scribing-renderer" },
 ]
 
 [package.optional-dependencies]
@@ -131,7 +131,7 @@ dev = [
 requires-dist = [
     { name = "pytest", marker = "extra == 'dev'" },
     { name = "ruff", marker = "extra == 'dev'" },
-    { name = "scribing-plotter", editable = "../plotter" },
-    { name = "scribing-preview", editable = "../preview" },
+    { name = "scribing-exporter", editable = "../exporter" },
+    { name = "scribing-renderer", editable = "../renderer" },
 ]
 provides-extras = ["dev"]

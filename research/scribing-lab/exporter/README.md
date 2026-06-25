@@ -22,7 +22,7 @@ engine から切り離した実機 export 専用の基盤として扱う。出�
 ライブラリ:
 
 ```py
-from scribing_plotter import PlotterConfig, trajectory_to_gcode, validate_gcode
+from scribing_exporter import PlotterConfig, trajectory_to_gcode, validate_gcode
 
 gcode = trajectory_to_gcode(trajectory, PlotterConfig())
 safety = validate_gcode(gcode, PlotterConfig())
@@ -31,7 +31,7 @@ safety = validate_gcode(gcode, PlotterConfig())
 CLI(既存 run の `trajectory.json` から `output.gcode` と `safety.json` を再生成):
 
 ```sh
-cd research/scribing-lab/plotter
+cd research/scribing-lab/exporter
 uv sync --extra dev
 uv run scribe-export ../runs/20260626T123456_example
 ```

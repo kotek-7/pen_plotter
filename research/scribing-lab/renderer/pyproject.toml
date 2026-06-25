@@ -3,7 +3,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "scribing-preview"
+name = "scribing-renderer"
 version = "0.1.0"
 description = "Trajectory to preview SVG for scribing lab"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ dependencies = []
 dev = ["pytest", "ruff"]
 
 [project.scripts]
-scribe-render = "scribing_preview.cli:main"
+scribe-render = "scribing_renderer.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["."]
@@ -24,4 +24,4 @@ line-length = 100
 target-version = "py311"
 
 [tool.hatch.build.targets.wheel]
-packages = ["scribing_preview"]
+packages = ["scribing_renderer"]

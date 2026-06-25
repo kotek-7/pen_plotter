@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from scribing_preview.svg import PreviewConfig, trajectory_to_svg
+from scribing_renderer.svg import PreviewConfig, trajectory_to_svg
 
 
 def _point(x: float, y: float, pen_state: int) -> dict[str, float | int]:

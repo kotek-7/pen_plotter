@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from scribing_plotter.config import PlotterConfig
+from scribing_exporter.config import PlotterConfig
 
 
 def validate_gcode(lines: list[str], config: PlotterConfig | None = None) -> dict[str, Any]:

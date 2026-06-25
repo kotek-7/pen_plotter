@@ -89,7 +89,7 @@ wheels = [
 ]
 
 [[package]]
-name = "scribing-preview"
+name = "scribing-exporter"
 version = "0.1.0"
 source = { editable = "." }
 

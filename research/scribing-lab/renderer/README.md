@@ -16,7 +16,7 @@ engine からも実機 export からも独立した描画専用の基盤とし�
 ライブラリ:
 
 ```py
-from scribing_preview.svg import trajectory_to_svg, PreviewConfig
+from scribing_renderer.svg import trajectory_to_svg, PreviewConfig
 
 svg = trajectory_to_svg(trajectory, PreviewConfig(scale=3.0))
 ```
@@ -24,7 +24,7 @@ svg = trajectory_to_svg(trajectory, PreviewConfig(scale=3.0))
 CLI(既存 run の `trajectory.json` から `preview.svg` を再生成):
 
 ```sh
-cd research/scribing-lab/preview
+cd research/scribing-lab/renderer
 uv sync --extra dev
 uv run scribe-render ../runs/20260626T123456_example
 ```
