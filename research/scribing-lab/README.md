@@ -50,15 +50,27 @@ projects-archived/  旧研究コードの参照用アーカイブ
 
 ## 実行
 
-runner は独立した `uv` project である。
+各基盤は独立した `uv` project であり、本来はそれぞれの project で `uv run` する。
+直下の `Makefile` が各 project への `cd + uv run` をラップするため、通常はこちらを使う。
+依存は増やさず、薄いランチャとして project の独立性は保つ。
+
+```sh
+cd research/scribing-lab
+make sync                          # 全 project を uv sync
+make run TEXT="今日はよい天気です。" NAME=example   # → runs/<stamp>_example/trajectory.json
+make convert RUN=runs/<stamp>_example              # trajectory → preview / gcode / safety
+make view                          # preview viewer を起動（RUN=... で単一 run）
+```
+
+`run` は trajectory のみを生成し、`convert`（= `render` + `export`）で preview・G-code へ
+変換する。個別に `make render RUN=...` / `make export RUN=...` でもよい。`make help` で一覧。
+
+各 project を直接動かす場合は、その project で `uv run` する。
 
 ```sh
 cd research/scribing-lab/runner
 uv sync --extra dev
-uv run scribe-run "今日はよい天気です。" \
-  --engine ../engines/basic_stroke_engine \
-  --seed 1 \
-  --name example-basic
+uv run scribe-run "今日はよい天気です。" --seed 1 --name example-basic
 ```
 
 ## ドキュメント
