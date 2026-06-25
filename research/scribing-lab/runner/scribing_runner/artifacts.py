@@ -1,0 +1,110 @@
+from __future__ import annotations
+
+import json
+from datetime import datetime
+from pathlib import Path
+from typing import Any
+
+from scribing_runner.contracts import RunArtifacts, RunRequest
+
+
+def default_lab_root() -> Path:
+    return Path(__file__).resolve().parents[2]
+
+
+def default_engine_path() -> Path:
+    return default_lab_root() / "engines" / "basic_stroke_engine"
+
+
+def default_run_dir(engine_id: str) -> Path:
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    safe_engine = engine_id.replace("/", "-").replace(" ", "-")
+    return default_lab_root() / "runs" / f"{stamp}_{safe_engine}"
+
+
+def write_run_artifacts(
+    *,
+    run_dir: Path,
+    request: RunRequest,
+    result: dict[str, Any],
+) -> RunArtifacts:
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    engine_id = str(result.get("engine_id", "unknown-engine"))
+    trajectory = result.get("trajectory", [])
+    preview_svg = str(result.get("preview_svg", ""))
+    gcode = result.get("gcode", [])
+    safety = result.get("safety", {})
+    engine_parameters = result.get("engine_parameters", {})
+
+    input_path = run_dir / "input.txt"
+    memo_path = run_dir / "memo.md"
+    trajectory_path = run_dir / "trajectory.json"
+    preview_path = run_dir / "preview.svg"
+    gcode_path = run_dir / "output.gcode"
+    safety_path = run_dir / "safety.json"
+
+    input_path.write_text(request.text, encoding="utf-8")
+    memo_path.write_text(
+        render_memo(
+            engine_id=engine_id,
+            request=request,
+            engine_parameters=engine_parameters,
+        ),
+        encoding="utf-8",
+    )
+    trajectory_path.write_text(_json_dumps(trajectory), encoding="utf-8")
+    preview_path.write_text(preview_svg, encoding="utf-8")
+    gcode_path.write_text("\n".join(str(line) for line in gcode) + "\n", encoding="utf-8")
+    safety_path.write_text(_json_dumps(safety), encoding="utf-8")
+
+    return RunArtifacts(
+        run_dir=run_dir,
+        memo=memo_path,
+        input_text=input_path,
+        trajectory=trajectory_path,
+        preview=preview_path,
+        gcode=gcode_path,
+        safety=safety_path,
+    )
+
+
+def render_memo(
+    *,
+    engine_id: str,
+    request: RunRequest,
+    engine_parameters: Any,
+) -> str:
+    lines = [
+        "# Run Memo",
+        "",
+        f"engine: {engine_id}",
+        f"seed: {request.seed}",
+        "input: input.txt",
+        "",
+        "## Parameters",
+        "",
+    ]
+    if request.params:
+        for key, value in sorted(request.params.items()):
+            lines.append(f"- {key}: {value}")
+    else:
+        lines.append("- default")
+
+    lines.extend(
+        [
+            "",
+            "## Engine Parameters Snapshot",
+            "",
+            "```json",
+            json.dumps(engine_parameters, ensure_ascii=False, indent=2, sort_keys=True),
+            "```",
+            "",
+        ]
+    )
+    return "\n".join(lines)
+
+
+def _json_dumps(data: Any) -> str:
+    return json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+

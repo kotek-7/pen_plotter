@@ -1,0 +1,18 @@
+[project]
+name = "scribing-runner"
+version = "0.1.0"
+description = "Minimal runner for scribing engines"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+scribing-runner = "scribing_runner.cli:main"
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
