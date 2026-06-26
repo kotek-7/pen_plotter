@@ -1,4 +1,4 @@
-.PHONY: help sync run render export convert view test lint format
+.PHONY: help sync run render export convert sketch view test lint format
 
 # Makefile 自身の位置を基準にするため、どの cwd から呼んでも動く。
 ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
@@ -33,6 +33,17 @@ export: ## RUN の trajectory から output.gcode/safety.json を生成 (RUN=<ru
 	cd $(ROOT)/exporter && uv run scribe-export "$(abspath $(RUN))"
 
 convert: render export ## RUN を preview と gcode の両方へ変換 (RUN=<run dir>)
+
+sketch: ## run と convert を一括実行 (TEXT=... [NAME=...] [SEED=...] [ENGINE=...])
+	@[ -n "$(TEXT)" ] || { echo "TEXT=... が必要です"; exit 1; }
+	@out=$$(cd $(ROOT)/runner && uv run scribe-run "$(TEXT)" \
+		$(if $(ENGINE),--engine $(abspath $(ENGINE)),) \
+		$(if $(SEED),--seed $(SEED),) \
+		$(if $(NAME),--name $(NAME),)) || exit 1; \
+	echo "$$out"; \
+	run_dir=$$(printf '%s\n' "$$out" | sed -n 's/^run: //p'); \
+	[ -n "$$run_dir" ] || { echo "run dir を取得できませんでした"; exit 1; }; \
+	$(MAKE) -f "$(ROOT)/Makefile" convert RUN="$$run_dir"
 
 view: ## run preview viewer を起動 ([RUN=<run dir>])
 	cd $(ROOT)/evaluation && uv run scribe-view $(if $(RUN),$(abspath $(RUN)),)
