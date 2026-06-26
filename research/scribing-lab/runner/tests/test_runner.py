@@ -72,9 +72,25 @@ def test_dictionary_engine_aligns_japanese_to_shared_em_box() -> None:
     assert em_bottom - 1e-6 <= kana_lo and kana_hi <= em_top + 1e-6
     # Kana is centered on the em-box, not top-anchored as before the fix.
     assert abs((kana_lo + kana_hi) / 2 - em_center) < config.char_size * 0.15
-    # The long-vowel mark sits exactly at the em-box center.
+
+    # The long-vowel mark uses KanjiVG geometry: a near-centered mark, not a shrunk
+    # top-anchored symbol.
     dash_lo, dash_hi = y_extent("ー")
-    assert abs((dash_lo + dash_hi) / 2 - em_center) < 1e-6
+    assert abs((dash_lo + dash_hi) / 2 - em_center) < config.char_size * 0.1
+
+    # Small kana keep KanjiVG geometry: smaller than the full-size kana, yet still
+    # placed inside the shared em-box rather than extra-shrunk and re-centered.
+    full_lo, full_hi = y_extent("つ")
+    small_lo, small_hi = y_extent("っ")
+    assert (small_hi - small_lo) < (full_hi - full_lo)
+    assert em_bottom - 1e-6 <= small_lo and small_hi <= em_top + 1e-6
+
+    # CJK punctuation present in KanjiVG uses KanjiVG geometry; symbols absent from
+    # KanjiVG stay hand-authored.
+    assert engine._template_for("。").source == "kanjivg"
+    assert engine._template_for("、").source == "kanjivg"
+    assert engine._template_for("・").source == "kanjivg"
+    assert engine._template_for("「").source == "hand-authored-symbols"
 
 
 def test_default_run_dir_uses_datetime_prefix_and_name() -> None:

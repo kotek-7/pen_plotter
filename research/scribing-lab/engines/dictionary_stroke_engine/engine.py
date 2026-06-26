@@ -22,7 +22,6 @@ class EngineConfig:
     line_height: float = 1.45
     kana_scale: float = 1.0
     latin_scale: float = 0.62
-    symbol_scale: float = 0.45
     draw_speed_mm_s: float = 32.0
     penup_speed_mm_s: float = 110.0
 
@@ -250,8 +249,6 @@ def _template_scale(template: CharacterTemplate, config: EngineConfig) -> float:
         return config.kana_scale
     if template.script_group in {"latin", "digit"}:
         return config.latin_scale
-    if template.script_group == "symbol":
-        return config.symbol_scale
     return 1.0
 
 
@@ -368,29 +365,46 @@ def _char(literal: str, strokes: tuple[StrokeTemplate, ...]) -> CharacterTemplat
     )
 
 
+# hand-authored 記号は full em-box ([0,1]) 前提で書かれているため、この比率で
+# em-box 中心に向けて縮小した値を template データへ内包する。レイアウト時の
+# script スケールには依存せず、記号グリフは常にこのサイズで配置される。
+_SYMBOL_GLYPH_SCALE = 0.45
+
+
 def _symbol_template(literal: str, strokes: tuple[StrokeTemplate, ...], *, advance_ratio: float = 0.55) -> CharacterTemplate:
+    s = _SYMBOL_GLYPH_SCALE
+    scaled = tuple(
+        StrokeTemplate(
+            stroke_id=stroke.stroke_id,
+            order=stroke.order,
+            stroke_type=stroke.stroke_type,
+            skeleton_points=tuple(
+                (nx * s, 0.5 - 0.5 * s + ny * s) for nx, ny in stroke.skeleton_points
+            ),
+            terminal=stroke.terminal,
+            confidence=stroke.confidence,
+        )
+        for stroke in strokes
+    )
     return CharacterTemplate(
         char_id=f"U+{ord(literal):04X}",
         literal=literal,
         source="hand-authored-symbols",
         license="project-local",
         bbox=(0.0, 0.0, 1.0, 1.0),
-        strokes=strokes,
+        strokes=scaled,
         script_group="symbol",
-        advance_ratio=advance_ratio,
+        advance_ratio=advance_ratio * s,
     )
 
 
-_SYMBOL_CHARS = set("。、,.!?ー・「」『』()[]+-=*/:;")
+_SYMBOL_CHARS = set(",.!?「」『』()[]+-=*/:;")
 
 _SYMBOL_TEMPLATES: dict[str, CharacterTemplate] = {
-    "。": _symbol_template("。", (_stroke(1, "none", "none", ((0.42, 0.68), (0.58, 0.68), (0.58, 0.84), (0.42, 0.84), (0.42, 0.68))),)),
     ".": _symbol_template(".", (_stroke(1, "ten", "tome", ((0.48, 0.80), (0.52, 0.84))),), advance_ratio=0.35),
-    "、": _symbol_template("、", (_stroke(1, "ten", "harai", ((0.50, 0.66), (0.42, 0.84))),), advance_ratio=0.4),
     ",": _symbol_template(",", (_stroke(1, "ten", "harai", ((0.52, 0.74), (0.44, 0.92))),), advance_ratio=0.35),
     "!": _symbol_template("!", (_stroke(1, "tate", "tome", ((0.50, 0.18), (0.50, 0.62))), _stroke(2, "ten", "tome", ((0.50, 0.80), (0.50, 0.84)))), advance_ratio=0.4),
     "?": _symbol_template("?", (_stroke(1, "none", "none", ((0.34, 0.28), (0.48, 0.16), (0.66, 0.28), (0.58, 0.48), (0.50, 0.58))), _stroke(2, "ten", "tome", ((0.50, 0.80), (0.50, 0.84)))), advance_ratio=0.62),
-    "ー": _symbol_template("ー", (_stroke(1, "yoko", "tome", ((0.18, 0.50), (0.82, 0.50))),), advance_ratio=0.8),
     "-": _symbol_template("-", (_stroke(1, "yoko", "tome", ((0.24, 0.52), (0.76, 0.52))),), advance_ratio=0.58),
     "+": _symbol_template("+", (_stroke(1, "yoko", "tome", ((0.24, 0.50), (0.76, 0.50))), _stroke(2, "tate", "tome", ((0.50, 0.24), (0.50, 0.76)))), advance_ratio=0.62),
     "=": _symbol_template("=", (_stroke(1, "yoko", "tome", ((0.24, 0.42), (0.76, 0.42))), _stroke(2, "yoko", "tome", ((0.24, 0.62), (0.76, 0.62)))), advance_ratio=0.62),
@@ -398,7 +412,6 @@ _SYMBOL_TEMPLATES: dict[str, CharacterTemplate] = {
     "/": _symbol_template("/", (_stroke(1, "hidari", "harai", ((0.74, 0.18), (0.26, 0.84))),), advance_ratio=0.55),
     ":": _symbol_template(":", (_stroke(1, "ten", "tome", ((0.50, 0.38), (0.50, 0.42))), _stroke(2, "ten", "tome", ((0.50, 0.70), (0.50, 0.74)))), advance_ratio=0.35),
     ";": _symbol_template(";", (_stroke(1, "ten", "tome", ((0.50, 0.38), (0.50, 0.42))), _stroke(2, "ten", "harai", ((0.52, 0.70), (0.44, 0.90)))), advance_ratio=0.35),
-    "・": _symbol_template("・", (_stroke(1, "ten", "tome", ((0.48, 0.48), (0.52, 0.52))),), advance_ratio=0.4),
     "「": _symbol_template("「", (_stroke(1, "ori", "tome", ((0.68, 0.20), (0.38, 0.20), (0.38, 0.50))),), advance_ratio=0.42),
     "」": _symbol_template("」", (_stroke(1, "ori", "tome", ((0.62, 0.50), (0.62, 0.80), (0.32, 0.80))),), advance_ratio=0.42),
     "『": _symbol_template("『", (_stroke(1, "ori", "tome", ((0.72, 0.16), (0.34, 0.16), (0.34, 0.56))), _stroke(2, "ori", "tome", ((0.58, 0.30), (0.44, 0.30), (0.44, 0.50)))), advance_ratio=0.5),

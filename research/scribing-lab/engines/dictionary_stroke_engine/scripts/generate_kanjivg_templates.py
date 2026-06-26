@@ -422,12 +422,10 @@ def _classify_script(char: str) -> str:
 
 
 def _display_scale(literal: str, *, script_group: str) -> float:
-    if literal in "ぁぃぅぇぉゃゅょっゎゕゖァィゥェォャュョッヮヵヶ":
-        return 0.48
-    if literal in "、。，．・":
-        return 0.40
-    if literal == "ー":
-        return 0.74
+    # 小書きかな・長音記号・全角句読点(。、・)は KanjiVG が em-box 内に正しいサイズ・
+    # 位置で描いているため、追加の縮小は行わず KanjiVG 幾何をそのまま使う。
+    if literal in "。、・":
+        return 1.0
     if literal in "！？!?":
         return 0.60
     if script_group == "latin":
@@ -440,12 +438,11 @@ def _display_scale(literal: str, *, script_group: str) -> float:
 
 
 def _advance_ratio(literal: str, *, script_group: str) -> float:
-    if literal in "ぁぃぅぇぉゃゅょっゎゕゖァィゥェォャュョッヮヵヶ":
-        return 0.42
-    if literal in "、。，．・":
-        return 0.28
-    if literal == "ー":
-        return 0.72
+    # 小書きかな・長音記号も全角1マスを占めるため、通常のかなと同じ送り幅にする。
+    # 全角句読点(。、・)は KanjiVG 幾何が下寄り/中央の小グリフなので、詰まりすぎない
+    # 中庸の送り幅にする。
+    if literal in "。、・":
+        return 0.5
     if literal in "！？!?":
         return 0.44
     if script_group in {"hiragana", "katakana"}:

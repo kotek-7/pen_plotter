@@ -43,11 +43,12 @@ source / license metadata を残す。
 - `margin_top`: 上余白 mm。既定値 `16.0`
 - `kana_scale`: かな・カナの文字サイズ比。既定値 `1.0`
 - `latin_scale`: 英数字の文字サイズ比。既定値 `0.62`
-- `symbol_scale`: 記号の文字サイズ比。既定値 `0.45`
 - `draw_speed_mm_s`: 筆記速度。既定値 `32.0`
 - `penup_speed_mm_s`: ペンアップ移動速度。既定値 `110.0`
 
 全角の日本語グリフ（かな・カナ・漢字）は KanjiVG の em-box を共有し、`char_size` の正方セルを基準に配置する。かな・カナは KanjiVG が em-box 内に適切なサイズで収めているため既定で `kana_scale=1.0`（漢字と同サイズ）とする。`baseline_y` を持たないグリフ（全角・記号）は em-box 中心を基準に拡縮するため、小書きかな・長音 `ー`・句読点も漢字の em-box と縦位置が揃う。英数字は `baseline_y` でベースラインを固定する。
+
+KanjiVG が提供するグリフ（全角句読点 `。` `、` `・` を含む）は KanjiVG 幾何をそのまま使い、独自辞書では上書きしない。独自辞書は KanjiVG に無い記号（`- + = * /` や括弧類）のみを hand-authored で持つ。これらの記号サイズはレイアウト時の係数ではなく template データへ内包する（`symbol_scale` 設定は廃止）。
 
 現段階の本 engine は人間らしさを加えない純粋なフォント出力 engine である。位置揺れ・筆圧変調・運動速度変化などの humanization は持たず、`trajectory` は決定論的に生成する。`pressure` は接地中 `1.0`・非接地中 `0.0` の定数、`t` は `draw_speed_mm_s` の一様速度から距離比例で算出する。`seed` は contract 上受け取るが出力には影響しない。
 
