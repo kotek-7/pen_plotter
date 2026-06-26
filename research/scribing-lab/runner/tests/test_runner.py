@@ -50,6 +50,33 @@ def test_runner_loads_dictionary_stroke_engine() -> None:
     assert "A" in result["engine_parameters"]["dictionary"]["used_chars"]
 
 
+def test_dictionary_engine_aligns_japanese_to_shared_em_box() -> None:
+    engine_path = Path(__file__).resolve().parents[2] / "engines" / "dictionary_stroke_engine"
+    engine = _load_engine(engine_path)
+    config = engine.EngineConfig()
+    y_top = config.paper_height - config.margin_top
+    em_top = y_top
+    em_bottom = y_top - config.char_size
+    em_center = y_top - config.char_size / 2
+
+    def y_extent(text: str) -> tuple[float, float]:
+        strokes, _ = engine._layout_text(text, config=config)
+        ys = [point[1] for stroke in strokes for point in stroke.points]
+        return min(ys), max(ys)
+
+    kanji_lo, kanji_hi = y_extent("永")
+    kana_lo, kana_hi = y_extent("あ")
+
+    # Full-width kanji and kana share the same em-box.
+    assert em_bottom - 1e-6 <= kanji_lo and kanji_hi <= em_top + 1e-6
+    assert em_bottom - 1e-6 <= kana_lo and kana_hi <= em_top + 1e-6
+    # Kana is centered on the em-box, not top-anchored as before the fix.
+    assert abs((kana_lo + kana_hi) / 2 - em_center) < config.char_size * 0.15
+    # The long-vowel mark sits exactly at the em-box center.
+    dash_lo, dash_hi = y_extent("ー")
+    assert abs((dash_lo + dash_hi) / 2 - em_center) < 1e-6
+
+
 def test_default_run_dir_uses_datetime_prefix_and_name() -> None:
     run_dir = default_run_dir("basic/stroke engine", run_name="smoke test")
 

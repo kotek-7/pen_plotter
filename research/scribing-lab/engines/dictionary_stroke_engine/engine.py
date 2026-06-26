@@ -20,7 +20,7 @@ class EngineConfig:
     char_size: float = 12.0
     char_spacing: float = 2.5
     line_height: float = 1.45
-    kana_scale: float = 0.92
+    kana_scale: float = 1.0
     latin_scale: float = 0.62
     symbol_scale: float = 0.45
     draw_speed_mm_s: float = 32.0
@@ -132,6 +132,7 @@ def _layout_text(
                 template,
                 x=x,
                 y_top=y_top,
+                em_size=config.char_size,
                 nominal_size=char_size,
                 draw_size=draw_size,
             )
@@ -146,16 +147,32 @@ def _position_template(
     *,
     x: float,
     y_top: float,
+    em_size: float,
     nominal_size: float,
     draw_size: float,
 ) -> list[PositionedStroke]:
-    origin_y = y_top
+    """Place a template's normalized strokes onto the paper.
+
+    Latin glyphs (``baseline_y`` set) keep their baseline fixed regardless of
+    ``draw_size``. Full-width glyphs (``baseline_y`` is ``None``) are scaled about
+    the shared em-box center so that kana, small kana, the long-vowel mark and
+    punctuation stay vertically aligned with kanji (the KanjiVG em-box) instead of
+    being top-anchored.
+    """
     if template.baseline_y is not None:
-        baseline_y = y_top - template.baseline_y * nominal_size
-        origin_y = baseline_y + template.baseline_y * draw_size
+        origin_y = (y_top - template.baseline_y * nominal_size) + template.baseline_y * draw_size
+
+        def map_y(ny: float) -> float:
+            return origin_y - ny * draw_size
+    else:
+        cell_center_y = y_top - em_size / 2.0
+
+        def map_y(ny: float) -> float:
+            return cell_center_y + (0.5 - ny) * draw_size
+
     positioned: list[PositionedStroke] = []
     for stroke in sorted(template.strokes, key=lambda item: item.order):
-        points = tuple((x + nx * draw_size, origin_y - ny * draw_size) for nx, ny in stroke.skeleton_points)
+        points = tuple((x + nx * draw_size, map_y(ny)) for nx, ny in stroke.skeleton_points)
         positioned.append(
             PositionedStroke(
                 points=points,
