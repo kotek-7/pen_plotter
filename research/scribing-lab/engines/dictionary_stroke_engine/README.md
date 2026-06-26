@@ -46,8 +46,8 @@ source / license metadata を残す。
 - `symbol_scale`: 記号の文字サイズ比。既定値 `0.45`
 - `draw_speed_mm_s`: 筆記速度。既定値 `32.0`
 - `penup_speed_mm_s`: ペンアップ移動速度。既定値 `110.0`
-- `tremor`: 局所揺れ mm。既定値 `0.03`
-- `drift`: 文字ごとの低周波揺れ mm。既定値 `0.18`
+
+現段階の本 engine は人間らしさを加えない純粋なフォント出力 engine である。位置揺れ・筆圧変調・運動速度変化などの humanization は持たず、`trajectory` は決定論的に生成する。`pressure` は接地中 `1.0`・非接地中 `0.0` の定数、`t` は `draw_speed_mm_s` の一様速度から距離比例で算出する。`seed` は contract 上受け取るが出力には影響しない。
 
 ## Usage
 
