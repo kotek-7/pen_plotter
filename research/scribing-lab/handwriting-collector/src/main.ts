@@ -47,7 +47,7 @@ function readConfig(data: FormData): SetupConfig {
     writerId,
     charsetName: String(data.get("charset") ?? CHARSETS[0].name),
     rounds: clampInt(Number(data.get("rounds")), 1, 500, 10),
-    canvasSize: clampInt(Number(data.get("canvasSize")), 200, 1600, 800),
+    canvasSize: clampInt(Number(data.get("canvasSize")), 200, 1600, 400),
     penOnly: data.get("penOnly") === "on",
   };
 }
