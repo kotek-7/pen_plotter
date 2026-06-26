@@ -5,6 +5,8 @@ export type RenderOptions = {
   showBBox?: boolean;
   showEndpoints?: boolean;
   pressureWidth?: boolean;
+  /** ペン位置を示す自前カーソル (OS カーソルが出ない環境向け)。 */
+  cursor?: { x: number; y: number } | null;
 };
 
 const STROKE_COLORS = ["#1f2937", "#2563eb", "#dc2626", "#059669", "#7c3aed", "#d97706"];
@@ -66,6 +68,32 @@ export class StrokeRenderer {
     if (options.showBBox) {
       this.renderBBox(strokes);
     }
+
+    if (options.cursor) {
+      this.renderCursor(options.cursor);
+    }
+  }
+
+  private renderCursor(pos: { x: number; y: number }): void {
+    const ctx = this.ctx;
+    const { x, y } = pos;
+    ctx.save();
+    ctx.strokeStyle = "rgba(37,99,235,0.9)";
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.arc(x, y, 5, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(x - 10, y);
+    ctx.lineTo(x - 3, y);
+    ctx.moveTo(x + 3, y);
+    ctx.lineTo(x + 10, y);
+    ctx.moveTo(x, y - 10);
+    ctx.lineTo(x, y - 3);
+    ctx.moveTo(x, y + 3);
+    ctx.lineTo(x, y + 10);
+    ctx.stroke();
+    ctx.restore();
   }
 
   private renderPressure(stroke: RawStroke): void {

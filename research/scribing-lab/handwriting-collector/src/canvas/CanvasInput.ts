@@ -14,6 +14,8 @@ export class CanvasInput {
   private current: RawStroke | null = null;
   private sampleStartTime: number | null = null;
   private cancelled = false;
+  /** ペンのホバー位置 (CSS px)。Linux 等で OS カーソルが出ないため自前描画する。 */
+  private cursor: { x: number; y: number } | null = null;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -23,8 +25,18 @@ export class CanvasInput {
     canvas.addEventListener("pointermove", this.onPointerMove);
     canvas.addEventListener("pointerup", this.onPointerUp);
     canvas.addEventListener("pointercancel", this.onPointerCancel);
+    canvas.addEventListener("pointerleave", this.onPointerLeave);
     // ペン描画中のスクロール・ジェスチャを抑止する。
     canvas.style.touchAction = "none";
+  }
+
+  getCursor(): { x: number; y: number } | null {
+    return this.cursor;
+  }
+
+  private positionOf(e: PointerEvent): { x: number; y: number } {
+    const rect = this.canvas.getBoundingClientRect();
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top };
   }
 
   setOptions(options: CanvasInputOptions): void {
@@ -102,20 +114,33 @@ export class CanvasInput {
       this.sampleStartTime = e.timeStamp;
     }
 
+    this.cursor = this.positionOf(e);
     this.current = { strokeIndex: this.strokes.length, points: [this.toPoint(e)] };
     this.strokes.push(this.current);
     this.options.onChange();
   };
 
   private onPointerMove = (e: PointerEvent): void => {
-    if (!this.current) {
+    if (e.pointerType === "pen") {
+      this.cursor = this.positionOf(e);
+    }
+    if (this.current) {
+      const events =
+        typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [e];
+      for (const ev of events.length ? events : [e]) {
+        this.current.points.push(this.toPoint(ev));
+      }
+      this.options.onChange();
       return;
     }
-    const events =
-      typeof e.getCoalescedEvents === "function" ? e.getCoalescedEvents() : [e];
-    for (const ev of events.length ? events : [e]) {
-      this.current.points.push(this.toPoint(ev));
+    // ホバー: ペンのみ自前カーソルを更新するため再描画する。
+    if (e.pointerType === "pen") {
+      this.options.onChange();
     }
+  };
+
+  private onPointerLeave = (): void => {
+    this.cursor = null;
     this.options.onChange();
   };
 

@@ -90,7 +90,12 @@ export class App {
       return;
     }
     const strokes = this.input.getStrokes();
-    this.renderer.render(strokes, { colorByStroke: true, showBBox: true, showEndpoints: true });
+    this.renderer.render(strokes, {
+      colorByStroke: true,
+      showBBox: true,
+      showEndpoints: true,
+      cursor: this.input.getCursor(),
+    });
     const points = strokes.reduce((n, s) => n + s.points.length, 0);
     this.refs.stats.textContent = `strokes: ${strokes.length} / points: ${points}`;
     if (this.input.wasCancelled()) {
