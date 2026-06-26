@@ -36,7 +36,7 @@ def trajectory_to_svg(
     parts = [
         f'<svg xmlns="http://www.w3.org/2000/svg" '
         f'viewBox="0 0 {width:.0f} {height:.0f}" width="{width:.0f}" height="{height:.0f}">',
-        '<rect x="0" y="0" width="100%" height="100%" fill="#f8f5e9"/>',
+        '<rect x="0" y="0" width="100%" height="100%" fill="none"/>',
         f'<rect x="0" y="0" width="{width:.2f}" height="{height:.2f}" '
         'fill="none" stroke="#999" stroke-width="1"/>',
     ]
