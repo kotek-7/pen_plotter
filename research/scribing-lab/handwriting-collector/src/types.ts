@@ -19,6 +19,12 @@ export type RawStroke = {
   points: RawPoint[];
 };
 
+/** 書字ガイド。座標は canvas の CSS ピクセル。前処理での基準正規化に使う。 */
+export type Guide = {
+  /** 書字セル枠 (正方)。文字はこの枠を埋めて書く。枠外の余白は払い/はね用。 */
+  cell: { x: number; y: number; width: number; height: number };
+};
+
 /** 1文字サンプル。JSONL の 1 行に対応する。 */
 export type RawSample = {
   version: string;
@@ -35,6 +41,7 @@ export type RawSample = {
     height: number;
     devicePixelRatio: number;
   };
+  guide: Guide;
   strokes: RawStroke[];
 };
 

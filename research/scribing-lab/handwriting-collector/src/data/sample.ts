@@ -1,4 +1,11 @@
-import { DATA_VERSION, type CanvasSettings, type PromptItem, type RawSample, type RawStroke } from "../types";
+import {
+  DATA_VERSION,
+  type CanvasSettings,
+  type Guide,
+  type PromptItem,
+  type RawSample,
+  type RawStroke,
+} from "../types";
 
 /** code point を "U+XXXX" 形式へ。サロゲートペアにも対応する。 */
 export function charCodeLabel(char: string): string {
@@ -32,6 +39,7 @@ export function buildSample(args: {
   prompt: PromptItem;
   strokes: RawStroke[];
   canvas: CanvasSettings;
+  guide: Guide;
   sequence: number;
 }): RawSample {
   return {
@@ -45,6 +53,7 @@ export function buildSample(args: {
     repetitionIndex: args.prompt.repetitionIndex,
     createdAt: localISO(),
     canvas: { ...args.canvas },
+    guide: { cell: { ...args.guide.cell } },
     strokes: args.strokes,
   };
 }

@@ -4,7 +4,19 @@ import { buildSample } from "./data/sample";
 import { validateSample } from "./data/validate";
 import { exportSession } from "./data/exportJsonl";
 import { saveSession } from "./state/sessionStore";
-import type { PromptItem, Session } from "./types";
+import type { Guide, PromptItem, Session } from "./types";
+
+/**
+ * 書字セル枠の余白比。枠外の余白は、box を出る払い/はね/はみ出しを取りこぼさない
+ * ための領域。和文は枠を埋めて書くため、余白は広めにとる。
+ */
+const GUIDE_MARGIN_RATIO = 0.18;
+
+function computeGuide(width: number, height: number): Guide {
+  const margin = Math.round(Math.min(width, height) * GUIDE_MARGIN_RATIO);
+  const cell = { x: margin, y: margin, width: width - 2 * margin, height: height - 2 * margin };
+  return { cell };
+}
 
 type Refs = {
   recorder: HTMLElement;
@@ -21,6 +33,7 @@ export class App {
   private readonly refs: Refs;
   private input!: CanvasInput;
   private renderer!: StrokeRenderer;
+  private guide!: Guide;
   private paused = false;
   private finished = false;
 
@@ -62,6 +75,7 @@ export class App {
     }
     ctx.scale(dpr, dpr);
     this.renderer = new StrokeRenderer(canvas, width, height);
+    this.guide = computeGuide(width, height);
   }
 
   private currentPrompt(): PromptItem | undefined {
@@ -94,6 +108,7 @@ export class App {
       colorByStroke: true,
       showBBox: true,
       showEndpoints: true,
+      guide: this.guide,
       cursor: this.input.getCursor(),
     });
     const points = strokes.reduce((n, s) => n + s.points.length, 0);
@@ -124,6 +139,7 @@ export class App {
       prompt,
       strokes,
       canvas: this.session.canvas,
+      guide: this.guide,
       sequence: this.session.samples.length + 1,
     });
     this.session.samples.push(sample);

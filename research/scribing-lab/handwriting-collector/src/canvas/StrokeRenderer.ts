@@ -1,10 +1,12 @@
-import type { RawStroke } from "../types";
+import type { Guide, RawStroke } from "../types";
 
 export type RenderOptions = {
   colorByStroke?: boolean;
   showBBox?: boolean;
   showEndpoints?: boolean;
   pressureWidth?: boolean;
+  /** 書字ガイド (セル枠)。ストロークの下に描く。 */
+  guide?: Guide | null;
   /** ペン位置を示す自前カーソル (OS カーソルが出ない環境向け)。 */
   cursor?: { x: number; y: number } | null;
 };
@@ -33,6 +35,9 @@ export class StrokeRenderer {
 
   render(strokes: RawStroke[], options: RenderOptions = {}): void {
     this.clear();
+    if (options.guide) {
+      this.renderGuide(options.guide);
+    }
     const ctx = this.ctx;
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
@@ -72,6 +77,18 @@ export class StrokeRenderer {
     if (options.cursor) {
       this.renderCursor(options.cursor);
     }
+  }
+
+  private renderGuide(guide: Guide): void {
+    const ctx = this.ctx;
+    const { cell } = guide;
+    ctx.save();
+    // 書字セル枠 (薄い破線)
+    ctx.strokeStyle = "rgba(0,0,0,0.15)";
+    ctx.lineWidth = 1;
+    ctx.setLineDash([6, 6]);
+    ctx.strokeRect(cell.x, cell.y, cell.width, cell.height);
+    ctx.restore();
   }
 
   private renderCursor(pos: { x: number; y: number }): void {
