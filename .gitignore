@@ -31,3 +31,5 @@ research/scribing-lab/projects/*/runs/
 *.swo
 test_env/
 data/user_strokes_old/
+
+.playwright-mcp
