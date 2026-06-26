@@ -10,6 +10,7 @@ const state = {
 
 const runList = document.getElementById('runList');
 const activeRun = document.getElementById('activeRun');
+const activeInput = document.getElementById('activeInput');
 const viewport = document.getElementById('viewport');
 const preview = document.getElementById('preview');
 const empty = document.getElementById('empty');
@@ -57,6 +58,7 @@ async function loadRuns() {
   }
   if (!state.runs.length) {
     activeRun.textContent = '';
+    activeInput.textContent = '';
     empty.style.display = 'grid';
     memo.textContent = '';
   }
@@ -79,10 +81,16 @@ async function selectRun(name) {
   if (!run) return;
   state.active = run.name;
   activeRun.textContent = run.name;
+  activeRun.title = run.name;
+  activeInput.textContent = '';
   renderRuns();
   empty.style.display = 'none';
   preview.src = `${run.preview_url}?t=${Date.now()}`;
   memo.textContent = '';
+  if (run.has_input) {
+    const response = await fetch(run.input_url);
+    if (response.ok) activeInput.textContent = (await response.text()).trim();
+  }
   if (run.has_memo) {
     const response = await fetch(run.memo_url);
     if (response.ok) memo.textContent = await response.text();

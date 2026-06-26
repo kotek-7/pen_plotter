@@ -15,6 +15,7 @@ class RunPreview:
     name: str
     path: Path
     has_memo: bool
+    has_input: bool
 
     def to_dict(self) -> dict[str, Any]:
         encoded = quote(self.name)
@@ -22,7 +23,9 @@ class RunPreview:
             "name": self.name,
             "preview_url": f"/preview/{encoded}/preview.svg",
             "memo_url": f"/memo/{encoded}",
+            "input_url": f"/input/{encoded}",
             "has_memo": self.has_memo,
+            "has_input": self.has_input,
         }
 
 
@@ -62,7 +65,14 @@ def list_run_previews(runs_dir: Path, *, run_dir: Path | None = None) -> list[Ru
     for path in sorted(runs, key=lambda item: item.name, reverse=True):
         preview = path / "preview.svg"
         if preview.exists():
-            previews.append(RunPreview(name=path.name, path=path, has_memo=(path / "memo.md").exists()))
+            previews.append(
+                RunPreview(
+                    name=path.name,
+                    path=path,
+                    has_memo=(path / "memo.md").exists(),
+                    has_input=(path / "input.txt").exists(),
+                )
+            )
     return previews
 
 
@@ -94,6 +104,9 @@ def _make_handler(config: ViewerConfig) -> type[BaseHTTPRequestHandler]:
                 return
             if parsed.path.startswith("/memo/"):
                 self._send_run_file(parsed.path, filename="memo.md")
+                return
+            if parsed.path.startswith("/input/"):
+                self._send_run_file(parsed.path, filename="input.txt")
                 return
             self.send_error(HTTPStatus.NOT_FOUND)
 
@@ -163,4 +176,8 @@ def _run_name_from_path(path: str, *, filename: str) -> str | None:
         if not path.startswith("/memo/"):
             return None
         return unquote(path.removeprefix("/memo/")).strip("/")
+    if filename == "input.txt":
+        if not path.startswith("/input/"):
+            return None
+        return unquote(path.removeprefix("/input/")).strip("/")
     return None
