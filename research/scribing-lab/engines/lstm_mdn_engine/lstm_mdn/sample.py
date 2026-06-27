@@ -7,7 +7,7 @@ from pathlib import Path
 import torch
 
 from . import artifacts
-from .config import CHECKPOINT_PATH, DATA_DIR, SampleConfig
+from .config import DATA_DIR, SampleConfig, resolve_checkpoint
 from .sampler import generate_strokes
 from .trajectory import render_svg
 
@@ -18,11 +18,14 @@ def main() -> None:
     parser.add_argument("--count", type=int, default=5, help="各文字のサンプル数")
     parser.add_argument("--bias", type=float, default=SampleConfig.bias)
     parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "-c", "--checkpoint", default=None, help="checkpoint パス/名前 (既定: 最新)"
+    )
     parser.add_argument("--out", type=Path, default=DATA_DIR / "samples" / "samples.svg")
     args = parser.parse_args()
 
     torch.manual_seed(args.seed)
-    model, chars, dxdy_std, _ = artifacts.load_checkpoint(CHECKPOINT_PATH)
+    model, chars, dxdy_std, _ = artifacts.load_checkpoint(resolve_checkpoint(args.checkpoint))
     char_to_id = {c: i for i, c in enumerate(chars)}
     config = SampleConfig(bias=args.bias)
 

@@ -25,19 +25,28 @@ uv sync --extra dev
 
 ## 学習
 
+`--data` は既定で `../../handwriting-collector/datasets/*.jsonl` を glob する。拡張データ
+（`dataset-augment` の出力）を同じ `datasets/` に置けば、元＋拡張がまとめて学習対象になる。
+
 ```sh
-uv run hw-train                       # 既定: ../../handwriting-collector/datasets/*.jsonl
-uv run hw-train --epochs 400 --hidden 256 --mixtures 20
+uv run hw-train --epochs 400 --name aug          # datasets/*.jsonl 全部 (元+拡張) で学習
+uv run hw-train --epochs 400 --data "../../handwriting-collector/datasets/*.aug4x.jsonl" --name augonly
 ```
 
-`data/checkpoint.pt` と `data/stats.json`（語彙・Δ標準偏差・モデル設定）を出力する（gitignore 対象）。
+checkpoint は **日付・名前つき**で `data/checkpoints/<YYYYMMDDTHHMMSS>_<name>.pt`（＋ `.stats.json`）
+として出力する（上書きせず学習ごとに別ファイル、gitignore 対象）。`--name` 既定は `model`、
+`--out <path>` で保存先を明示指定もできる。
 
 ## 生成（確認用 SVG）
 
 ```sh
-uv run hw-sample --chars "あいうえお" --count 5 --bias 1.0
+uv run hw-sample --chars "あいうえお" --count 5 --bias 1.0     # 既定: 最新 checkpoint
+uv run hw-sample --checkpoint 20260627T212527_aug --chars "あ"  # 名前/パス指定
 # -> data/samples/samples.svg （文字×サンプルのグリッド）
 ```
+
+checkpoint の解決順は「パスとして存在 → `data/checkpoints/<名前>(.pt)` → 最新」。`--checkpoint`
+省略時は `data/checkpoints/` の最新（無ければ旧 `data/checkpoint.pt`）を使う。
 
 ## runner からの利用
 
@@ -47,11 +56,22 @@ uv project なので、runner は**このエンジンの環境でサブプロセ
 
 ```sh
 cd research/scribing-lab
-make run TEXT="あいう" NAME=lstm-smoke ENGINE=engines/lstm_mdn_engine
+make run TEXT="あいう" NAME=lstm-smoke ENGINE=engines/lstm_mdn_engine   # 既定: 最新 checkpoint
 make convert RUN=runs/<run-dir>
 ```
 
-学習前 (checkpoint 無し) に呼ぶと、学習を促すエラーになる。未学習のうちは紙面外へ
+engine は `params` で挙動を変えられる（`checkpoint`＝パス or `data/checkpoints/` 配下の名前で
+既定は最新、`bias`、`char_size` など）。`make run` は param 非対応なので、param を渡すときは
+runner の `scribe-run --param` を直接使う。
+
+```sh
+cd research/scribing-lab/runner
+uv run scribe-run "あいう" --engine ../engines/lstm_mdn_engine \
+  --param checkpoint=20260627T212527_aug --param bias=2.0 --name lstm-aug
+```
+
+学習前 (checkpoint 無し) に呼ぶと、学習を促すエラーになる。未学習のうちは紙面外へはみ出し
+`safety` が `ok=False` になることがある（モデル品質の問題で、学習を進めると収束）。未学習のうちは紙面外へ
 はみ出し `safety` が `ok=False` になることがある（モデル品質の問題で、学習を進めると収束）。
 
 ## テスト

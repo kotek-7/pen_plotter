@@ -7,13 +7,15 @@ import numpy as np
 import torch
 from torch.utils.data import DataLoader, Dataset as TorchDataset
 
+from pathlib import Path
+
 from . import artifacts
 from .config import (
-    CHECKPOINT_PATH,
     DEFAULT_DATASET_GLOB,
-    STATS_PATH,
     ModelConfig,
     TrainConfig,
+    _stats_path_for,
+    new_checkpoint_paths,
 )
 from .data import build_dataset
 from .mdn import mdn_loss
@@ -75,6 +77,8 @@ def train(
     dataset_glob: str,
     model_config: ModelConfig,
     train_config: TrainConfig,
+    checkpoint_path: Path,
+    stats_path: Path,
 ) -> None:
     random.seed(train_config.seed)
     np.random.seed(train_config.seed)
@@ -111,8 +115,8 @@ def train(
         if va < best_val:
             best_val = va
             artifacts.save_checkpoint(
-                CHECKPOINT_PATH,
-                STATS_PATH,
+                checkpoint_path,
+                stats_path,
                 model=model,
                 model_config=model_config,
                 chars=data.chars,
@@ -121,7 +125,7 @@ def train(
         if epoch % 10 == 0 or epoch == 1:
             print(f"epoch {epoch:4d}  train {tr:8.4f}  val {va:8.4f}  best {best_val:8.4f}")
 
-    print(f"done. best val {best_val:.4f} -> {CHECKPOINT_PATH}")
+    print(f"done. best val {best_val:.4f} -> {checkpoint_path}")
 
 
 def main() -> None:
@@ -133,13 +137,20 @@ def main() -> None:
     parser.add_argument("--hidden", type=int, default=ModelConfig.hidden)
     parser.add_argument("--mixtures", type=int, default=ModelConfig.mixtures)
     parser.add_argument("--seed", type=int, default=TrainConfig.seed)
+    parser.add_argument("-n", "--name", default="model", help="checkpoint 名 (日付prefixが付く)")
+    parser.add_argument("-o", "--out", type=Path, help="checkpoint 出力先を明示指定 (--name より優先)")
     args = parser.parse_args()
+
+    if args.out is not None:
+        checkpoint_path, stats_path = args.out, _stats_path_for(args.out)
+    else:
+        checkpoint_path, stats_path = new_checkpoint_paths(args.name)
 
     model_config = ModelConfig(hidden=args.hidden, mixtures=args.mixtures)
     train_config = TrainConfig(
         epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, seed=args.seed
     )
-    train(args.data, model_config, train_config)
+    train(args.data, model_config, train_config, checkpoint_path, stats_path)
 
 
 if __name__ == "__main__":

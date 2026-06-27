@@ -42,14 +42,16 @@ def generate(request: dict[str, Any]) -> dict[str, Any]:
     import torch
 
     from lstm_mdn import artifacts, sampler, trajectory
-    from lstm_mdn.config import CHECKPOINT_PATH, SampleConfig
+    from lstm_mdn.config import SampleConfig, resolve_checkpoint
 
     text = unicodedata.normalize("NFKC", str(request.get("text", "")))
     seed = int(request.get("seed", 1))
     params = dict(request.get("params", {}))
     config = _config_from_params(params)
+    # params["checkpoint"] でモデルを選べる (パス or checkpoints/ 配下の名前)。既定は最新。
+    checkpoint_path = resolve_checkpoint(params.get("checkpoint"))
 
-    model, chars, dxdy_std, _ = _load_model(artifacts, CHECKPOINT_PATH)
+    model, chars, dxdy_std, _ = _load_model(artifacts, checkpoint_path)
     char_to_id = {c: i for i, c in enumerate(chars)}
     sample_config = SampleConfig(bias=config.bias)
 
@@ -104,7 +106,7 @@ def generate(request: dict[str, Any]) -> dict[str, Any]:
             "config": config.__dict__,
             "params": params,
             "model": {
-                "checkpoint": str(CHECKPOINT_PATH),
+                "checkpoint": str(checkpoint_path),
                 "vocab_size": len(chars),
                 "used_chars": sorted(used),
                 "missing_chars": sorted(missing),

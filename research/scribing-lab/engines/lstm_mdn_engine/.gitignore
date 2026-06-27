@@ -6,4 +6,5 @@ __pycache__/
 # 学習成果物 (再生成可能なバイナリ)。stats と vocab も checkpoint と対で出力される。
 data/*.pt
 data/stats.json
+data/checkpoints/
 data/samples/
