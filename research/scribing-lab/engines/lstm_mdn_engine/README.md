@@ -37,6 +37,10 @@ checkpoint は **日付・名前つき**で `data/checkpoints/<YYYYMMDDTHHMMSS>_
 として出力する（上書きせず学習ごとに別ファイル、gitignore 対象）。`--name` 既定は `model`、
 `--out <path>` で保存先を明示指定もできる。
 
+`--epochs` は上限で、**val が改善しないまま `--patience`（既定 40）エポック続くと早期終了**する。
+保存されるのは常に最良 val 時点の checkpoint。`--epochs` は大きめにして patience に任せてよい
+（`--patience 0` で早期終了を無効化）。
+
 ## 生成（確認用 SVG）
 
 ```sh

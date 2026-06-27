@@ -108,12 +108,16 @@ def train(
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config.lr)
 
     best_val = float("inf")
+    best_epoch = 0
+    no_improve = 0
     for epoch in range(1, train_config.epochs + 1):
         tr = _run_epoch(model, train_loader, model_config.mixtures, optimizer, train_config.grad_clip)
         with torch.no_grad():
             va = _run_epoch(model, val_loader, model_config.mixtures)
         if va < best_val:
             best_val = va
+            best_epoch = epoch
+            no_improve = 0
             artifacts.save_checkpoint(
                 checkpoint_path,
                 stats_path,
@@ -122,10 +126,15 @@ def train(
                 chars=data.chars,
                 dxdy_std=data.dxdy_std,
             )
+        else:
+            no_improve += 1
         if epoch % 10 == 0 or epoch == 1:
-            print(f"epoch {epoch:4d}  train {tr:8.4f}  val {va:8.4f}  best {best_val:8.4f}")
+            print(f"epoch {epoch:4d}  train {tr:8.4f}  val {va:8.4f}  best {best_val:8.4f} (@{best_epoch})")
+        if train_config.patience > 0 and no_improve >= train_config.patience:
+            print(f"early stop @ epoch {epoch}: val が {train_config.patience} エポック改善せず")
+            break
 
-    print(f"done. best val {best_val:.4f} -> {checkpoint_path}")
+    print(f"done. best val {best_val:.4f} @ epoch {best_epoch} -> {checkpoint_path}")
 
 
 def main() -> None:
@@ -137,6 +146,12 @@ def main() -> None:
     parser.add_argument("--hidden", type=int, default=ModelConfig.hidden)
     parser.add_argument("--mixtures", type=int, default=ModelConfig.mixtures)
     parser.add_argument("--seed", type=int, default=TrainConfig.seed)
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=TrainConfig.patience,
+        help="val 非改善で早期終了するエポック数 (0 で無効)",
+    )
     parser.add_argument("-n", "--name", default="model", help="checkpoint 名 (日付prefixが付く)")
     parser.add_argument("-o", "--out", type=Path, help="checkpoint 出力先を明示指定 (--name より優先)")
     args = parser.parse_args()
@@ -148,7 +163,11 @@ def main() -> None:
 
     model_config = ModelConfig(hidden=args.hidden, mixtures=args.mixtures)
     train_config = TrainConfig(
-        epochs=args.epochs, batch_size=args.batch_size, lr=args.lr, seed=args.seed
+        epochs=args.epochs,
+        batch_size=args.batch_size,
+        lr=args.lr,
+        seed=args.seed,
+        patience=args.patience,
     )
     train(args.data, model_config, train_config, checkpoint_path, stats_path)
 

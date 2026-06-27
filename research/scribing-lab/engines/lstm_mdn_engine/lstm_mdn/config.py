@@ -85,10 +85,11 @@ class TrainConfig:
     resample_step: float = 0.05  # 正規化セル単位での弧長間隔
     batch_size: int = 32
     lr: float = 1e-3
-    epochs: int = 400
+    epochs: int = 400  # 上限エポック
     grad_clip: float = 5.0
     val_frac: float = 0.1
     seed: int = 1
+    patience: int = 40  # val が改善しないまま続いたら早期終了 (0 で無効)
 
 
 @dataclass(frozen=True)
