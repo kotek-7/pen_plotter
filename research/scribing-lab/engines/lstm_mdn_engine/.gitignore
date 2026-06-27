@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+.pytest_cache/
+.ruff_cache/
+# 学習成果物 (再生成可能なバイナリ)。stats と vocab も checkpoint と対で出力される。
+data/*.pt
+data/stats.json
+data/samples/
