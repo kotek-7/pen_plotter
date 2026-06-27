@@ -2,7 +2,7 @@
 
 # Makefile 自身の位置を基準にするため、どの cwd から呼んでも動く。
 ROOT := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
-PROJECTS := renderer exporter runner evaluation
+PROJECTS := renderer exporter runner evaluation dataset-viewer
 
 TEXT ?=
 NAME ?=

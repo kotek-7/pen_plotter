@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Handwriting Dataset Viewer</title>
+    <link rel="stylesheet" href="/static/viewer.css" />
+  </head>
+  <body>
+    <aside class="sidebar">
+      <header class="topbar">
+        <h1>Datasets</h1>
+        <button id="reload" title="Reload">R</button>
+      </header>
+      <div id="datasetList" class="dataset-list"></div>
+    </aside>
+
+    <main class="workspace">
+      <header class="toolbar">
+        <div class="active">
+          <div id="activeName" class="active-name"></div>
+          <div id="activeStats" class="active-stats"></div>
+        </div>
+        <div class="tools">
+          <button id="zoomOut" title="縮小">-</button>
+          <button id="zoomIn" title="拡大">+</button>
+        </div>
+      </header>
+      <div id="charFilter" class="char-filter"></div>
+      <section id="grid" class="grid"></section>
+      <div id="empty" class="empty">データセットを選択してください</div>
+    </main>
+
+    <aside id="detail" class="detail" hidden>
+      <header class="detail-head">
+        <h2 id="detailChar"></h2>
+        <button id="detailClose" title="閉じる">×</button>
+      </header>
+      <div id="detailSvg" class="detail-svg"></div>
+      <pre id="detailMeta" class="detail-meta"></pre>
+    </aside>
+
+    <script src="/static/viewer.js"></script>
+  </body>
+</html>
