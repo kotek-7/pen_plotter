@@ -41,8 +41,9 @@ uv run hw-sample --chars "あいうえお" --count 5 --bias 1.0
 
 ## runner からの利用
 
-`engine.py` が `generate(request)` を公開する。runner はエンジンをプロセス内に取り込むため、
-runner 側の環境に torch が必要（このエンジンは torch を遅延 import する）。
+`engine.py` が `generate(request)` を公開する。このエンジンは `pyproject.toml` を持つ
+uv project なので、runner は**このエンジンの環境でサブプロセス実行**する（torch 等の
+依存は engine 側に閉じ、runner 本体には不要）。
 
 ```sh
 cd research/scribing-lab
@@ -50,7 +51,8 @@ make run TEXT="あいう" NAME=lstm-smoke ENGINE=engines/lstm_mdn_engine
 make convert RUN=runs/<run-dir>
 ```
 
-学習前 (checkpoint 無し) に呼ぶと、学習を促すエラーになる。
+学習前 (checkpoint 無し) に呼ぶと、学習を促すエラーになる。未学習のうちは紙面外へ
+はみ出し `safety` が `ok=False` になることがある（モデル品質の問題で、学習を進めると収束）。
 
 ## テスト
 

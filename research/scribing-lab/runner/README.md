@@ -60,6 +60,19 @@ engine 内部では文字構造、レイアウト、運動生成を自由に分�
 engine 全体である。`preview_svg` / `gcode` / `safety` を engine が返した場合は、基盤による
 生成を上書きする escape hatch として扱う。
 
+## Engine の実行環境分離
+
+engine の依存が runner 本体へ流れ込むのを避けるため、実行方式を engine ごとに分ける。
+
+- **engine が uv project（`pyproject.toml` を持つ）の場合**: その engine の環境で
+  サブプロセス実行する（`uv run --project <engine_dir>` 経由で `engine_host.py` を起動し、
+  request/result を JSON でやり取り）。torch などの重い依存は engine 側に閉じ、runner には
+  入らない。`uv run` が未 sync の環境を自動 sync するため、追加の手当ては不要。
+- **純 stdlib engine（`pyproject.toml` なし）**: 従来どおり runner プロセス内に import する。
+
+contract（`generate(request) -> result`）は両方式で同一。サブプロセス実行のため、engine は
+`generate` 中に **stdout へ出力しない**こと（ログは stderr へ。result は別ファイル経由で受け渡す）。
+
 ## Example
 
 ```sh

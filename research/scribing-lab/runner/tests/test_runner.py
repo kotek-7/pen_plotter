@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from scribing_runner.cli import _load_engine, _read_text, _run_engine, build_parser
+from scribing_runner.cli import _load_engine, _read_text, _run_engine, build_parser, run_engine
 from scribing_runner.contracts import RunRequest
 from scribing_runner.artifacts import default_lab_root, default_run_dir, write_run_artifacts
 
@@ -91,6 +91,32 @@ def test_dictionary_engine_aligns_japanese_to_shared_em_box() -> None:
     assert engine._template_for("、").source == "kanjivg"
     assert engine._template_for("・").source == "kanjivg"
     assert engine._template_for("「").source == "hand-authored-symbols"
+
+
+def test_run_engine_isolates_uv_project_engine_in_subprocess(tmp_path: Path) -> None:
+    # pyproject を持つエンジンは、その環境でサブプロセス実行される (依存分離)。
+    engine_dir = tmp_path / "toy_engine"
+    engine_dir.mkdir()
+    (engine_dir / "pyproject.toml").write_text(
+        '[project]\nname = "toy-engine"\nversion = "0.0.0"\nrequires-python = ">=3.11"\n',
+        encoding="utf-8",
+    )
+    (engine_dir / "engine.py").write_text(
+        "import sys\n"
+        "def generate(request):\n"
+        "    print('engine log to stdout should not corrupt result')\n"
+        "    return {\n"
+        "        'engine_id': 'toy',\n"
+        "        'engine_parameters': {'text': request['text']},\n"
+        "        'trajectory': [{'x': 0, 'y': 0, 't': 0, 'pen_state': 0, 'pressure': 0.0}],\n"
+        "    }\n",
+        encoding="utf-8",
+    )
+
+    result = run_engine(engine_dir, RunRequest(text="x", seed=1))
+
+    assert result["engine_id"] == "toy"
+    assert result["trajectory"]
 
 
 def test_default_run_dir_uses_datetime_prefix_and_name() -> None:

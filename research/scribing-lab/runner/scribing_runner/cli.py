@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import argparse
 import importlib.util
+import json
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 from types import ModuleType
 from typing import Any
@@ -31,9 +34,8 @@ def main() -> None:
         params=_parse_params(args.param),
         engine_path=args.engine,
     )
-    engine = _load_engine(args.engine)
-    result = _run_engine(engine, request)
-    engine_id = str(result.get("engine_id", getattr(engine, "ENGINE_ID", "unknown-engine")))
+    result = run_engine(args.engine, request)
+    engine_id = str(result.get("engine_id", "unknown-engine"))
     run_dir = args.out or default_run_dir(engine_id, run_name=args.name)
     artifacts = write_run_artifacts(run_dir=run_dir, request=request, result=result)
     print(f"run: {artifacts.run_dir}")
@@ -85,6 +87,42 @@ def _run_engine(engine: ModuleType, request: RunRequest) -> dict[str, Any]:
     if not isinstance(result, dict):
         raise SystemExit("engine generate(request) must return dict")
     if "trajectory" not in result:
+        raise SystemExit("engine result missing required key: trajectory")
+    return result
+
+
+def run_engine(engine_path: Path, request: RunRequest) -> dict[str, Any]:
+    """エンジンを実行する。
+
+    エンジンディレクトリが uv project (``pyproject.toml`` あり) の場合は、その環境で
+    サブプロセス実行して依存を分離する。純 stdlib エンジンは従来どおり in-process。
+    """
+    path = engine_path.resolve()
+    engine_dir = path if path.is_dir() else path.parent
+    if (engine_dir / "pyproject.toml").exists():
+        return _run_engine_subprocess(engine_dir, request)
+    return _run_engine(_load_engine(engine_path), request)
+
+
+def _run_engine_subprocess(engine_dir: Path, request: RunRequest) -> dict[str, Any]:
+    host = Path(__file__).resolve().parent / "engine_host.py"
+    with tempfile.NamedTemporaryFile("w", suffix=".json", delete=False) as tmp:
+        out_path = Path(tmp.name)
+    try:
+        proc = subprocess.run(
+            ["uv", "run", "--project", str(engine_dir), "python", str(host), str(engine_dir), str(out_path)],
+            input=json.dumps(request.to_engine_dict(), ensure_ascii=False),
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            raise SystemExit(
+                f"engine subprocess failed (exit {proc.returncode}):\n{proc.stderr.strip()}"
+            )
+        result = json.loads(out_path.read_text(encoding="utf-8"))
+    finally:
+        out_path.unlink(missing_ok=True)
+    if not isinstance(result, dict) or "trajectory" not in result:
         raise SystemExit("engine result missing required key: trajectory")
     return result
 
