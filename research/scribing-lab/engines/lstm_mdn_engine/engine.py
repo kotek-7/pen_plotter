@@ -33,6 +33,7 @@ class EngineConfig:
     char_spacing: float = 2.5
     line_height: float = 1.45
     advance_ratio: float = 0.9
+    baseline: float = 0.9  # ベースライン位置 (セル上端からの比率)
     bias: float = 1.0
     draw_speed_mm_s: float = 32.0
     penup_speed_mm_s: float = 110.0
@@ -41,7 +42,7 @@ class EngineConfig:
 def generate(request: dict[str, Any]) -> dict[str, Any]:
     import torch
 
-    from lstm_mdn import artifacts, sampler, trajectory
+    from lstm_mdn import artifacts, layout, sampler, trajectory
     from lstm_mdn.config import SampleConfig, resolve_checkpoint
 
     text = unicodedata.normalize("NFKC", str(request.get("text", "")))
@@ -85,8 +86,12 @@ def generate(request: dict[str, Any]) -> dict[str, Any]:
             y_top -= line_advance
 
         strokes = sampler.generate_strokes(model, cid, dxdy_std, sample_config)
-        strokes_mm = trajectory.map_to_paper(
-            strokes, origin_x=x, top_y=y_top, size=config.char_size
+        strokes_mm = layout.place_in_cell(
+            strokes,
+            origin_x=x,
+            top_y=y_top,
+            cell_size=config.char_size,
+            baseline=config.baseline,
         )
         t, cur_pos = trajectory.append_canonical(
             points,

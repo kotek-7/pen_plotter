@@ -65,8 +65,14 @@ make convert RUN=runs/<run-dir>
 ```
 
 engine は `params` で挙動を変えられる（`checkpoint`＝パス or `data/checkpoints/` 配下の名前で
-既定は最新、`bias`、`char_size` など）。`make run` は param 非対応なので、param を渡すときは
-runner の `scribe-run --param` を直接使う。
+既定は最新、`bias`、`char_size`、`baseline` など）。`make run` は param 非対応なので、param を
+渡すときは runner の `scribe-run --param` を直接使う。
+
+文字配置 (DR Phase5 の layout) は完全分離せず engine 内の軽量レイアウト (`lstm_mdn/layout.py`)
+で行う。**サイズ正規化はせず**（字面の大きさはモデル出力の素のまま＝セル正規化 × `char_size`）、
+**位置だけ**揃える: box (セル) / baseline (`baseline`＝セル上端からの比率で字面下端を揃える) /
+水平中央寄せ / spacing (`advance_ratio`＋`char_spacing`、改行は `line_height`)。bbox は中心・下端の
+算出にのみ使い拡縮はしない。
 
 ```sh
 cd research/scribing-lab/runner
