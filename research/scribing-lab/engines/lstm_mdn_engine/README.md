@@ -41,6 +41,27 @@ checkpoint は **日付・名前つき**で `data/checkpoints/<YYYYMMDDTHHMMSS>_
 保存されるのは常に最良 val 時点の checkpoint。`--epochs` は大きめにして patience に任せてよい
 （`--patience 0` で早期終了を無効化）。
 
+## GPU 学習（別マシン）
+
+学習は device 非依存。`--device`（既定 `auto`＝cuda > mps > xpu > cpu の順で自動選択）で
+実行先を選ぶ。漢字込みで規模が大きいので、重い学習は **CUDA マシンで回す想定**。
+
+このリポジトリの torch は CPU 版に固定（`pyproject.toml` の uv index）しているため、CUDA
+マシンでは torch を CUDA ビルドに差し替えてから学習する。
+
+```sh
+# CUDA マシン側 (例: CUDA 12.4)。pyproject を編集せず差し替える方法:
+uv sync --extra dev
+uv pip install --reinstall torch --index-url https://download.pytorch.org/whl/cu124
+uv run --no-sync hw-train --device cuda \
+  --epochs 600 --patience 40 --batch-size 128 --name kanji
+#  (恒久的にしたいなら pyproject の torch index を pytorch-cu124 に変えて uv sync でもよい)
+```
+
+`--device cuda` 指定時は CUDA を必須化（無ければ torch がエラー）。checkpoint は CPU で
+読み戻せる形（`map_location="cpu"`）で保存するので、生成した `.pt` を CPU マシンへ持ち帰れば
+そのまま `hw-sample` / runner で推論できる。**推論（generate / engine）は CPU 据え置き**。
+
 ## 生成（確認用 SVG）
 
 ```sh

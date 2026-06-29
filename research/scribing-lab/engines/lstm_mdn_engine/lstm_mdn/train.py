@@ -55,12 +55,31 @@ def collate(batch):
     return x, dxdy, pen, mask, torch.tensor(lengths), cids
 
 
-def _run_epoch(model, loader, mixtures, optimizer=None, grad_clip=5.0):
+def resolve_device(spec: str) -> torch.device:
+    """device 指定を解決する。auto は cuda > mps > xpu > cpu の順で利用可能なものを選ぶ。"""
+    if spec and spec != "auto":
+        return torch.device(spec)
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if getattr(getattr(torch.backends, "mps", None), "is_available", lambda: False)():
+        return torch.device("mps")
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        return torch.device("xpu")
+    return torch.device("cpu")
+
+
+def _run_epoch(model, loader, mixtures, device, optimizer=None, grad_clip=5.0):
     train = optimizer is not None
     model.train(train)
     total = 0.0
     count = 0
     for x, dxdy, pen, mask, lengths, cids in loader:
+        x = x.to(device)
+        dxdy = dxdy.to(device)
+        pen = pen.to(device)
+        mask = mask.to(device)
+        cids = cids.to(device)
+        # lengths は pack_padded_sequence のため CPU のまま (model 側で .cpu() 済み)。
         raw = model(x, cids, lengths)
         loss, _, _ = mdn_loss(raw, dxdy, pen, mask, mixtures)
         if train:
@@ -79,10 +98,14 @@ def train(
     train_config: TrainConfig,
     checkpoint_path: Path,
     stats_path: Path,
+    device: torch.device,
 ) -> None:
     random.seed(train_config.seed)
     np.random.seed(train_config.seed)
     torch.manual_seed(train_config.seed)
+    if device.type == "cuda":
+        torch.cuda.manual_seed_all(train_config.seed)
+    print(f"device={device}")
 
     data = build_dataset(dataset_glob, step=train_config.resample_step)
     print(f"samples={len(data.sequences)} chars={len(data.chars)} dxdy_std={data.dxdy_std}")
@@ -104,16 +127,18 @@ def train(
     )
     val_loader = DataLoader(val_set, batch_size=train_config.batch_size, collate_fn=collate)
 
-    model = CharCondLSTMMDN(num_chars=len(data.chars), config=model_config)
+    model = CharCondLSTMMDN(num_chars=len(data.chars), config=model_config).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=train_config.lr)
 
     best_val = float("inf")
     best_epoch = 0
     no_improve = 0
     for epoch in range(1, train_config.epochs + 1):
-        tr = _run_epoch(model, train_loader, model_config.mixtures, optimizer, train_config.grad_clip)
+        tr = _run_epoch(
+            model, train_loader, model_config.mixtures, device, optimizer, train_config.grad_clip
+        )
         with torch.no_grad():
-            va = _run_epoch(model, val_loader, model_config.mixtures)
+            va = _run_epoch(model, val_loader, model_config.mixtures, device)
         if va < best_val:
             best_val = va
             best_epoch = epoch
@@ -154,7 +179,11 @@ def main() -> None:
     )
     parser.add_argument("-n", "--name", default="model", help="checkpoint 名 (日付prefixが付く)")
     parser.add_argument("-o", "--out", type=Path, help="checkpoint 出力先を明示指定 (--name より優先)")
+    parser.add_argument(
+        "--device", default="auto", help="auto / cuda / mps / xpu / cpu (既定 auto)"
+    )
     args = parser.parse_args()
+    device = resolve_device(args.device)
 
     if args.out is not None:
         checkpoint_path, stats_path = args.out, _stats_path_for(args.out)
@@ -169,7 +198,7 @@ def main() -> None:
         seed=args.seed,
         patience=args.patience,
     )
-    train(args.data, model_config, train_config, checkpoint_path, stats_path)
+    train(args.data, model_config, train_config, checkpoint_path, stats_path, device)
 
 
 if __name__ == "__main__":
