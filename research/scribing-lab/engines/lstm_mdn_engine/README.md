@@ -62,6 +62,25 @@ uv run --no-sync hw-train --device cuda \
 読み戻せる形（`map_location="cpu"`）で保存するので、生成した `.pt` を CPU マシンへ持ち帰れば
 そのまま `hw-sample` / runner で推論できる。**推論（generate / engine）は CPU 据え置き**。
 
+### リモート GPU マシンで一括実行
+
+`scripts/remote_train.sh` が ssh 接続 → rsync 転送(engine + datasets) → 学習(ログ) →
+checkpoint 回収までを行う。
+
+```sh
+scripts/remote_train.sh me@gpu-box
+scripts/remote_train.sh me@gpu-box -d ~/work/scribing -- \
+  --epochs 600 --patience 40 --batch-size 128 --hidden 256 --name kanji
+```
+
+- 転送先のディレクトリ構成（`<dir>/engines/lstm_mdn_engine` と `<dir>/handwriting-collector/datasets`）
+  を保つので、学習は既定の `datasets/*.jsonl` glob でそのまま回る。
+- リモートに uv が無ければ自動導入し、CUDA torch（既定 cu124、`-i` で変更）を入れて
+  `--device cuda` で学習。学習ログは標準出力に流れる（必要ならローカルで `| tee` する）。
+- 終了後（途中失敗でも）`data/checkpoints/` を回収する（early stopping の best-val が残る）。
+- `--` 以降は `hw-train` にそのまま渡る（既定は `--device cuda --epochs 600 --patience 40
+  --batch-size 128 --name remote`）。
+
 ## 生成（確認用 SVG）
 
 ```sh
