@@ -62,24 +62,34 @@ uv run --no-sync hw-train --device cuda \
 読み戻せる形（`map_location="cpu"`）で保存するので、生成した `.pt` を CPU マシンへ持ち帰れば
 そのまま `hw-sample` / runner で推論できる。**推論（generate / engine）は CPU 据え置き**。
 
-### リモート GPU マシンで一括実行
+### リモート GPU マシンで学習（tmux 対応）
 
-`scripts/remote_train.sh` が ssh 接続 → rsync 転送(engine + datasets) → 学習(ログ) →
-checkpoint 回収までを行う。
+`scripts/remote_train.sh` が ssh 接続 → rsync 転送(engine + datasets) → **tmux で学習** →
+checkpoint 回収までを担う。学習はリモートの detached tmux セッションで走るので、**ssh が
+切れても継続**する。
 
 ```sh
-scripts/remote_train.sh me@gpu-box
-scripts/remote_train.sh me@gpu-box -d ~/work/scribing -- \
-  --epochs 600 --patience 40 --batch-size 128 --hidden 256 --name kanji
+# 開始 (転送 → tmux 起動 → attach で実時表示。Ctrl-b d で detach しても学習は継続)
+scripts/remote_train.sh me@gpu-box -- --epochs 600 --patience 40 --batch-size 128 --name kanji
+scripts/remote_train.sh me@gpu-box status     # 実行状態 (running / finished / not running)
+scripts/remote_train.sh me@gpu-box attach     # 実行中セッションへ再接続
+scripts/remote_train.sh me@gpu-box fetch      # 完了後に checkpoint を回収
+scripts/remote_train.sh me@gpu-box kill       # セッション停止
 ```
 
 - 転送先のディレクトリ構成（`<dir>/engines/lstm_mdn_engine` と `<dir>/handwriting-collector/datasets`）
   を保つので、学習は既定の `datasets/*.jsonl` glob でそのまま回る。
 - リモートに uv が無ければ自動導入し、CUDA torch（既定 cu124、`-i` で変更）を入れて
-  `--device cuda` で学習。学習ログは標準出力に流れる（必要ならローカルで `| tee` する）。
-- 終了後（途中失敗でも）`data/checkpoints/` を回収する（early stopping の best-val が残る）。
-- `--` 以降は `hw-train` にそのまま渡る（既定は `--device cuda --epochs 600 --patience 40
-  --batch-size 128 --name remote`）。
+  `--device cuda` で学習。学習ログは tmux のペイン（標準出力）に流れる。
+- 完了は `.train_done` マーカーで判定（`status`）。完了後 `fetch` で `data/checkpoints/` を回収
+  （early stopping の best-val が残る）。
+- `--` 以降は `hw-train` にそのまま渡る（既定 `--device cuda --epochs 600 --patience 40
+  --batch-size 128 --name remote`）。`-d` 作業dir / `-i` torch index / `-s` tmux名 を変えられる。
+- tmux を使わず同期実行＋自動回収したい場合は `--foreground`。
+- ssh は ControlMaster で多重化するので、**認証（パスワード等）は最初の一回だけ**。毎回の
+  入力が煩わしければ鍵認証（`ssh-copy-id <host>`）を推奨。
+- venv の Python は torch wheel のある版に固定する（既定 3.12、`-p` で変更）。リモート既定が
+  Python 3.14 等だと torch wheel が無く入らないため。
 
 ## 生成（確認用 SVG）
 
