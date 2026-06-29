@@ -11,9 +11,7 @@ CHECKPOINTS_DIR = DATA_DIR / "checkpoints"
 # 旧来の固定パス (後方互換: 新規は checkpoints/ に日付・名前つきで出力する)。
 CHECKPOINT_PATH = DATA_DIR / "checkpoint.pt"
 STATS_PATH = DATA_DIR / "stats.json"
-DEFAULT_DATASET_GLOB = str(
-    ENGINE_DIR.parents[1] / "handwriting-collector" / "datasets" / "*.jsonl"
-)
+DEFAULT_DATASET_GLOB = str(ENGINE_DIR.parents[1] / "datasets" / "*.jsonl")
 
 
 def _stats_path_for(checkpoint_path: Path) -> Path:

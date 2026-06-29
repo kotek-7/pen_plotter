@@ -25,12 +25,12 @@ uv sync --extra dev
 
 ## 学習
 
-`--data` は既定で `../../handwriting-collector/datasets/*.jsonl` を glob する。拡張データ
+`--data` は既定で `../../datasets/*.jsonl` を glob する。拡張データ
 （`dataset-augment` の出力）を同じ `datasets/` に置けば、元＋拡張がまとめて学習対象になる。
 
 ```sh
 uv run hw-train --epochs 400 --name aug          # datasets/*.jsonl 全部 (元+拡張) で学習
-uv run hw-train --epochs 400 --data "../../handwriting-collector/datasets/*.aug4x.jsonl" --name augonly
+uv run hw-train --epochs 400 --data "../../datasets/*.aug4x.jsonl" --name augonly
 ```
 
 checkpoint は **日付・名前つき**で `data/checkpoints/<YYYYMMDDTHHMMSS>_<name>.pt`（＋ `.stats.json`）
@@ -77,7 +77,7 @@ scripts/remote_train.sh me@gpu-box fetch      # 完了後に checkpoint を回�
 scripts/remote_train.sh me@gpu-box kill       # セッション停止
 ```
 
-- 転送先のディレクトリ構成（`<dir>/engines/lstm_mdn_engine` と `<dir>/handwriting-collector/datasets`）
+- 転送先のディレクトリ構成（`<dir>/engines/lstm_mdn_engine` と `<dir>/datasets`）
   を保つので、学習は既定の `datasets/*.jsonl` glob でそのまま回る。
 - リモートに uv が無ければ自動導入し、CUDA torch（既定 cu124、`-i` で変更）を入れて
   `--device cuda` で学習。学習ログは tmux のペイン（標準出力）に流れる。

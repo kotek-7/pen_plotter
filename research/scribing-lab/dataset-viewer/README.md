@@ -10,7 +10,7 @@
 ```sh
 cd research/scribing-lab/dataset-viewer
 uv sync --extra dev
-uv run scribe-dataset-view              # 既定: ../handwriting-collector/datasets を表示
+uv run scribe-dataset-view              # 既定: ../datasets を表示
 uv run scribe-dataset-view <dir> -p 8766
 ```
 

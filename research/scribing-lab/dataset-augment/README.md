@@ -22,7 +22,7 @@ deep-research の指針 (§8) に準拠した保守的な変換を、各サン�
 ```sh
 cd research/scribing-lab/dataset-augment
 uv sync --extra dev
-uv run scribe-augment ../handwriting-collector/datasets/handwriting_raw_self_001_hiragana_basic_*.jsonl
+uv run scribe-augment ../datasets/handwriting_raw_self_001_hiragana_basic_*.jsonl
 ```
 
 既定では入力と同じディレクトリに `<stem>.aug4x.jsonl` を出力する (拡張分のみ)。engine の

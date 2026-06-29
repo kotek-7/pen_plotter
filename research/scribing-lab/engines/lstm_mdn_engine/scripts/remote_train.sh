@@ -54,7 +54,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ENGINE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LAB_DIR="$(cd "$ENGINE_DIR/../.." && pwd)"
-DATASETS_DIR="$LAB_DIR/handwriting-collector/datasets"
+DATASETS_DIR="$LAB_DIR/datasets"
 REMOTE_ENGINE="$REMOTE_DIR/engines/lstm_mdn_engine"
 DONE_MARKER=".train_done"
 
@@ -69,12 +69,12 @@ trap cleanup EXIT
 
 transfer() {
   echo ">> transfer -> $HOST:$REMOTE_DIR"
-  "${SSH[@]}" "$HOST" "mkdir -p '$REMOTE_ENGINE' '$REMOTE_DIR/handwriting-collector/datasets'"
+  "${SSH[@]}" "$HOST" "mkdir -p '$REMOTE_ENGINE' '$REMOTE_DIR/datasets'"
   rsync -az --delete -e "$RSYNC_E" \
     --exclude '.venv' --exclude '__pycache__' --exclude '*.pyc' \
     --exclude '.pytest_cache' --exclude '.ruff_cache' --exclude 'dist' --exclude 'data' \
     "$ENGINE_DIR/" "$HOST:$REMOTE_ENGINE/"
-  rsync -az -e "$RSYNC_E" "$DATASETS_DIR/" "$HOST:$REMOTE_DIR/handwriting-collector/datasets/"
+  rsync -az -e "$RSYNC_E" "$DATASETS_DIR/" "$HOST:$REMOTE_DIR/datasets/"
 }
 
 push_run_script() {

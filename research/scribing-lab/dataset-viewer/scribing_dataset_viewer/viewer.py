@@ -48,7 +48,7 @@ def default_lab_root() -> Path:
 
 
 def default_datasets_dir() -> Path:
-    return default_lab_root() / "handwriting-collector" / "datasets"
+    return default_lab_root() / "datasets"
 
 
 def _count_lines(path: Path) -> int:
